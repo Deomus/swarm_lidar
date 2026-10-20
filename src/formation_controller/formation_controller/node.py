@@ -21,6 +21,7 @@ class FormationController(Node):
                         marker_offset_z=.45, poses_topic='/mesh/relative_poses',
                         leader_prediction_horizon=1.9, leader_prediction_max_correction=.6,
                         leader_prediction_max_acceleration=1., leader_prediction_smoothing=.3,
+                        leader_status_topic='/mission/execution_status',
                         states_topic='/mesh/states', commands_topic='/swarm/commands',
                         formation_topic='/swarm/formation_command',
                         status_topic='/swarm/formation_status', target_topic='/swarm/target_offsets')
@@ -40,6 +41,7 @@ class FormationController(Node):
         self.formation, self.scale = 'line', 1.
         self.previous_time = None
         self.last_status = None
+        self.leader_intent = None
         self.reason = 'DISABLED'
         self.command_pub = self.create_publisher(SwarmCommand, self.p['commands_topic'], 10)
         self.status_pub = self.create_publisher(String, self.p['status_topic'], 10)
@@ -47,6 +49,7 @@ class FormationController(Node):
         self.pose_sub = self.create_subscription(RelativePose, self.p['poses_topic'], self.on_pose, 10)
         self.state_sub = self.create_subscription(SwarmState, self.p['states_topic'], self.on_state, 10)
         self.formation_sub = self.create_subscription(FormationCommand, self.p['formation_topic'], self.on_formation, 10)
+        self.leader_status_sub = self.create_subscription(String, self.p['leader_status_topic'], self.on_leader_status, 10)
         self.enable_service = self.create_service(Trigger, '/swarm/enable_formation', self.enable)
         self.hold_service = self.create_service(Trigger, '/swarm/hold', self.hold)
         self.timer = self.create_timer(self.p['period'], self.tick)
@@ -76,6 +79,27 @@ class FormationController(Node):
         if 0 <= self.now() - self.seconds(msg.timestamp) <= self.p['stale_timeout']:
             if old is None or self.seconds(msg.timestamp) >= self.seconds(old.timestamp):
                 self.states[msg.uav_id] = msg
+
+    def on_leader_status(self, msg):
+        try:
+            value = json.loads(msg.data)
+            if (isinstance(value['valid'], bool) and isinstance(value['status'], str)
+                    and math.isfinite(value['stamp'])
+                    and 0 <= self.now()-value['stamp'] <= self.p['stale_timeout']):
+                self.leader_intent = value
+        except (ValueError, TypeError, KeyError):
+            pass
+
+    def forward_velocity(self, leader, now):
+        v = leader.velocity.linear
+        velocity = np.array([v.x, v.y, v.z])
+        intent = self.leader_intent
+        if (intent is not None and intent['valid'] and intent['status'] in ('MANUAL', 'MISSION')
+                and 0 <= now-intent['stamp'] <= self.p['stale_timeout']):
+            return self.predictor.update(velocity, self.seconds(leader.timestamp), now)
+        # Шум оценки ускорения в HOLD не должен подталкивать ведомых.
+        self.predictor.reset()
+        return velocity
 
     def data_ready(self):
         now = self.now()
@@ -174,8 +198,7 @@ class FormationController(Node):
                     self.enabled = False
                     if previous is not None and now >= previous:
                         self.plan.pause(now - previous)
-                v = leader.velocity.linear
-                forward = self.predictor.update([v.x, v.y, v.z], self.seconds(leader.timestamp), now)
+                forward = self.forward_velocity(leader, now)
                 for index, controller in enumerate(self.controllers):
                     offset = sample.offsets[index].copy()
                     for j, other in enumerate(all_points):
