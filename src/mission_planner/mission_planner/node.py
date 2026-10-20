@@ -98,6 +98,9 @@ class MissionPlanner(Node):
             pose.pose.position.z = self.get_parameter('working_altitude').value
             pose.pose.orientation.w = 1.
             path.poses.append(pose)
+        # Последняя точка — точная цель внутри безопасной клетки, не её центр.
+        path.poses[-1].pose.position.x = goal.pose.position.x
+        path.poses[-1].pose.position.y = goal.pose.position.y
         return path
 
 

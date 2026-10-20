@@ -122,3 +122,26 @@ def test_manual_velocity_limits_in_continuous_valid_operation():
     assert np.linalg.norm(velocity, axis=1).max() <= 1.5 + 1e-9
     assert np.linalg.norm(acceleration, axis=1).max() <= 1 + 1e-9
     assert np.linalg.norm(jerk, axis=1).max() <= 2 + 1e-9
+
+
+def test_revoked_path_stops_active_mission_and_cannot_be_restarted():
+    core = ready()
+    core.set_path([[20, 0, 3]])
+    core.select_mode('MISSION', 10)
+    assert core.tick(10).valid
+    core.revoke_path()
+    output = core.tick(10.1)
+    assert output.status == 'PATH_REVOKED' and not output.valid
+    np.testing.assert_array_equal(output.velocity, 0)
+    with pytest.raises(ValueError, match='path'):
+        core.select_mode('MISSION', 10.1)
+
+
+def test_revoking_pending_path_does_not_interrupt_manual_control():
+    core = ready()
+    core.set_path([[20, 0, 3]])
+    core.manual([1, 0, 0], 10, 10)
+    core.select_mode('MANUAL', 10)
+    core.revoke_path()
+    assert core.tick(10.1).valid
+    assert core.pending_path is None

@@ -93,6 +93,14 @@ class LeaderCore:
             raise ValueError('Path must contain finite XYZ waypoints')
         self.pending_path = points.copy()
 
+    def revoke_path(self):
+        """Пустой путь планировщика отзывает ожидающую и текущую миссию."""
+        self.pending_path = self.path = None
+        self.index = 0
+        if self.mode == 'MISSION':
+            self.mode, self.status = 'HOLD', 'PATH_REVOKED'
+            self.limiter = VelocityLimiter(**self.limits)
+
     def select_mode(self, mode, now):
         if mode not in ('HOLD', 'MANUAL', 'MISSION'):
             raise ValueError('Unknown mode')
@@ -111,6 +119,7 @@ class LeaderCore:
         self.state_valid = False
         self.limiter = VelocityLimiter(**self.limits)
         self.last_tick = None
+        self.pending_path = self.path = None
 
     def tick(self, now):
         if not math.isfinite(now):

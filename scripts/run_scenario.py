@@ -158,14 +158,17 @@ class Scenario:
 
     def check_pose_loss(self):
         self.call('/leader/hold')
+        self.settle('line', 1., 45.)
         start = self.now()
         self.call('/mesh/drop_relative_poses')
         self.event('Потеря LiDAR-поз в mesh: 0.7 с')
         def stopped():
             return (self.status.get('mode') == 'DATA_HOLD'
                     and start <= self.status.get('time', -1) <= self.now()
+                    and self.now() - self.status['time'] < .5
                     and all(i in self.commands and not self.commands[i].valid
-                            and self.commands[i].source_stamp.sec + self.commands[i].source_stamp.nanosec*1e-9 >= start
+                            and start <= self.commands[i].source_stamp.sec + self.commands[i].source_stamp.nanosec*1e-9 <= self.now()
+                            and self.now() - self.commands[i].source_stamp.sec - self.commands[i].source_stamp.nanosec*1e-9 < .5
                             and all(abs(v) < 1e-9 for v in (
                                 self.commands[i].target_velocity.linear.x,
                                 self.commands[i].target_velocity.linear.y,
@@ -200,6 +203,7 @@ class Scenario:
         if not self.planner.startswith('PLANNED'):
             raise RuntimeError(self.planner)
         self.event(self.planner)
+        return goal
 
     def run(self):
         self.prepare()
@@ -222,11 +226,31 @@ class Scenario:
             self.call('/leader/hold')
             self.check_pose_loss()
         else:
-            self.mission_goal()
+            goal = self.mission_goal()
+            mission_start = self.now()
             self.call('/leader/mission')
-            self.wait(lambda: self.execution.get('status') in ['COMPLETE', 'MISSION_TIMEOUT'], 180., 'Миссия не завершилась')
+            terminal = {'COMPLETE', 'WAYPOINT_TIMEOUT', 'STATE_STALE', 'CLOCK_RESET', 'PATH_REVOKED'}
+            self.wait(lambda: mission_start <= self.execution.get('stamp', -1) <= self.now()
+                      and self.now()-self.execution['stamp'] < .5
+                      and self.execution.get('status') in terminal, 180., 'Миссия не завершилась')
             if self.execution.get('status') != 'COMPLETE':
                 raise RuntimeError(str(self.execution))
+            self.settle('line', 1., 45.)
+            stable_since = [None]
+            def arrived():
+                p, target = self.states[0].pose.position, goal.pose.position
+                v = self.states[0].velocity.linear
+                error = ((p.x-target.x)**2 + (p.y-target.y)**2 + (p.z-target.z)**2)**.5
+                good = self.fresh() and error < .5 and v.x*v.x + v.y*v.y + v.z*v.z < .15**2
+                if not good:
+                    stable_since[0] = None
+                elif stable_since[0] is None:
+                    stable_since[0] = self.now()
+                return good and self.now() - stable_since[0] >= 1.
+            self.wait(arrived, 30., 'Лидер не остановился у цели')
+            p, target = self.states[0].pose.position, goal.pose.position
+            error = ((p.x-target.x)**2 + (p.y-target.y)**2 + (p.z-target.z)**2)**.5
+            self.event(f'Цель достигнута: ошибка положения лидера {error:.3f} м')
             self.event('Миссия завершена, лидер HOLD')
         self.call('/leader/hold')
         self.call('/swarm/hold')

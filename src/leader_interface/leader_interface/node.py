@@ -81,6 +81,10 @@ class LeaderInterface(Node):
         if not math.isfinite(stamp) or stamp > self.now():
             self.get_logger().warning('Маршрут отклонён: timestamp из будущего')
             return
+        if not message.poses:
+            self.core.revoke_path()
+            self.get_logger().warning('Маршрут отозван планировщиком')
+            return
         if any(pose.header.frame_id not in ('', self.p['frame_id']) for pose in message.poses):
             self.get_logger().warning('Маршрут отклонён: frame waypoint не совпадает')
             return

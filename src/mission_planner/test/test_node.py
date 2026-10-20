@@ -66,3 +66,11 @@ def test_path_height_and_invalid_pose(planner):
     planner.state.valid = False
     with pytest.raises(PlanningError, match='валидной'):
         planner.plan(goal)
+
+
+def test_path_finishes_at_requested_point_instead_of_cell_center(planner):
+    goal = inputs(planner)
+    goal.pose.position.x, goal.pose.position.y = 8.1, 7.2
+    path = planner.plan(goal)
+    assert path.poses[-1].pose.position.x == pytest.approx(8.1)
+    assert path.poses[-1].pose.position.y == pytest.approx(7.2)
