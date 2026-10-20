@@ -17,7 +17,9 @@ def main():
     parser.add_argument('--lidar', choices=['true', 'false'], default='false')
     parser.add_argument('--stack', choices=['true', 'false'], default='true')
     args = parser.parse_args()
-    px4 = Path(args.px4_dir).resolve()
+    # launch передаёт аргументы без shell, поэтому `~` не раскрывается
+    # автоматически как в интерактивной оболочке.
+    px4 = Path(args.px4_dir).expanduser().resolve()
     build = px4 / 'build/px4_sitl_default'
     if not (build / 'bin/px4').is_file():
         parser.error('Сначала соберите PX4: make px4_sitl')
