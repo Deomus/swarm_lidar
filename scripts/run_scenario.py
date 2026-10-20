@@ -262,15 +262,26 @@ class Scenario:
             self.call('/swarm/hold')
         except Exception:
             pass
-        for i in range(4):
-            if i in self.states and self.states[i].armed:
-                try:
-                    self.call(f'/uav_{i}/land')
-                except Exception as error:
-                    self.event(str(error))
-        self.wait(lambda: self.fresh() and all(not self.states[i].armed for i in range(4)),
-                  40., 'Не все аппараты сели')
-        self.event('Все аппараты разоружены')
+        deadline = time.monotonic() + 50.
+        next_request, first_round = 0., True
+        while time.monotonic() < deadline:
+            rclpy.spin_once(self.node, timeout_sec=.05)
+            if not first_round and self.fresh() and all(not self.states[i].armed for i in range(4)):
+                self.event('Все аппараты разоружены')
+                return
+            if time.monotonic() >= next_request:
+                for i in range(4):
+                    if time.monotonic() >= deadline:
+                        break
+                    # Первый запрос каждому аппарату независимо от сохранённого armed.
+                    if first_round or i not in self.states or self.states[i].armed:
+                        try:
+                            self.call(f'/uav_{i}/land')
+                        except Exception as error:
+                            self.event(str(error))
+                first_round = False
+                next_request = time.monotonic() + 3.
+        raise RuntimeError('Не все аппараты подтвердили посадку свежей телеметрией')
 
 
 def main():
@@ -288,13 +299,21 @@ def main():
                                  '--ros-args', '--params-file', str(config), '-p', 'sensor_z:=1.9'],
                                  stdout=handle, stderr=subprocess.STDOUT, start_new_session=True)
     success = landed = False
+    run_error = landing_error = None
     try:
         scenario.run()
         success = True
+    except BaseException as error:
+        run_error = f'{type(error).__name__}: {error}'
+        raise
     finally:
         try:
             scenario.land()
             landed = True
+        except Exception as error:
+            landing_error = f'{type(error).__name__}: {error}'
+            if run_error is None:
+                raise
         finally:
             recorder.send_signal(signal.SIGINT)
             try:
@@ -305,6 +324,7 @@ def main():
             handle.close()
             (output/'result.json').write_text(json.dumps(dict(scenario=args.scenario, passed=success and landed,
                                                passed_run=success, passed_landing=landed,
+                                               run_error=run_error, landing_error=landing_error,
                                                events=scenario.events), ensure_ascii=False, indent=2)+'\n')
             scenario.node.destroy_node()
             rclpy.shutdown()
