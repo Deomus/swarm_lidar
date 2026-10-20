@@ -13,7 +13,7 @@ from rclpy.node import Node
 from swarm_interfaces.msg import RelativePose, SwarmState
 from tf2_msgs.msg import TFMessage
 
-from evaluation.metrics import (Pose, min_pair_distance, model_id, nearest,
+from evaluation.metrics import (Pose, min_pair_distance, model_id, model_to_base, nearest,
                                 relative_heading, relative_lidar, summarize)
 
 
@@ -31,10 +31,12 @@ class Recorder(Node):
     def __init__(self, output):
         super().__init__('evaluation_recorder')
         for key, value in {'period': .1, 'match_tolerance': .15, 'stale_timeout': .5,
-                           'offset_timeout': .5, 'sensor_z': .45, 'marker_z': .45}.items():
+                           'offset_timeout': .5, 'sensor_z': 1.9, 'marker_z': .45,
+                           'model_base_z': .24}.items():
             self.declare_parameter(key, value)
         self.p = {key: self.get_parameter(key).value for key in
-                  ['period', 'match_tolerance', 'stale_timeout', 'offset_timeout', 'sensor_z', 'marker_z']}
+                  ['period', 'match_tolerance', 'stale_timeout', 'offset_timeout',
+                   'sensor_z', 'marker_z', 'model_base_z']}
         if not all(isfinite(v) for v in self.p.values()) or any(
                 self.p[k] <= 0 for k in ['period', 'match_tolerance', 'stale_timeout', 'offset_timeout']):
             raise ValueError('Некорректные параметры evaluation')
@@ -71,7 +73,9 @@ class Recorder(Node):
                 continue
             if q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w < 1e-12:
                 continue
-            group[index] = priority, Pose((t.x, t.y, t.z), (q.x, q.y, q.z, q.w))
+            base_pose = model_to_base(Pose((t.x, t.y, t.z), (q.x, q.y, q.z, q.w)),
+                                      self.p['model_base_z'])
+            group[index] = priority, base_pose
         for stamp, poses in grouped.items():
             self.gt.append((stamp, {i: item[1] for i, item in poses.items()}))
 

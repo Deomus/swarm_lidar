@@ -6,6 +6,7 @@ import pytest
 import rclpy
 from swarm_interfaces.msg import RelativePose, SwarmState
 from tf2_msgs.msg import TFMessage
+from rclpy.parameter import Parameter
 
 from evaluation.record import Recorder
 
@@ -14,6 +15,8 @@ from evaluation.record import Recorder
 def recorder(tmp_path):
     rclpy.init()
     node = Recorder(tmp_path)
+    node.set_parameters([Parameter('sensor_z', value=.45)])
+    node.p['sensor_z'] = .45
     yield node, tmp_path
     node.finish()
     node.destroy_node()
@@ -58,7 +61,7 @@ def test_synthetic_gt_and_invalid_share(recorder):
     node.on_state(state)
     node.tick()
     assert len(node.rows) == 3
-    assert all(row['localization_error_m'] == 0. for row in node.rows)
+    assert all(row['localization_error_m'] == pytest.approx(0., abs=1e-12) for row in node.rows)
     assert all(row['formation_error_m'] == 0. for row in node.rows)
     assert all(row['min_pair_distance_m'] == 2. for row in node.rows)
     relative.valid = False

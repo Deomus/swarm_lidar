@@ -18,12 +18,34 @@
 вроде `uav_1/base_link` игнорируются, поскольку их transform может быть локальным.
 При наличии direct и scoped дублей приоритет имеет direct model name.
 Transform должен содержать world-позу модели и timestamp симуляции.
-Bridge `/world/swarm/pose/info` в TFMessage подключается отдельно.
+Обычный `ros_gz_bridge` для `/world/swarm/pose/info` здесь не используется:
+SceneBroadcaster заполняет `Pose_V.header.stamp` и `pose.name`, но не
+индивидуальные TF headers. Проверенный стандартный конвертер выдавал пустые
+frame names и stamp=0, поэтому такие данные не дают корректной оценки.
+
+Вместо него `ground_truth_node` внутри пакета `evaluation` подписывается
+на Gazebo Transport `/world/swarm/pose/info`. Он сохраняет верхний timestamp,
+фильтрует только `pose.name=uav_0..uav_3` и публикует четыре world transforms
+в `/evaluation/ground_truth` с parent `map`. Индексы массива и порядок
+моделей не используются. Нужны Python bindings `gz.transport13`, `gz.msgs10`
+и тот же `GZ_PARTITION`, что у симуляции. Ground truth не выходит из тем
+evaluation и не публикуется в общий `/tf`.
+
+```bash
+GZ_PARTITION=swarm_lidar ros2 run evaluation ground_truth_node
+```
+
+Reader публикует позы **моделей** Gazebo. Recorder переводит их в world-позы
+`base_link` как `pbase = pmodel + Rmodel * (0,0,model_base_z)`; baseline
+`model_base_z=0.24` м соответствует текущему x500. Полный поворот учитывается
+до вычисления локализации, формации и minpair. Для иной модели этот параметр
+нужно изменить. Reader сохраняет исходные model-root позы без коррекции.
 
 `localization_error_m` — евклидова ошибка измерения трекера относительно
 центра сферической мишени в frame LiDAR. Эталон рассчитывается как
 `Rleader.T * (ptarget + Rtarget * marker_offset - pleader) - sensor_offset`.
-По умолчанию оба offsets равны `(0, 0, 0.45)` м. Учитываются полные roll,
+В текущем baseline sensor offset равен `(0, 0, 1.9)` м, marker offset —
+`(0, 0, 0.45)` м, оба относительно `base_link`. Учитываются полные roll,
 pitch и yaw моделей. Так как трекер возвращает центр видимой поверхности,
 метрика включает систематическое смещение поверхности относительно центра.
 

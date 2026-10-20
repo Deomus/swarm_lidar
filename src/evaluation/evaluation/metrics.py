@@ -28,6 +28,11 @@ def relative_lidar(leader, target, sensor_offset=(0., 0., .45), marker_offset=(0
             - np.asarray(sensor_offset))
 
 
+def model_to_base(pose, base_z=.24):
+    position = np.asarray(pose.position) + rotation(pose.quaternion) @ [0., 0., base_z]
+    return Pose(tuple(position), pose.quaternion)
+
+
 def relative_heading(leader, target):
     matrix = rotation(leader.quaternion)
     yaw = atan2(matrix[1, 0], matrix[0, 0])

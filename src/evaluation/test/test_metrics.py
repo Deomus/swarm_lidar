@@ -3,7 +3,7 @@ from math import pi, sin, cos
 import numpy as np
 import pytest
 
-from evaluation.metrics import (Pose, min_pair_distance, model_id, nearest,
+from evaluation.metrics import (Pose, min_pair_distance, model_id, model_to_base, nearest,
                                 relative_heading, relative_lidar, scalar_stats)
 
 
@@ -26,6 +26,18 @@ def test_tilted_marker():
     leader = pose(0, 0)
     target = Pose((2, 0, 0), (sin(pi / 4), 0., 0., cos(pi / 4)))
     assert np.allclose(relative_lidar(leader, target), [2, -.45, -.45])
+
+
+def test_model_root_offset_rotates_with_tilt():
+    root = Pose((2, 0, 0), (sin(pi / 4), 0., 0., cos(pi / 4)))
+    base = model_to_base(root)
+    assert np.allclose(base.position, [2, -.24, 0], atol=1e-12)
+    leader = model_to_base(pose(0, 0))
+    assert np.allclose(relative_lidar(leader, base), [2, -.69, -.69])
+    # Base-origin minpair differs from root-origin minpair under unequal tilt.
+    poses = {0: leader, 1: base, 2: model_to_base(pose(10, 0)),
+             3: model_to_base(pose(20, 0))}
+    assert min_pair_distance(poses) == pytest.approx((4 + 2 * .24 ** 2) ** .5)
 
 
 def test_pair_all_four():
