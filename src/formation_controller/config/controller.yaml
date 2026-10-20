@@ -1,0 +1,23 @@
+formation_controller:
+  ros__parameters:
+    period: 0.05
+    kp: 0.3
+    stale_timeout: 0.5
+    min_confidence: 0.5
+    max_speed: 2.0
+    max_acceleration: 4.0
+    max_jerk: 8.0
+    min_separation: 2.0
+    warning_distance: 3.0
+    repulsion_gain: 0.5
+    gap: 4.0
+    surface_bias: 0.166
+    sensor_offset: [0.0, 0.0, 1.9]
+    marker_offset_z: 0.45
+    poses_topic: /mesh/relative_poses
+    states_topic: /mesh/states
+    commands_topic: /swarm/commands
+    formation_topic: /swarm/formation_command
+    status_topic: /swarm/formation_status
+    target_topic: /swarm/target_offsets
+

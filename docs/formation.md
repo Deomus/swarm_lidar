@@ -79,3 +79,30 @@ w←w+α(u−w), v←v+α(w−v). При нулевом начальном со�
 этим ядром не заявляются.
 
 Проверка: `python3 -m pytest src/formation_controller/test -q`.
+
+## ROS-узел
+
+`controller_node` принимает `/mesh/relative_poses`, `/mesh/states` и
+`/swarm/formation_command`; публикует `/swarm/commands` (только uav_1..3),
+`/swarm/target_offsets` (PoseArray, frame uav_0/heading) и JSON String
+`/swarm/formation_status`. QoS reliable/volatile, depth10; период задаётся YAML.
+
+Контур изначально отключён. Trigger `/swarm/enable_formation` требует четырёх
+вооружённых аппаратов со свежей телеметрией и трёх валидных LiDAR-целей.
+`/swarm/hold` отключает контур и выдаёт invalid/нулевые команды. Перестроение
+запрашивается FormationCommand: formation, scale, transition_time.
+
+Вычисление ошибки использует только LiDAR-позу ведомого. Собственное состояние
+ведомого проверяется для health/armed, но его абсолютная позиция не входит в
+регулятор. Для преобразования LiDAR → heading используются quaternion лидера,
+известный offset сенсора и допущение вертикального marker offset. Радиальная
+поправка поверхности sphere задаётся surface_bias, без чтения ground truth.
+
+Недостоверность любой цели отключает коррекцию всего строя. Фактическая
+LiDAR-дистанция ниже min_separation+0.2 вызывает COLLISION_STOP, а warning
+distance включает repulsion. Эти проверки не являются доказательством
+безопасности с учётом динамики. Экстренный invalid/zero обходит плавный
+фильтр, поэтому при safety stop дискретные пределы команд не гарантируются.
+
+Интеграция в полёте проверяется отдельно; unit-тесты и публикация ROS-команд
+сами по себе не означают выполнения S1/S2/S3.

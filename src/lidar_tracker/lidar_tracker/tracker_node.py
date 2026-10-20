@@ -4,6 +4,7 @@ from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2
+from std_srvs.srv import Trigger
 from swarm_interfaces.msg import RelativePose
 
 from .tracking import TargetTracker, cluster_points
@@ -38,6 +39,18 @@ class LidarTracker(Node):
         self.subscription = self.create_subscription(
             PointCloud2, p['input_topic'], self.pointcloud_callback, qos_profile_sensor_data)
         self.timer = self.create_timer(p['check_period'], self.check_stale)
+        self.reset_service = self.create_service(Trigger, '/lidar_tracker/reset', self.reset)
+
+    def reset(self, request, response):
+        p = self.params
+        self.tracker = TargetTracker(p['initial_positions'], p['association_gate'],
+                                     p['ambiguity_margin'], p['filter_alpha'],
+                                     p['reacquire_timeout'])
+        self.last_stamp = None
+        self.get_logger().warning('Повторный bootstrap: допустим только в известных стартовых слотах')
+        response.success = True
+        response.message = 'Треки сброшены к initial_positions из YAML'
+        return response
 
     def publish(self, stamp, results=None, confidences=None):
         results = results or [None] * len(self.ids)
