@@ -1,5 +1,7 @@
 import rclpy
+import math
 from rclpy.node import Node
+from std_srvs.srv import Trigger
 from swarm_interfaces.msg import RelativePose, SwarmState, SwarmCommand
 from .channel import DelayChannel
 
@@ -7,13 +9,16 @@ class MeshNode(Node):
     def __init__(self):
         super().__init__('mesh_interface')
         defaults = dict(delay=0., jitter=0., loss=0., capacity=1000, seed=42,
-                        period=0.01, qos_depth=10,
+                        period=0.01, qos_depth=10, drop_duration=.7,
                         poses_in='/swarm/relative_poses', poses_out='/mesh/relative_poses',
                         states_in='/swarm/states', states_out='/mesh/states',
                         commands_in='/swarm/commands', commands_out='/mesh/commands')
         for key, value in defaults.items():
             self.declare_parameter(key, value)
         p = {key: self.get_parameter(key).value for key in defaults}
+        if not math.isfinite(p['drop_duration']) or p['drop_duration'] <= 0:
+            raise ValueError('Некорректная длительность потери')
+        self.drop_duration = p['drop_duration']
         self.channels, self.subs = [], []
         self.previous_time = None
         for msg_type, name in [(RelativePose, 'poses'), (SwarmState, 'states'), (SwarmCommand, 'commands')]:
@@ -23,7 +28,14 @@ class MeshNode(Node):
             self.subs.append(self.create_subscription(
                 msg_type, p[name + '_in'],
                 lambda msg, c=channel: c.send(msg, self.now()), p['qos_depth']))
+        self.drop_service = self.create_service(Trigger, '/mesh/drop_relative_poses', self.drop_poses)
         self.timer = self.create_timer(p['period'], self.flush)
+
+    def drop_poses(self, request, response):
+        self.channels[0][0].drop_for(self.now(), self.drop_duration)
+        response.success = True
+        response.message = f'Передача LiDAR-поз приостановлена на {self.drop_duration} с'
+        return response
 
     def now(self):
         return self.get_clock().now().nanoseconds * 1e-9

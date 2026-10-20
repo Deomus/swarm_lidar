@@ -13,4 +13,5 @@ mesh_interface:
     seed: 42
     period: 0.01
     qos_depth: 10
+    drop_duration: 0.7
 
