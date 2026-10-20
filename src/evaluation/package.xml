@@ -7,6 +7,7 @@
   <buildtool_depend>ament_python</buildtool_depend>
   <depend>rclpy</depend><depend>swarm_interfaces</depend>
   <depend>tf2_msgs</depend><depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
   <exec_depend>python3-numpy</exec_depend><exec_depend>python3-matplotlib</exec_depend>
   <exec_depend>python3-gz-transport13</exec_depend>
   <exec_depend>python3-gz-msgs10</exec_depend>

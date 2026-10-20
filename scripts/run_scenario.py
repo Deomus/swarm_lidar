@@ -87,10 +87,13 @@ class Scenario:
         self.wait(self.fresh, 60., 'Нет четырёх свежих состояний')
         self.event('Четыре PX4 готовы')
         for i in range(4):
+            ground_z = self.states[i].pose.position.z
             self.call(f'/uav_{i}/arm', retry=30.)
             self.wait(lambda: self.states[i].armed, 5., 'Нет arm ack')
             self.call(f'/uav_{i}/takeoff')
-            self.wait(lambda: self.states[i].pose.position.z > 2.1, 35., 'Не выполнен takeoff')
+            self.wait(lambda: self.fresh() and self.states[i].armed and
+                      self.states[i].pose.position.z - ground_z > 2.1,
+                      35., 'Не выполнен takeoff относительно стартовой высоты')
             self.event(f'uav_{i}: взлёт подтверждён')
         self.wait(lambda: all(abs(self.states[i].velocity.linear.z) < .12 for i in range(4)),
                   20., 'Не стабилизировалась высота')
@@ -129,6 +132,10 @@ class Scenario:
         self.event(f'Перестроение: {name}, scale={scale}')
         self.settle(name, scale, duration + 45.)
         self.event(f'Формация установилась: {name}, errors={self.status.get("errors")}')
+        # Отдельное окно наблюдения вместо немедленного перехода к следующей форме.
+        start = self.now()
+        self.wait(lambda: self.now() - start >= 10., 30., 'Нет времени наблюдения формации')
+        self.event(f'Наблюдение завершено: {name}, errors={self.status.get("errors")}')
 
     def manual(self, seconds, velocity, yaw_rate=0.):
         self.call('/leader/manual')
@@ -215,7 +222,8 @@ class Scenario:
                     self.call(f'/uav_{i}/land')
                 except Exception as error:
                     self.event(str(error))
-        self.wait(lambda: all(not state.armed for state in self.states.values()), 40., 'Не все аппараты сели')
+        self.wait(lambda: self.fresh() and all(not self.states[i].armed for i in range(4)),
+                  40., 'Не все аппараты сели')
         self.event('Все аппараты разоружены')
 
 

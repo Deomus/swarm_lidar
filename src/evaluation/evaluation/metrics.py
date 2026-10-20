@@ -72,7 +72,7 @@ def scalar_stats(values):
             'max': float(data.max()), 'min': float(data.min())}
 
 
-def summarize(rows):
+def summarize(rows, include_phases=True):
     def metric(key):
         return scalar_stats(row[key] for row in rows)
     result = {key: metric(key) for key in ['localization_error_m', 'formation_error_m',
@@ -85,4 +85,11 @@ def summarize(rows):
         key: scalar_stats(row[key] for row in rows if row['target_id'] == i)
         for key in ['localization_error_m', 'formation_error_m']}
         for i in range(1, 4)}
+    if include_phases:
+        active = [r for r in rows if r.get('controller_active') == 1]
+        result['active_control'] = summarize(active, include_phases=False)
+        result['following_by_formation'] = {
+            name: summarize([r for r in active if r.get('formation_code') == code
+                             and r.get('transitioning') == 0], include_phases=False)
+            for code, name in [(1, 'line'), (2, 'column'), (3, 'wedge')]}
     return result

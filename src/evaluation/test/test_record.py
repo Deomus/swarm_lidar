@@ -7,6 +7,7 @@ import rclpy
 from swarm_interfaces.msg import RelativePose, SwarmState
 from tf2_msgs.msg import TFMessage
 from rclpy.parameter import Parameter
+from std_msgs.msg import String
 
 from evaluation.record import Recorder
 
@@ -80,3 +81,23 @@ def test_missing_streams_and_json(recorder):
     result = summarize(node.rows)
     assert result['relative_stale_share'] == 1.
     assert json.loads(json.dumps(result))['localization_error_m']['mean'] is None
+
+
+def test_control_phases_exclude_takeoff_hold_and_stale_status(recorder):
+    from evaluation.metrics import summarize
+    node, _ = recorder
+    node.tick()  # до включения контроллера
+    now = node.get_clock().now().nanoseconds * 1e-9
+    node.on_status(String(data=json.dumps(dict(time=now, scale=1., formation='wedge', mode='FORMATION_CHANGE'))))
+    node.tick()
+    node.on_status(String(data='invalid json'))
+    now = node.get_clock().now().nanoseconds * 1e-9
+    node.on_status(String(data=json.dumps(dict(time=now, scale=1., formation='wedge', mode='FOLLOWING'))))
+    node.tick()
+    node.control_status['time'] -= 10.
+    node.tick()  # устаревший статус не засчитывается как работа контроллера
+    result = summarize(node.rows)
+    assert result['rows'] == 12
+    assert result['active_control']['rows'] == 6
+    assert result['following_by_formation']['wedge']['rows'] == 3
+    assert result['following_by_formation']['column']['rows'] == 0

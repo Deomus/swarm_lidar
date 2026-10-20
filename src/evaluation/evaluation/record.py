@@ -11,6 +11,7 @@ import numpy as np
 import rclpy
 from rclpy.node import Node
 from swarm_interfaces.msg import RelativePose, SwarmState
+from std_msgs.msg import String
 from tf2_msgs.msg import TFMessage
 
 from evaluation.metrics import (Pose, min_pair_distance, model_id, model_to_base, nearest,
@@ -20,7 +21,7 @@ from evaluation.metrics import (Pose, min_pair_distance, model_id, model_to_base
 FIELDS = ['timestamp', 'target_id', 'measurement_timestamp', 'gt_match_delta_s',
           'localization_error_m', 'formation_error_m', 'min_pair_distance_m',
           'relative_stale', 'leader_state_stale', 'gt_missing', 'formation_missing',
-          'localization_missing']
+          'localization_missing', 'controller_active', 'transitioning', 'formation_code', 'scale']
 
 
 def seconds(stamp):
@@ -51,10 +52,12 @@ class Recorder(Node):
         self.offsets = deque(maxlen=100)
         self.state = None
         self.last_time = None
+        self.control_status = None
         self.create_subscription(TFMessage, '/evaluation/ground_truth', self.on_gt, 10)
         self.create_subscription(RelativePose, '/swarm/relative_poses', self.on_relative, 10)
         self.create_subscription(PoseArray, '/swarm/target_offsets', self.on_offsets, 10)
         self.create_subscription(SwarmState, '/mesh/states', self.on_state, 10)
+        self.create_subscription(String, '/swarm/formation_status', self.on_status, 10)
         self.create_timer(self.p['period'], self.tick)
 
     def on_gt(self, msg):
@@ -92,6 +95,17 @@ class Recorder(Node):
         if msg.uav_id == 0:
             self.state = msg
 
+    def on_status(self, msg):
+        try:
+            value = json.loads(msg.data)
+            if (isfinite(float(value['time'])) and isfinite(float(value['scale']))
+                    and value['formation'] in ('line', 'column', 'wedge')
+                    and isinstance(value['mode'], str)):
+                if self.control_status is None or value['time'] >= self.control_status['time']:
+                    self.control_status = value
+        except (ValueError, TypeError, KeyError):
+            pass
+
     def latest(self, samples, now):
         eligible = [sample for sample in samples if sample[0] <= now]
         return max(enumerate(eligible), key=lambda entry: (entry[1][0], entry[0]))[1] if eligible else None
@@ -104,6 +118,7 @@ class Recorder(Node):
             for history in self.relative.values():
                 history.clear()
             self.state = None
+            self.control_status = None
         if self.last_time is not None and now <= self.last_time:
             self.last_time = now
             return
@@ -124,7 +139,14 @@ class Recorder(Node):
             row = dict.fromkeys(FIELDS, float('nan'))
             row.update(timestamp=now, target_id=index, relative_stale=int(not valid),
                        leader_state_stale=int(not state_fresh), gt_missing=1,
-                       formation_missing=1, localization_missing=1)
+                       formation_missing=1, localization_missing=1,
+                       controller_active=0, transitioning=0, formation_code=0, scale=float('nan'))
+            status = self.control_status
+            if status is not None and 0 <= now - status['time'] <= self.p['stale_timeout']:
+                row.update(controller_active=int(status['mode'] in ('FOLLOWING', 'FORMATION_CHANGE')),
+                           transitioning=int(status['mode'] == 'FORMATION_CHANGE'),
+                           formation_code={'line': 1, 'column': 2, 'wedge': 3}[status['formation']],
+                           scale=status['scale'])
             if sample:
                 row['measurement_timestamp'] = sample[0]
             if truth and all(i in truth[1] for i in range(4)):
