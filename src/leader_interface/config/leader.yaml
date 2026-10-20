@@ -15,5 +15,5 @@
     manual_timeout: 0.25
     state_timeout: 0.5
     waypoint_tolerance: 0.4
-    waypoint_gain: 0.5
+    waypoint_gain: 0.25
     waypoint_timeout: 90.0

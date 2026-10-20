@@ -145,3 +145,28 @@ def test_revoking_pending_path_does_not_interrupt_manual_control():
     core.revoke_path()
     assert core.tick(10.1).valid
     assert core.pending_path is None
+
+
+def test_mission_converges_through_close_waypoints_with_delayed_velocity_response():
+    core = ready()
+    position = np.array([0., 0., 2.5])
+    velocity = np.zeros(3)
+    core.set_path([[-.5, -.5, 3], [.5, -.5, 3], [1.5, -.5, 3],
+                   [2.5, -.5, 3], [3.5, .5, 3], [4.5, 1.5, 3],
+                   [5.5, 2.5, 3], [6., 3., 3.]])
+    core.select_mode('MISSION', 10)
+    for step in range(1800):
+        now = 10 + step * .05
+        core.state(position, now, True, now)
+        output = core.tick(now)
+        # Упрощённый объект с постоянной времени 0.3 с, не модель PX4.
+        velocity += (output.velocity - velocity) * .05 / .35
+        position += velocity * .05
+        if output.status == 'COMPLETE':
+            break
+    assert output.status == 'COMPLETE'
+    for _ in range(100):
+        velocity += -velocity * .05 / .35
+        position += velocity * .05
+    assert np.linalg.norm(position - [6, 3, 3]) < .5
+    assert np.linalg.norm(velocity) < .15

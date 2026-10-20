@@ -27,7 +27,7 @@ class LeaderInterface(Node):
                         period=.05, max_speed=1.5, max_acceleration=1., max_jerk=2.,
                         max_yaw_rate=.3,
                         manual_timeout=.25, state_timeout=.5, waypoint_tolerance=.4,
-                        waypoint_gain=.5, waypoint_timeout=90.)
+                        waypoint_gain=.25, waypoint_timeout=90.)
         for key, value in defaults.items():
             self.declare_parameter(key, value)
         self.p = {key: self.get_parameter(key).value for key in defaults}

@@ -32,7 +32,7 @@ class LeaderOutput:
 class LeaderCore:
     def __init__(self, period=.05, max_speed=1.5, max_acceleration=1., max_jerk=2.,
                  manual_timeout=.25, state_timeout=.5, waypoint_tolerance=.4,
-                 waypoint_gain=.5, waypoint_timeout=90., max_yaw_rate=.3):
+                 waypoint_gain=.25, waypoint_timeout=90., max_yaw_rate=.3):
         parameters = [period, max_speed, max_acceleration, max_jerk, manual_timeout,
                       state_timeout, waypoint_tolerance, waypoint_gain, waypoint_timeout,
                       max_yaw_rate]
