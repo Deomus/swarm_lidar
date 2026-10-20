@@ -1,0 +1,23 @@
+lidar_tracker:
+  ros__parameters:
+    input_topic: /uav_0/lidar/points
+    output_topic: /swarm/relative_poses
+    expected_frame: uav_0/lidar_link
+    target_ids: [1, 2, 3]
+    initial_positions: [-4.0, -4.0, 0.0, -4.0, 0.0, 0.0, -4.0, 4.0, 0.0]
+    min_range: 0.5
+    max_range: 80.0
+    min_z: -10.0
+    max_z: 10.0
+    cluster_tolerance: 0.5
+    min_cluster_size: 3
+    max_cluster_size: 500
+    max_cluster_extent: 1.5
+    confidence_threshold: 0.25
+    association_gate: 2.0
+    ambiguity_margin: 0.2
+    filter_alpha: 0.7
+    stale_timeout: 0.5
+    reacquire_timeout: 2.0
+    check_period: 0.1
+    qos_depth: 10

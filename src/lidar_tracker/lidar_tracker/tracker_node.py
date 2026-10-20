@@ -1,114 +1,104 @@
-import math
-from collections import deque
-
 import numpy as np
 import rclpy
-from builtin_interfaces.msg import Time
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2
-
 from swarm_interfaces.msg import RelativePose
 
-
-def cluster_points(points, tolerance=0.8, min_size=3, max_size=5000):
-    """Return connected point clusters using a deterministic radius search."""
-    if len(points) == 0:
-        return []
-    data = np.asarray(points, dtype=float)
-    visited = np.zeros(len(data), dtype=bool)
-    clusters = []
-    radius_sq = tolerance * tolerance
-    for start in range(len(data)):
-        if visited[start]:
-            continue
-        visited[start] = True
-        queue = deque([start])
-        indices = []
-        while queue:
-            current = queue.popleft()
-            indices.append(current)
-            distances = np.sum((data - data[current]) ** 2, axis=1)
-            neighbours = np.flatnonzero((distances <= radius_sq) & ~visited)
-            visited[neighbours] = True
-            queue.extend(neighbours.tolist())
-        if min_size <= len(indices) <= max_size:
-            clusters.append(data[indices])
-    return clusters
+from .tracking import TargetTracker, cluster_points
 
 
 class LidarTracker(Node):
     def __init__(self):
         super().__init__('lidar_tracker')
-        self.declare_parameter('input_topic', '/uav_0/lidar/points')
-        self.declare_parameter('output_topic', '/swarm/relative_poses')
-        self.declare_parameter('target_ids', [1, 2, 3])
-        self.declare_parameter('min_range', 0.5)
-        self.declare_parameter('max_range', 80.0)
-        self.declare_parameter('min_z', -10.0)
-        self.declare_parameter('max_z', 10.0)
-        self.declare_parameter('cluster_tolerance', 0.8)
-        self.declare_parameter('min_cluster_size', 3)
-        self.declare_parameter('max_cluster_size', 5000)
-        self.declare_parameter('confidence_threshold', 0.25)
-        self.target_ids = [int(x) for x in self.get_parameter('target_ids').value]
-        self.last_positions = {}
-        self.publisher = self.create_publisher(
-            RelativePose, self.get_parameter('output_topic').value, 10)
+        defaults = dict(
+            input_topic='/uav_0/lidar/points', output_topic='/swarm/relative_poses',
+            target_ids=[1, 2, 3], initial_positions=[-4., -4., 0., -4., 0., 0., -4., 4., 0.],
+            min_range=0.5, max_range=80., min_z=-10., max_z=10.,
+            cluster_tolerance=0.5, min_cluster_size=3, max_cluster_size=500,
+            max_cluster_extent=1.5, confidence_threshold=0.25,
+            association_gate=2., ambiguity_margin=0.2, filter_alpha=0.7,
+            stale_timeout=0.5, reacquire_timeout=2., check_period=0.1,
+            expected_frame='uav_0/lidar_link', qos_depth=10)
+        for name, value in defaults.items():
+            self.declare_parameter(name, value)
+        self.params = {name: self.get_parameter(name).value for name in defaults}
+        p = self.params
+        self.ids = list(p['target_ids'])
+        if len(p['initial_positions']) != len(self.ids) * 3 or len(set(self.ids)) != len(self.ids):
+            raise ValueError('Нужны уникальные ID и три начальные координаты на каждую цель')
+        if not 0 < p['filter_alpha'] <= 1 or p['cluster_tolerance'] <= 0:
+            raise ValueError('Некорректные параметры фильтра или кластеризации')
+        self.tracker = TargetTracker(p['initial_positions'], p['association_gate'],
+                                     p['ambiguity_margin'], p['filter_alpha'],
+                                     p['reacquire_timeout'])
+        self.last_stamp = None
+        self.publisher = self.create_publisher(RelativePose, p['output_topic'], p['qos_depth'])
         self.subscription = self.create_subscription(
-            PointCloud2, self.get_parameter('input_topic').value,
-            self.pointcloud_callback, 10)
+            PointCloud2, p['input_topic'], self.pointcloud_callback, qos_profile_sensor_data)
+        self.timer = self.create_timer(p['check_period'], self.check_stale)
+
+    def publish(self, stamp, results=None, confidences=None):
+        results = results or [None] * len(self.ids)
+        for target_id, result in zip(self.ids, results):
+            msg = RelativePose()
+            msg.target_id = target_id
+            msg.measurement_stamp = stamp
+            msg.frame_id = self.params['expected_frame']
+            msg.child_frame_id = f'uav_{target_id}/base_link'
+            msg.pose.orientation.w = 1.
+            if result is not None:
+                position, index = result
+                msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = map(float, position)
+                msg.distance = float(np.linalg.norm(position))
+                msg.confidence = float(confidences[index])
+                msg.valid = True
+            self.publisher.publish(msg)
+
+    def check_stale(self):
+        if self.last_stamp is None:
+            return
+        now = self.get_clock().now().nanoseconds * 1e-9
+        stamp = self.last_stamp.sec + self.last_stamp.nanosec * 1e-9
+        if now - stamp > self.params['stale_timeout']:
+            self.publish(self.last_stamp)
 
     def pointcloud_callback(self, cloud):
-        points = []
-        min_range = float(self.get_parameter('min_range').value)
-        max_range = float(self.get_parameter('max_range').value)
-        min_z = float(self.get_parameter('min_z').value)
-        max_z = float(self.get_parameter('max_z').value)
-        for p in point_cloud2.read_points(cloud, field_names=('x', 'y', 'z'), skip_nans=True):
-            x, y, z = (float(p[0]), float(p[1]), float(p[2]))
-            distance = math.sqrt(x * x + y * y + z * z)
-            if min_range <= distance <= max_range and min_z <= z <= max_z:
-                points.append((x, y, z))
-        clusters = cluster_points(
-            points,
-            float(self.get_parameter('cluster_tolerance').value),
-            int(self.get_parameter('min_cluster_size').value),
-            int(self.get_parameter('max_cluster_size').value))
-        measurements = []
-        for cluster in clusters:
-            centroid = np.mean(cluster, axis=0)
-            spread = float(np.mean(np.linalg.norm(cluster - centroid, axis=1)))
-            confidence = max(0.0, min(1.0, 1.0 - spread / max(1.0, float(
-                self.get_parameter('cluster_tolerance').value))))
-            if confidence >= float(self.get_parameter('confidence_threshold').value):
-                measurements.append((centroid, confidence, len(cluster)))
-        measurements.sort(key=lambda item: (float(item[0][0] ** 2 + item[0][1] ** 2), -item[2]))
-        for target_id, previous in zip(self.target_ids, measurements):
-            centroid, confidence, _ = previous
-            pose = RelativePose()
-            pose.target_id = target_id
-            pose.pose.position.x = float(centroid[0])
-            pose.pose.position.y = float(centroid[1])
-            pose.pose.position.z = float(centroid[2])
-            pose.pose.orientation.w = 1.0
-            pose.distance = float(np.linalg.norm(centroid))
-            pose.confidence = float(confidence)
-            pose.measurement_stamp = cloud.header.stamp
-            pose.valid = True
-            pose.frame_id = cloud.header.frame_id
-            pose.child_frame_id = f'uav_{target_id}/base_link'
-            self.publisher.publish(pose)
-            self.last_positions[target_id] = centroid
-        for target_id in self.target_ids[len(measurements):]:
-            pose = RelativePose()
-            pose.target_id = target_id
-            pose.measurement_stamp = cloud.header.stamp
-            pose.valid = False
-            pose.confidence = 0.0
-            pose.frame_id = cloud.header.frame_id
-            pose.child_frame_id = f'uav_{target_id}/base_link'
-            self.publisher.publish(pose)
+        p = self.params
+        stamp = cloud.header.stamp.sec + cloud.header.stamp.nanosec * 1e-9
+        age = self.get_clock().now().nanoseconds * 1e-9 - stamp
+        previous = None if self.last_stamp is None else (
+            self.last_stamp.sec + self.last_stamp.nanosec * 1e-9)
+        if cloud.header.frame_id != p['expected_frame'] or age < -0.1 or age > p['stale_timeout']:
+            self.publish(cloud.header.stamp)
+            return
+        if previous is not None and stamp <= previous:
+            self.publish(cloud.header.stamp)
+            return
+        self.last_stamp = cloud.header.stamp
+        try:
+            points = point_cloud2.read_points_numpy(
+                cloud, field_names=('x', 'y', 'z'), skip_nans=True).reshape(-1, 3)
+        except (ValueError, AssertionError, KeyError):
+            self.publish(cloud.header.stamp)
+            return
+        points = points[np.isfinite(points).all(axis=1)]
+        distances = np.linalg.norm(points, axis=1)
+        points = points[(distances >= p['min_range']) & (distances <= p['max_range']) &
+                        (points[:, 2] >= p['min_z']) & (points[:, 2] <= p['max_z'])]
+        centers, confidences = [], []
+        for cluster in cluster_points(points, p['cluster_tolerance'],
+                                      p['min_cluster_size'], p['max_cluster_size']):
+            if np.max(np.ptp(cluster, axis=0)) > p['max_cluster_extent']:
+                continue
+            center = np.mean(cluster, axis=0)
+            spread = float(np.mean(np.linalg.norm(cluster - center, axis=1)))
+            confidence = max(0., 1. - spread / p['cluster_tolerance'])
+            if confidence >= p['confidence_threshold']:
+                centers.append(center)
+                confidences.append(confidence)
+        self.publish(cloud.header.stamp, self.tracker.update(centers, stamp), confidences)
 
 
 def main(args=None):
@@ -120,4 +110,5 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()

@@ -1,5 +1,20 @@
 # swarm_lidar
 
+Проверка окружения и сборка (из корня репозитория):
+
+```bash
+source /opt/ros/jazzy/setup.bash
+ros2 --help
+gz sim --version
+colcon build --symlink-install
+source install/setup.bash
+python3 -m pytest src -q
+```
+
+`ros2 --version` не поддерживается CLI Jazzy. Проверенные версии: Ubuntu
+24.04, ROS 2 Jazzy, Gazebo Sim 8.15.0. Исходники PX4 находятся отдельно от
+этого репозитория; версия на текущей машине — `878877ad02` (ветка main).
+
 Симуляционная система ROS 2 + PX4 SITL + Gazebo для роя из четырёх БПЛА по
 схеме leader-follower.
 
@@ -33,6 +48,18 @@ source /opt/ros/jazzy/setup.bash
 source install/setup.bash
 ros2 run lidar_tracker tracker_node
 ```
+
+Запуск с установленной конфигурацией:
+
+```bash
+ros2 run lidar_tracker tracker_node --ros-args --params-file \
+  install/lidar_tracker/share/lidar_tracker/config/tracker.yaml
+```
+
+Контракт и ограничения трекера описаны в [docs/tracker.md](docs/tracker.md).
+
+Код проекта создан с помощью AI (Codex); используются ROS 2, PX4, Gazebo,
+NumPy и SciPy. Названия внешних пакетов и команды сохраняются на английском.
 
 По умолчанию входной topic — `/uav_0/lidar/points`, выходной —
 `/swarm/relative_poses`. Параметры диапазона, кластеризации и confidence
