@@ -7,7 +7,7 @@ from sensor_msgs_py import point_cloud2
 from std_srvs.srv import Trigger
 from swarm_interfaces.msg import RelativePose
 
-from .tracking import TargetTracker, cluster_points
+from .tracking import TargetTracker, cluster_points, remove_ground
 
 
 class LidarTracker(Node):
@@ -17,6 +17,8 @@ class LidarTracker(Node):
             input_topic='/uav_0/lidar/points', output_topic='/swarm/relative_poses',
             target_ids=[1, 2, 3], initial_positions=[-4., -4., 0., -4., 0., 0., -4., 4., 0.],
             min_range=0.5, max_range=80., min_z=-10., max_z=10.,
+            ground_filter=False, ground_distance=.04, ground_min_points=1000,
+            ground_fraction=.7,
             cluster_tolerance=0.5, min_cluster_size=3, max_cluster_size=500,
             max_cluster_extent=1.5, confidence_threshold=0.25,
             association_gate=2., ambiguity_margin=0.2, filter_alpha=0.7,
@@ -31,6 +33,9 @@ class LidarTracker(Node):
             raise ValueError('Нужны уникальные ID и три начальные координаты на каждую цель')
         if not 0 < p['filter_alpha'] <= 1 or p['cluster_tolerance'] <= 0:
             raise ValueError('Некорректные параметры фильтра или кластеризации')
+        if (not np.isfinite(p['ground_distance']) or p['ground_distance'] <= 0
+                or p['ground_min_points'] < 3 or not 0 < p['ground_fraction'] <= 1):
+            raise ValueError('Некорректные параметры удаления земли')
         self.tracker = TargetTracker(p['initial_positions'], p['association_gate'],
                                      p['ambiguity_margin'], p['filter_alpha'],
                                      p['reacquire_timeout'])
@@ -98,8 +103,11 @@ class LidarTracker(Node):
             return
         points = points[np.isfinite(points).all(axis=1)]
         distances = np.linalg.norm(points, axis=1)
-        points = points[(distances >= p['min_range']) & (distances <= p['max_range']) &
-                        (points[:, 2] >= p['min_z']) & (points[:, 2] <= p['max_z'])]
+        points = points[(distances >= p['min_range']) & (distances <= p['max_range'])]
+        if p['ground_filter']:
+            points = remove_ground(points, distance=p['ground_distance'],
+                                   min_points=p['ground_min_points'], fraction=p['ground_fraction'])
+        points = points[(points[:, 2] >= p['min_z']) & (points[:, 2] <= p['max_z'])]
         centers, confidences = [], []
         for cluster in cluster_points(points, p['cluster_tolerance'],
                                       p['min_cluster_size'], p['max_cluster_size']):

@@ -3,6 +3,45 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 
+def remove_ground(points, distance=.04, min_points=1000, fraction=.7):
+    """Удаляет только доминирующую плоскость под датчиком по RANSAC.
+
+    Выборка ограничивает стоимость подбора. Маленькие облака корпусов не
+    считаются землёй; нужны многочисленные согласованные отражения.
+    Возвращает исходные точки, если уверенного плоского фона нет.
+    """
+    data = np.asarray(points, dtype=float).reshape(-1, 3)
+    if len(data) < min_points:
+        return data
+    rng = np.random.default_rng(7)
+    sample = data[rng.choice(len(data), min(1024, len(data)), replace=False)]
+    best, best_count = None, 0
+    for _ in range(32):
+        a, b, c = sample[rng.choice(len(sample), 3, replace=False)]
+        normal = np.cross(b - a, c - a)
+        length = np.linalg.norm(normal)
+        if length < 1e-9:
+            continue
+        normal /= length
+        if normal[2] < 0:
+            normal = -normal
+        offset = -float(normal @ a)
+        # Земля ниже датчика; вертикальные стены и очень наклонные плоскости
+        # не удаляем. Предел наклона около 35 градусов.
+        if normal[2] < .82 or offset < 1.:
+            continue
+        count = np.count_nonzero(np.abs(sample @ normal + offset) <= distance)
+        if count > best_count:
+            best, best_count = (normal, offset), count
+    if best is None or best_count < fraction * len(sample):
+        return data
+    normal, offset = best
+    inliers = np.abs(np.einsum('ij,j->i', data, normal) + offset) <= distance
+    if np.count_nonzero(inliers) < min_points:
+        return data
+    return data[~inliers]
+
+
 def cluster_points(points, tolerance=0.8, min_size=3, max_size=5000):
     data = np.asarray(points, dtype=float).reshape(-1, 3)
     data = data[np.isfinite(data).all(axis=1)]
