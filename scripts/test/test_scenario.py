@@ -94,3 +94,24 @@ def test_success_received_after_simulation_deadline_does_not_pass(scenario_modul
     scenario.wait = wait
     with pytest.raises(RuntimeError, match='лимит'):
         scenario.wait_sim(lambda: True, 2., 'Манёвр')
+
+
+def test_ground_wait_restarts_after_estimator_height_excursion(scenario_module):
+    scenario = scenario_module.Scenario.__new__(scenario_module.Scenario)
+    scenario.states = {i: SimpleNamespace(armed=False,
+        pose=SimpleNamespace(position=SimpleNamespace(z=0.)),
+        velocity=SimpleNamespace(linear=SimpleNamespace(z=0.))) for i in range(4)}
+    scenario.fresh = lambda: True
+    scenario.event = lambda _: None
+    clock = [0.]
+    scenario.now = lambda: clock[0]
+    def wait(predicate, timeout, reason):
+        for t in range(9):
+            clock[0] = float(t)
+            scenario.states[0].pose.position.z = 2.1 if t == 2 else 0.
+            if predicate():
+                assert t == 6
+                return
+        pytest.fail('Оценка не установилась')
+    scenario.wait_sim = wait
+    scenario.wait_ground_settled()

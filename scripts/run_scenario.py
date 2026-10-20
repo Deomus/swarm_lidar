@@ -103,6 +103,7 @@ class Scenario:
     def prepare(self):
         self.wait(self.fresh, 60., 'Нет четырёх свежих состояний')
         self.event('Четыре PX4 готовы')
+        self.wait_ground_settled()
         for i in range(4):
             # После посадки PX4 может оставаться в AUTO_LAND, где preflight
             # не разрешает повторное вооружение. Запрашиваем штатный HOLD.
@@ -130,6 +131,27 @@ class Scenario:
         self.call('/swarm/enable_formation', retry=10.)
         self.settle('line', 1., 30.)
         self.event('LiDAR-контур включён; line удерживается')
+
+    def wait_ground_settled(self):
+        """Сценарий начинается на известной площадке с нулевой высотой ENU.
+
+        При старте оценка высоты PX4 иногда уходит на метры ещё на земле.
+        Взлёт в этот момент закрепляет неверную домашнюю высоту. Нужны
+        собственная стабильная оценка около стартовой отметки и свежие данные.
+        Эталон симулятора здесь не используется.
+        """
+        since = [None]
+        def ready():
+            good = self.fresh() and all(
+                not self.states[i].armed and abs(self.states[i].pose.position.z) < .25
+                and abs(self.states[i].velocity.linear.z) < .1 for i in range(4))
+            if not good:
+                since[0] = None
+            elif since[0] is None or self.now() < since[0]:
+                since[0] = self.now()
+            return good and self.now() - since[0] >= 3.
+        self.wait_sim(ready, 60., 'Не установилась стартовая оценка высоты PX4')
+        self.event('Стартовая оценка высоты устойчива')
 
     def settle(self, formation, scale, timeout):
         stable_since = [None]
