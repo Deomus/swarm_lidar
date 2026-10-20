@@ -86,9 +86,14 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        for _, proc in reversed(processes):
+        for name, proc in reversed(processes):
             if proc.poll() is None:
-                os.killpg(proc.pid, signal.SIGINT)
+                # ros2 launch сам передаёт сигнал узлам. Сигнал всей группе
+                # приводил к повторному Ctrl+C во время destroy_node.
+                if name == 'ros_stack':
+                    proc.send_signal(signal.SIGINT)
+                else:
+                    os.killpg(proc.pid, signal.SIGINT)
         for _, proc in reversed(processes):
             try:
                 proc.wait(timeout=5)

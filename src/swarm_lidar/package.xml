@@ -8,6 +8,9 @@
   <exec_depend>lidar_tracker</exec_depend><exec_depend>mesh_interface</exec_depend>
   <exec_depend>swarm_manager</exec_depend>
   <exec_depend>autopilot_bridge</exec_depend>
+  <exec_depend>formation_controller</exec_depend>
+  <exec_depend>leader_interface</exec_depend>
+  <exec_depend>mission_planner</exec_depend>
   <export><build_type>ament_python</build_type></export>
 </package>
 

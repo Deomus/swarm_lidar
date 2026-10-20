@@ -2,7 +2,9 @@ from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler, EmitEvent
+from launch.event_handlers import OnProcessExit
+from launch.events import Shutdown
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -29,9 +31,19 @@ def runtime(context):
     if lidar:
         path = Path(get_package_share_directory('lidar_tracker')) / 'config/tracker.yaml'
         nodes.append(Node(package='lidar_tracker', executable='tracker_node',
-                          parameters=[str(path), {'use_sim_time': True,
-                                                  'min_z': -.3, 'max_z': .3}], output='screen'))
-    return nodes
+                          parameters=[str(path), {'use_sim_time': True}], output='screen'))
+        for package, executable, config_name in [('formation_controller', 'controller_node', 'controller.yaml'),
+                                                  ('leader_interface', 'leader_node', 'leader.yaml'),
+                                                  ('mission_planner', 'planner_node', 'mission.yaml')]:
+            path = Path(get_package_share_directory(package)) / 'config' / config_name
+            nodes.append(Node(package=package, executable=executable,
+                              parameters=[str(path), {'use_sim_time': True}], output='screen'))
+    handlers = [RegisterEventHandler(OnProcessExit(
+        target_action=node,
+        on_exit=lambda event, ctx: [] if ctx.is_shutdown else [
+            EmitEvent(event=Shutdown(reason='Один из обязательных ROS-узлов завершился'))]))
+        for node in nodes]
+    return handlers + nodes
 
 
 def generate_launch_description():
