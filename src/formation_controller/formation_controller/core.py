@@ -28,8 +28,8 @@ def formation_offsets(formation, scale=1.0, gap=4.0, min_separation=2.0):
     shapes = {
         'line': [[-1, -1, 0], [-1, 0, 0], [-1, 1, 0]],
         'column': [[-1, 0, 0], [-2, 0, 0], [-3, 0, 0]],
-        # Ведущий — передняя вершина, ведомые образуют заднее основание.
-        'wedge': [[-2, -1, 0], [-2, 0, 0], [-2, 1, 0]],
+        # Треугольник ведомых: центральная вершина ближе к ведущему.
+        'wedge': [[-2, -1, 0], [-1, 0, 0], [-2, 1, 0]],
     }
     if formation not in shapes:
         raise ValueError(f'Unknown formation: {formation}')

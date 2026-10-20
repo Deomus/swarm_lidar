@@ -37,9 +37,10 @@ def test_analytic_distance_finds_crossing_and_leader_collision():
     assert minimum_transition_distance(start, end) == 0
 
 
-def test_wedge_has_leader_at_front_and_safe_transition_from_column():
+def test_wedge_followers_form_triangle_pointing_to_leader_and_safe_transition():
     target = formation_offsets('wedge')
-    np.testing.assert_allclose(target, [[-8, -4, 0], [-8, 0, 0], [-8, 4, 0]])
+    np.testing.assert_allclose(target, [[-8, -4, 0], [-4, 0, 0], [-8, 4, 0]])
+    assert target[1, 0] > target[0, 0] == target[2, 0]
     plan = FormationPlan()
     plan.request('column', 1, 14, now=0)
     plan.request('wedge', 1, 12, now=14)
