@@ -1,0 +1,9 @@
+evaluation_recorder:
+  ros__parameters:
+    use_sim_time: true
+    period: 0.1
+    match_tolerance: 0.15
+    stale_timeout: 0.5
+    offset_timeout: 0.5
+    sensor_z: 0.45
+    marker_z: 0.45
