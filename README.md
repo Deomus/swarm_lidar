@@ -1,84 +1,76 @@
-# swarm_lidar
+# Swarm LiDAR
 
-Проверка окружения и сборка (из корня репозитория):
+Swarm LiDAR — проект на ROS 2 для симуляции группы из четырёх квадрокоптеров PX4. Один аппарат выступает ведущим, а три других следуют за ним и сохраняют выбранное расположение: линию, колонну или клин.
+
+Проект предназначен для проверки управления роем в симуляции. Ведущий аппарат получает данные LiDAR, по ним определяются положения остальных аппаратов, после чего ведомым рассчитываются команды движения. Эталонные координаты из Gazebo используются только для оценки точности и не передаются в контур управления.
+
+Для полной работы нужны Ubuntu 24.04, ROS 2 Jazzy, Gazebo Sim, PX4 SITL, совместимые сообщения `px4_msgs` и Micro XRCE-DDS Agent.
+
+## Как работает проект
+
+В начале симулятор запускает четыре аппарата. LiDAR ведущего публикует облако точек. Программа обработки очищает это облако от шума и ищет в нём три цели — ведомые аппараты. Для каждой цели сохраняются относительное положение, время измерения и признак достоверности.
+
+Затем данные проходят через программный канал связи. Он умеет имитировать задержку, нестабильность доставки и потерю сообщений. Это позволяет проверить, как система ведёт себя при проблемах со связью.
+
+Контроллер сравнивает измеренные положения ведомых с нужными положениями в выбранной формации и формирует команды скорости. Ведущий получает команды ручного управления или задание от планировщика маршрута. Мост автопилота переводит команды из ROS 2 в формат PX4 и передаёт их аппаратам.
+
+Если LiDAR-данные пропали или стали слишком старыми, система прекращает перестроение и переводит группу в безопасное удержание. Отдельный модуль оценки сравнивает фактические координаты аппаратов с измерениями и сохраняет результаты эксперимента.
+
+## Сборка и запуск
+
+Сначала установите ROS 2 Jazzy и подготовьте PX4 SITL с совместимыми `px4_msgs`. Micro XRCE-DDS Agent должен быть установлен и доступен в `PATH`.
+
+Из корня репозитория выполните:
 
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/px4_ros_ws/install/setup.bash
-ros2 --help
-gz sim --version
 colcon build --symlink-install
 source install/setup.bash
+```
+
+Запуск тестов Python:
+
+```bash
 python3 -m pytest src -q
 ```
 
-`ros2 --version` не поддерживается CLI Jazzy. Проверенные версии: Ubuntu
-24.04, ROS 2 Jazzy, Gazebo Sim 8.15.0. Исходники PX4 находятся отдельно от
-этого репозитория; версия на текущей машине — `878877ad02` (ветка main).
-
-Симуляционная система ROS 2 + PX4 SITL + Gazebo для роя из четырёх БПЛА по
-схеме leader-follower.
-
-## Текущий статус
-
-Создан первый пакет `swarm_interfaces`. Он задаёт контракты сообщений для
-трекера, mesh-интерфейса, менеджера роя, контроллера формации и оценки.
-
-Также добавлен `lidar_tracker`. В текущем MVP он принимает `PointCloud2`,
-фильтрует точки по дальности и высоте, выполняет евклидову кластеризацию и
-публикует валидные или невалидные `RelativePose` для `uav_1..uav_3`.
-
-В прикладных сообщениях используется система координат ROS/Gazebo ENU.
-Относительная поза измеряется от `uav_0/lidar_link` (или явно указанного frame
-лидера) к frame ведомого. Ground truth разрешён только для оценки и не входит
-в управляющий контур.
-
-## Сборка
-
-```bash
-source /opt/ros/jazzy/setup.bash
-colcon build --symlink-install --packages-select swarm_interfaces
-source install/setup.bash
-ros2 interface show swarm_interfaces/msg/RelativePose
-```
-
-Запуск трекера:
-
-```bash
-source /opt/ros/jazzy/setup.bash
-source install/setup.bash
-ros2 run lidar_tracker tracker_node
-```
-
-Запуск с установленной конфигурацией:
-
-```bash
-ros2 run lidar_tracker tracker_node --ros-args --params-file \
-  install/lidar_tracker/share/lidar_tracker/config/tracker.yaml
-```
-
-Контракт и ограничения трекера описаны в [docs/tracker.md](docs/tracker.md).
-
-Добавлены программный mesh-канал и менеджер свежести данных. Контракты,
-параметры и запуск: [docs/mesh_health.md](docs/mesh_health.md).
-
-Запуск четырёх PX4 и проверка namespace/телеметрии:
-[docs/sitl.md](docs/sitl.md).
-
-Мост автопилота, TF и полётный smoke test:
-[docs/autopilot_bridge.md](docs/autopilot_bridge.md).
-Настоящий LiDAR Gazebo и проверка трёх целей:
-[docs/lidar_sim.md](docs/lidar_sim.md).
-
-Проверка всей ROS-цепочки на синтетическом облаке:
+Для проверки основной цепочки без Gazebo и PX4 используется синтетическое облако:
 
 ```bash
 ROS_DOMAIN_ID=71 python3 scripts/smoke_pipeline.py
 ```
 
-Код проекта создан с помощью AI (Codex); используются ROS 2, PX4, Gazebo,
-NumPy и SciPy. Названия внешних пакетов и команды сохраняются на английском.
+Для запуска полной симуляции:
 
-По умолчанию входной topic — `/uav_0/lidar/points`, выходной —
-`/swarm/relative_poses`. Параметры диапазона, кластеризации и confidence
-задаются через ROS 2 parameters.
+```bash
+ROS_DOMAIN_ID=72 ros2 launch swarm_lidar swarm_demo.launch.py \
+  px4_dir:=~/PX4-Autopilot gui:=false lidar:=true stack:=true
+```
+
+Параметр `gui:=false` запускает симуляцию без окна Gazebo. Доступные параметры launch-файла:
+
+```bash
+ros2 launch swarm_lidar swarm_demo.launch.py --show-args
+```
+
+Поддерживаются параметры `px4_dir`, `gui`, `duration`, `lidar` и `stack`. При `lidar:=true` включаются обработка LiDAR, оценка положения, управление формацией, интерфейс ведущего и планировщик маршрута.
+
+В отдельном терминале можно проверить телеметрию всех четырёх PX4:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/px4_ros_ws/install/setup.bash
+source install/setup.bash
+ROS_DOMAIN_ID=72 python3 scripts/smoke_sitl.py
+```
+
+Результат проверки сохраняется в `log/sitl_smoke.json`. Скрипт проверяет уже запущенные аппараты и сам PX4 не запускает.
+
+Дополнительные проверки:
+
+```bash
+ROS_DOMAIN_ID=72 python3 scripts/smoke_bridge.py
+ROS_DOMAIN_ID=72 python3 scripts/smoke_bridge.py --flight
+ROS_DOMAIN_ID=72 python3 scripts/smoke_lidar.py
+```
