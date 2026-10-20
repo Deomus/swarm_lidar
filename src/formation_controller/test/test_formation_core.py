@@ -95,6 +95,51 @@ def test_transition_offset_velocity_matches_finite_difference():
     np.testing.assert_allclose(middle, numerical, atol=1e-8)
 
 
+def test_pause_preserves_sample_and_resumes_same_safe_path():
+    plan = FormationPlan()
+    plan.request('column', 1, 8, now=10)
+    before = plan.sample(13)
+    path = [plan.sample(t) for t in np.linspace(10, 18, 81)]
+    plan.pause(2.5)
+    paused = plan.sample(15.5)
+    np.testing.assert_allclose(paused.offsets, before.offsets)
+    np.testing.assert_allclose(paused.velocities, before.velocities)
+    assert paused.transitioning == before.transitioning
+    for t, expected in zip(np.linspace(10, 18, 81), path):
+        actual = plan.sample(t + 2.5)
+        np.testing.assert_allclose(actual.offsets, expected.offsets)
+        np.testing.assert_allclose(actual.velocities, expected.velocities)
+        assert actual.transitioning == expected.transitioning
+        assert minimum_transition_distance(actual.offsets, actual.offsets) >= 2 - 1e-9
+    assert not plan.sample(20.5).transitioning
+    plan.request('wedge', 1, 8, now=20.5)
+    assert plan.sample(20.6).transitioning
+
+
+@pytest.mark.parametrize('duration', [-1, float('nan'), float('inf')])
+def test_invalid_pause_does_not_change_plan(duration):
+    plan = FormationPlan()
+    plan.request('wedge', 1.2, 8, now=10)
+    expected = plan.sample(12)
+    with pytest.raises(ValueError):
+        plan.pause(duration)
+    actual = plan.sample(12)
+    np.testing.assert_array_equal(actual.offsets, expected.offsets)
+    np.testing.assert_array_equal(actual.velocities, expected.velocities)
+
+
+def test_zero_and_repeated_pause_preserve_progress():
+    plan = FormationPlan()
+    plan.request('column', 1, 8, now=10)
+    expected = plan.sample(12)
+    plan.pause(0)
+    np.testing.assert_array_equal(plan.sample(12).offsets, expected.offsets)
+    plan.pause(.5)
+    plan.pause(.75)
+    np.testing.assert_allclose(plan.sample(13.25).offsets, expected.offsets)
+    np.testing.assert_allclose(plan.sample(13.25).velocities, expected.velocities)
+
+
 def test_limiter_speed_acceleration_and_jerk_under_reversals():
     limiter = VelocityLimiter(max_speed=3, max_acceleration=2, max_jerk=4, period=0.05)
     velocities = [np.zeros(3)]

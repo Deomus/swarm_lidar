@@ -124,6 +124,7 @@ class FormationController(Node):
 
     def tick(self):
         now = self.now()
+        previous = self.previous_time
         if self.previous_time is not None and now < self.previous_time:
             self.enabled = False
             self.poses.clear()
@@ -131,6 +132,9 @@ class FormationController(Node):
             self.controllers = self.new_controllers()
             self.reason = 'CLOCK_RESET'
         self.previous_time = now
+        ready = self.enabled and self.data_ready()
+        if not ready and previous is not None and now >= previous:
+            self.plan.pause(now - previous)
         sample = self.plan.sample(now)
         targets = PoseArray()
         targets.header.frame_id = 'uav_0/heading'
@@ -141,7 +145,6 @@ class FormationController(Node):
             pose.orientation.w = 1.
             targets.poses.append(pose)
         self.targets_pub.publish(targets)
-        ready = self.enabled and self.data_ready()
         minimum = None
         errors = []
         velocities = [np.zeros(3)] * 3
@@ -157,6 +160,9 @@ class FormationController(Node):
                 state = 'FORMATION_CHANGE' if sample.transitioning else 'FOLLOWING'
                 if not ready:
                     state = 'COLLISION_STOP'
+                    self.enabled = False
+                    if previous is not None and now >= previous:
+                        self.plan.pause(now - previous)
                 v = leader.velocity.linear
                 for index, controller in enumerate(self.controllers):
                     offset = sample.offsets[index].copy()

@@ -70,6 +70,15 @@ class FormationPlan:
         self._time = 0.0
         self._duration = 1.0
 
+    def pause(self, duration):
+        """Сдвигает временную шкалу без изменения геометрии и назначения слотов."""
+        if not math.isfinite(duration) or duration < 0:
+            raise ValueError('Pause duration must be finite and nonnegative')
+        shifted = self._time + duration
+        if not math.isfinite(shifted):
+            raise ValueError('Pause time overflow')
+        self._time = shifted
+
     def sample(self, now):
         if not math.isfinite(now):
             raise ValueError('Nonfinite time')
