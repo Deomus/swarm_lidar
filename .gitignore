@@ -1,2 +1,8 @@
 task.md
 agents.md
+build/
+install/
+log/
+__pycache__/
+*.py[cod]
+.pytest_cache/

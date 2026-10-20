@@ -1,0 +1,9 @@
+uint8 uav_id
+geometry_msgs/Pose pose
+geometry_msgs/Twist velocity
+string mode
+string health
+builtin_interfaces/Time last_seen
+builtin_interfaces/Time timestamp
+bool armed
+bool valid
