@@ -1,0 +1,9 @@
+mission_planner:
+  ros__parameters:
+    use_sim_time: true
+    working_altitude: 3.0
+    formation_radius: 6.0
+    safety_margin: 0.75
+    pose_timeout: 0.5
+    occupancy_threshold: 50
+    max_map_cells: 40000
