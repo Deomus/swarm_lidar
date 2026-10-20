@@ -8,6 +8,8 @@ from swarm_interfaces.msg import RelativePose, SwarmState
 from tf2_msgs.msg import TFMessage
 from rclpy.parameter import Parameter
 from std_msgs.msg import String
+from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Path
 
 from evaluation.record import Recorder
 
@@ -101,3 +103,33 @@ def test_control_phases_exclude_takeoff_hold_and_stale_status(recorder):
     assert result['active_control']['rows'] == 6
     assert result['following_by_formation']['wedge']['rows'] == 3
     assert result['following_by_formation']['column']['rows'] == 0
+
+
+def test_route_error_uses_truth_and_empty_path_revokes_measurement(recorder):
+    node, _ = recorder
+    stamp = node.get_clock().now().to_msg()
+    transforms = []
+    for index in range(4):
+        transform = TransformStamped()
+        transform.header.stamp = stamp
+        transform.child_frame_id = f'uav_{index}'
+        transform.transform.translation.x = float(-index * 2)
+        transform.transform.translation.y = 1.
+        transform.transform.rotation.w = 1.
+        transforms.append(transform)
+    node.on_gt(TFMessage(transforms=transforms))
+    path = Path()
+    path.header.frame_id = 'map'
+    for x in (0., 2.):
+        point = PoseStamped()
+        point.pose.position.x, point.pose.position.z = x, .24
+        path.poses.append(point)
+    node.on_path(path)
+    node.on_mission_status(String(data=json.dumps(dict(stamp=stamp.sec+stamp.nanosec*1e-9, status='MISSION'))))
+    node.tick()
+    assert all(row['route_error_m'] == pytest.approx(1.) for row in node.rows)
+    assert all(row['goal_error_m'] == pytest.approx(5**.5) for row in node.rows)
+    path.poses = []
+    node.on_path(path)
+    node.tick()
+    assert all(row['mission_active'] == 0 for row in node.rows[-3:])

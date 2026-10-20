@@ -74,9 +74,9 @@ def scalar_stats(values):
 
 def summarize(rows, include_phases=True):
     def metric(key):
-        return scalar_stats(row[key] for row in rows)
+        return scalar_stats(row.get(key, float('nan')) for row in rows)
     result = {key: metric(key) for key in ['localization_error_m', 'formation_error_m',
-                                         'min_pair_distance_m']}
+                                         'min_pair_distance_m', 'route_error_m', 'goal_error_m']}
     result['rows'] = len(rows)
     for key in ['relative_stale', 'leader_state_stale', 'gt_missing', 'formation_missing',
                 'localization_missing']:
@@ -92,4 +92,5 @@ def summarize(rows, include_phases=True):
             name: summarize([r for r in active if r.get('formation_code') == code
                              and r.get('transitioning') == 0], include_phases=False)
             for code, name in [(1, 'line'), (2, 'column'), (3, 'wedge')]}
+        result['mission'] = summarize([r for r in rows if r.get('mission_active') == 1], include_phases=False)
     return result
