@@ -288,6 +288,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('scenario', choices=['s1', 's2', 's3'])
     parser.add_argument('--output', default=None)
+    parser.add_argument('--record-bag', action='store_true', help='Записать сообщения сценария в rosbag')
+    parser.add_argument('--record-cloud', action='store_true', help='Включить rosbag и исходное облако LiDAR')
     args = parser.parse_args()
     output = Path(args.output or ('log/' + args.scenario + '_' + time.strftime('%Y%m%d_%H%M%S')))
     output.mkdir(parents=True, exist_ok=False)
@@ -300,8 +302,23 @@ def main():
                                  stdout=handle, stderr=subprocess.STDOUT, start_new_session=True)
     success = landed = False
     run_error = landing_error = None
+    bag, bag_log, bag_recorded = None, None, False
     try:
+        if args.record_bag or args.record_cloud:
+            topics = ['/clock', '/tf', '/tf_static', '/map', '/swarm/states', '/mesh/states',
+                      '/swarm/relative_poses', '/mesh/relative_poses', '/swarm/commands', '/mesh/commands',
+                      '/swarm/formation_command', '/swarm/formation_status', '/swarm/target_offsets',
+                      '/swarm/health', '/leader/cmd_vel', '/mission/goal', '/mission/path',
+                      '/mission/status', '/mission/execution_status', '/evaluation/ground_truth']
+            if args.record_cloud:
+                topics.append('/uav_0/lidar/points')
+            bag_log = (output/'rosbag.log').open('x')
+            bag = subprocess.Popen(['ros2', 'bag', 'record', '-s', 'mcap', '--use-sim-time',
+                                    '--disable-keyboard-controls', '-o', str(output/'bag'), '--topics', *topics],
+                                   stdout=bag_log, stderr=subprocess.STDOUT, start_new_session=True)
         scenario.run()
+        if bag is not None and bag.poll() is not None:
+            raise RuntimeError('rosbag завершился до окончания сценария; см. rosbag.log')
         success = True
     except BaseException as error:
         run_error = f'{type(error).__name__}: {error}'
@@ -322,13 +339,29 @@ def main():
                 recorder.terminate()
                 recorder.wait(timeout=5)
             handle.close()
-            (output/'result.json').write_text(json.dumps(dict(scenario=args.scenario, passed=success and landed,
+            if bag is not None:
+                if bag.poll() is None:
+                    os.killpg(bag.pid, signal.SIGINT)
+                try:
+                    bag.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    os.killpg(bag.pid, signal.SIGTERM)
+                    bag.wait(timeout=5)
+                bag_recorded = bag.returncode == 0 and (output/'bag/metadata.yaml').is_file()
+            if bag_log is not None:
+                bag_log.close()
+            (output/'result.json').write_text(json.dumps(dict(scenario=args.scenario,
+                                               passed=success and landed and (not (args.record_bag or args.record_cloud) or bag_recorded),
                                                passed_run=success, passed_landing=landed,
+                                               bag_requested=args.record_bag or args.record_cloud,
+                                               bag_recorded=bag_recorded,
                                                run_error=run_error, landing_error=landing_error,
                                                events=scenario.events), ensure_ascii=False, indent=2)+'\n')
             scenario.node.destroy_node()
             rclpy.shutdown()
     print(f'Результаты: {output}', flush=True)
+    if (args.record_bag or args.record_cloud) and not bag_recorded:
+        raise RuntimeError('Запрошенный rosbag не сохранён корректно; см. rosbag.log')
 
 
 if __name__ == '__main__':
