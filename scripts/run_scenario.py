@@ -1,0 +1,261 @@
+#!/usr/bin/env python3
+"""Воспроизводимые сценарии SITL. Ground truth читает только evaluation."""
+import argparse
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import time
+
+import rclpy
+from ament_index_python.packages import get_package_share_directory
+from geometry_msgs.msg import PoseStamped, TwistStamped
+from nav_msgs.msg import OccupancyGrid
+from rclpy.node import Node
+from rclpy.parameter import Parameter
+from rclpy.qos import QoSProfile, DurabilityPolicy
+from std_msgs.msg import String
+from std_srvs.srv import Trigger
+from swarm_interfaces.msg import FormationCommand, RelativePose, SwarmState
+
+
+class Scenario:
+    def __init__(self, kind, output):
+        self.node = Node('scenario_executor', parameter_overrides=[Parameter('use_sim_time', value=True)])
+        self.kind, self.output = kind, output
+        self.states, self.poses, self.status = {}, {}, {}
+        self.valid_counts = {1: 0, 2: 0, 3: 0}
+        self.execution, self.planner = {}, ''
+        self.events = []
+        self.clients = []
+        self.subs = [
+            self.node.create_subscription(SwarmState, '/mesh/states', lambda m: self.states.update({m.uav_id: m}), 10),
+            self.node.create_subscription(RelativePose, '/mesh/relative_poses', self.on_pose, 10),
+            self.node.create_subscription(String, '/swarm/formation_status', lambda m: setattr(self, 'status', json.loads(m.data)), 10),
+            self.node.create_subscription(String, '/mission/execution_status', lambda m: setattr(self, 'execution', json.loads(m.data)), 10),
+            self.node.create_subscription(String, '/mission/status', lambda m: setattr(self, 'planner', m.data), 10)]
+        self.formation_pub = self.node.create_publisher(FormationCommand, '/swarm/formation_command', 10)
+        self.manual_pub = self.node.create_publisher(TwistStamped, '/leader/cmd_vel', 10)
+        self.map_pub = self.node.create_publisher(OccupancyGrid, '/map', QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+        self.goal_pub = self.node.create_publisher(PoseStamped, '/mission/goal', 10)
+        self.processes = []
+
+    def now(self):
+        return self.node.get_clock().now().nanoseconds * 1e-9
+
+    def on_pose(self, msg):
+        self.poses[msg.target_id] = msg
+        if msg.valid:
+            self.valid_counts[msg.target_id] += 1
+
+    def event(self, text):
+        print(f'[{self.now():.2f}] {text}', flush=True)
+        self.events.append(dict(time=self.now(), event=text))
+
+    def wait(self, predicate, timeout, reason):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            rclpy.spin_once(self.node, timeout_sec=.02)
+            if predicate():
+                return
+        raise RuntimeError(f'{reason}; formation={self.status}, execution={self.execution}')
+
+    def call(self, path, retry=0.):
+        client = self.node.create_client(Trigger, path)
+        self.clients.append(client)
+        if not client.wait_for_service(timeout_sec=5.):
+            raise RuntimeError('Нет сервиса ' + path)
+        deadline = time.monotonic() + retry
+        while True:
+            future = client.call_async(Trigger.Request())
+            self.wait(future.done, 5., 'Нет ответа ' + path)
+            response = future.result()
+            if response.success:
+                return
+            if time.monotonic() >= deadline:
+                raise RuntimeError(path + ': ' + response.message)
+            start = self.now()
+            self.wait(lambda: self.now()-start > .5, 3., 'Clock остановлен')
+
+    def fresh(self):
+        return all(i in self.states and self.states[i].valid and
+                   0 <= self.now()-self.states[i].timestamp.sec-self.states[i].timestamp.nanosec*1e-9 < .5
+                   for i in range(4))
+
+    def prepare(self):
+        self.wait(self.fresh, 60., 'Нет четырёх свежих состояний')
+        self.event('Четыре PX4 готовы')
+        for i in range(4):
+            self.call(f'/uav_{i}/arm', retry=30.)
+            self.wait(lambda: self.states[i].armed, 5., 'Нет arm ack')
+            self.call(f'/uav_{i}/takeoff')
+            self.wait(lambda: self.states[i].pose.position.z > 2.1, 35., 'Не выполнен takeoff')
+            self.event(f'uav_{i}: взлёт подтверждён')
+        self.wait(lambda: all(abs(self.states[i].velocity.linear.z) < .12 for i in range(4)),
+                  20., 'Не стабилизировалась высота')
+        self.valid_counts = {1: 0, 2: 0, 3: 0}
+        self.call('/lidar_tracker/reset')
+        self.wait(lambda: all(n >= 5 for n in self.valid_counts.values()), 15., 'Нет трёх LiDAR-целей после взлёта')
+        for i in range(4):
+            self.call(f'/uav_{i}/enable_stream')
+        start = self.now()
+        self.wait(lambda: self.now()-start > 1.5, 5., 'Не идёт clock')
+        for i in range(4):
+            self.call(f'/uav_{i}/offboard')
+        self.wait(lambda: all(self.states[i].mode == '14' for i in range(4)), 5., 'Не подтверждён Offboard')
+        self.call('/swarm/enable_formation', retry=10.)
+        self.settle('line', 1., 30.)
+        self.event('LiDAR-контур включён; line удерживается')
+
+    def settle(self, formation, scale, timeout):
+        stable_since = [None]
+        def stable():
+            good = (self.status.get('mode') == 'FOLLOWING' and
+                    0 <= self.now()-self.status.get('time', -999.) < .5 and
+                    self.fresh() and
+                    self.status.get('formation') == formation and
+                    abs(self.status.get('scale', 0)-scale) < .01 and
+                    len(self.status.get('errors', [])) == 3 and max(self.status['errors']) < .6)
+            if not good:
+                stable_since[0] = None
+            elif stable_since[0] is None:
+                stable_since[0] = self.now()
+            return good and self.now()-stable_since[0] > 1.
+        self.wait(stable, timeout, 'Формация не установилась')
+
+    def formation(self, name, scale=1., duration=20.):
+        self.formation_pub.publish(FormationCommand(formation=name, scale=float(scale), transition_time=float(duration), source='scenario'))
+        self.event(f'Перестроение: {name}, scale={scale}')
+        self.settle(name, scale, duration + 45.)
+        self.event(f'Формация установилась: {name}, errors={self.status.get("errors")}')
+
+    def manual(self, seconds, velocity, yaw_rate=0.):
+        self.call('/leader/manual')
+        end = self.now() + seconds
+        wall_deadline = time.monotonic() + seconds * 4 + 10
+        while self.now() < end:
+            if time.monotonic() > wall_deadline:
+                raise RuntimeError('Таймаут ручного участка')
+            command = TwistStamped()
+            command.header.frame_id = 'map'
+            command.header.stamp = self.node.get_clock().now().to_msg()
+            command.twist.linear.x, command.twist.linear.y, command.twist.linear.z = map(float, velocity)
+            command.twist.angular.z = float(yaw_rate)
+            self.manual_pub.publish(command)
+            cycle = time.monotonic() + .05
+            while time.monotonic() < cycle:
+                rclpy.spin_once(self.node, timeout_sec=.005)
+
+    def mission_goal(self):
+        grid = OccupancyGrid()
+        grid.header.frame_id = 'map'
+        grid.info.width = grid.info.height = 100
+        grid.info.resolution = 1.
+        grid.info.origin.position.x = grid.info.origin.position.y = -30.
+        grid.info.origin.orientation.w = 1.
+        grid.data = [0] * 10000
+        # Непустая статическая карта; препятствие далеко от тестового маршрута.
+        for y in range(45, 50):
+            for x in range(45, 50):
+                grid.data[y*100+x] = 100
+        self.map_pub.publish(grid)
+        start = self.now()
+        self.wait(lambda: self.now()-start > .5, 3., 'Clock')
+        goal = PoseStamped()
+        goal.header.frame_id = 'map'
+        goal.header.stamp = self.node.get_clock().now().to_msg()
+        goal.pose.position.x, goal.pose.position.y, goal.pose.position.z = 6., 3., 3.
+        goal.pose.orientation.w = 1.
+        self.goal_pub.publish(goal)
+        self.wait(lambda: self.planner.startswith(('PLANNED', 'REJECTED')), 10., 'Нет результата A*')
+        if not self.planner.startswith('PLANNED'):
+            raise RuntimeError(self.planner)
+        self.event(self.planner)
+
+    def run(self):
+        self.prepare()
+        if self.kind == 's1':
+            self.manual(5., [0., 0., .12])
+            self.manual(5., [0., 0., -.12])
+            self.call('/leader/hold')
+            self.formation('line', 1.15, 12.)
+            self.formation('line', 1., 12.)
+            self.formation('column', 1., 25.)
+            self.formation('wedge', 1., 25.)
+            self.formation('line', 1., 20.)
+        elif self.kind == 's2':
+            for speed in [.5, 1., 1.5]:
+                self.event(f'Проверка ручного входа: {speed} м/с')
+                self.manual(12., [speed, 0., 0.])
+                self.manual(4., [0., speed/2, .1], .08)
+                self.manual(4., [0., 0., -.1], -.08)
+                self.manual(4., [0., 0., 0.])
+            self.call('/leader/hold')
+        else:
+            self.mission_goal()
+            self.call('/leader/mission')
+            self.wait(lambda: self.execution.get('status') in ['COMPLETE', 'MISSION_TIMEOUT'], 180., 'Миссия не завершилась')
+            if self.execution.get('status') != 'COMPLETE':
+                raise RuntimeError(str(self.execution))
+            self.event('Миссия завершена, лидер HOLD')
+        self.call('/leader/hold')
+        self.call('/swarm/hold')
+        self.event('Сценарий завершён в HOLD')
+
+    def land(self):
+        try:
+            self.call('/leader/hold')
+            self.call('/swarm/hold')
+        except Exception:
+            pass
+        for i in range(4):
+            if i in self.states and self.states[i].armed:
+                try:
+                    self.call(f'/uav_{i}/land')
+                except Exception as error:
+                    self.event(str(error))
+        self.wait(lambda: all(not state.armed for state in self.states.values()), 40., 'Не все аппараты сели')
+        self.event('Все аппараты разоружены')
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('scenario', choices=['s1', 's2', 's3'])
+    parser.add_argument('--output', default=None)
+    args = parser.parse_args()
+    output = Path(args.output or ('log/' + args.scenario + '_' + time.strftime('%Y%m%d_%H%M%S')))
+    output.mkdir(parents=True, exist_ok=False)
+    rclpy.init()
+    scenario = Scenario(args.scenario, output)
+    config = Path(get_package_share_directory('evaluation')) / 'config/evaluation.yaml'
+    handle = open(output / 'evaluation.log', 'w')
+    recorder = subprocess.Popen([str(Path(get_package_share_directory('evaluation')).parents[1] / 'lib/evaluation/recorder_node'), '--output', str(output/'metrics'),
+                                 '--ros-args', '--params-file', str(config), '-p', 'sensor_z:=1.9'],
+                                 stdout=handle, stderr=subprocess.STDOUT, start_new_session=True)
+    success = landed = False
+    try:
+        scenario.run()
+        success = True
+    finally:
+        try:
+            scenario.land()
+            landed = True
+        finally:
+            recorder.send_signal(signal.SIGINT)
+            try:
+                recorder.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                recorder.terminate()
+                recorder.wait(timeout=5)
+            handle.close()
+            (output/'result.json').write_text(json.dumps(dict(scenario=args.scenario, passed=success and landed,
+                                               passed_run=success, passed_landing=landed,
+                                               events=scenario.events), ensure_ascii=False, indent=2)+'\n')
+            scenario.node.destroy_node()
+            rclpy.shutdown()
+    print(f'Результаты: {output}', flush=True)
+
+
+if __name__ == '__main__':
+    main()
