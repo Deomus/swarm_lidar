@@ -6,6 +6,7 @@
 
 ```bash
 source /opt/ros/jazzy/setup.bash
+source ~/px4_ros_ws/install/setup.bash
 colcon build --symlink-install
 source install/setup.bash
 ROS_DOMAIN_ID=72 ros2 launch swarm_lidar swarm_demo.launch.py gui:=false
@@ -18,6 +19,11 @@ Gazebo partition — `swarm_lidar`; ROS_DOMAIN_ID наследуется все�
 Другой PX4 с тем же instance или agent-портом одновременно запускать нельзя.
 При Ctrl+C завершаются только процессы текущего запуска. Логи — `log/sitl_*`.
 Ни один аппарат автоматически не вооружается.
+
+По умолчанию также запускается ROS-стек: clock bridge, четыре моста PX4,
+программная GCS, mesh и manager. `stack:=false` оставляет только Gazebo/PX4.
+`lidar:=true` выбирает модели с настоящим LiDAR и запускает tracker;
+контракт и проверка описаны в [lidar_sim.md](lidar_sim.md).
 
 Во втором терминале:
 

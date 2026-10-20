@@ -4,6 +4,7 @@
 
 ```bash
 source /opt/ros/jazzy/setup.bash
+source ~/px4_ros_ws/install/setup.bash
 ros2 --help
 gz sim --version
 colcon build --symlink-install
@@ -63,6 +64,11 @@ ros2 run lidar_tracker tracker_node --ros-args --params-file \
 
 Запуск четырёх PX4 и проверка namespace/телеметрии:
 [docs/sitl.md](docs/sitl.md).
+
+Мост автопилота, TF и полётный smoke test:
+[docs/autopilot_bridge.md](docs/autopilot_bridge.md).
+Настоящий LiDAR Gazebo и проверка трёх целей:
+[docs/lidar_sim.md](docs/lidar_sim.md).
 
 Проверка всей ROS-цепочки на синтетическом облаке:
 

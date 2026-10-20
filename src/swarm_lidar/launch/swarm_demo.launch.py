@@ -10,10 +10,14 @@ def generate_launch_description():
         DeclareLaunchArgument('px4_dir', default_value=os.path.expanduser('~/PX4-Autopilot')),
         DeclareLaunchArgument('gui', default_value='true'),
         DeclareLaunchArgument('duration', default_value='0'),
+        DeclareLaunchArgument('lidar', default_value='false'),
+        DeclareLaunchArgument('stack', default_value='true'),
         ExecuteProcess(cmd=['ros2', 'run', 'swarm_lidar', 'sitl',
                             '--px4-dir', LaunchConfiguration('px4_dir'),
                             '--gui', LaunchConfiguration('gui'),
-                            '--duration', LaunchConfiguration('duration')],
+                            '--duration', LaunchConfiguration('duration'),
+                            '--lidar', LaunchConfiguration('lidar'),
+                            '--stack', LaunchConfiguration('stack')],
                        output='screen'),
     ])
 

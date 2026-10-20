@@ -14,6 +14,8 @@ def main():
     parser.add_argument('--gui', choices=['true', 'false'], default='true')
     parser.add_argument('--duration', type=float, default=0.)
     parser.add_argument('--agent-port', type=int, default=8889)
+    parser.add_argument('--lidar', choices=['true', 'false'], default='false')
+    parser.add_argument('--stack', choices=['true', 'false'], default='true')
     args = parser.parse_args()
     px4 = Path(args.px4_dir).resolve()
     build = px4 / 'build/px4_sitl_default'
@@ -29,7 +31,8 @@ def main():
                GZ_PARTITION='swarm_lidar', GZ_IP='127.0.0.1',
                ROS_LOG_DIR=str(runtime / 'ros'))
     models = px4 / 'Tools/simulation/gz/models'
-    env['GZ_SIM_RESOURCE_PATH'] = str(models) + ':' + env.get('GZ_SIM_RESOURCE_PATH', '')
+    share = Path(get_package_share_directory('swarm_lidar'))
+    env['GZ_SIM_RESOURCE_PATH'] = str(share / 'models') + ':' + str(models) + ':' + env.get('GZ_SIM_RESOURCE_PATH', '')
     env['GZ_SIM_SYSTEM_PLUGIN_PATH'] = str(build / 'src/modules/simulation/gz_plugins')
     processes, handles = [], []
     def start(name, cmd, cwd=None, extra=None, stdin=False):
@@ -42,8 +45,8 @@ def main():
         processes.append((name, proc))
         return proc
     try:
-        world = Path(get_package_share_directory('swarm_lidar')) / 'worlds/swarm.sdf'
-        start('gazebo', ['gz', 'sim', '-r', '-s', str(world)])
+        world = share / 'worlds' / ('swarm_lidar.sdf' if args.lidar == 'true' else 'swarm.sdf')
+        start('gazebo', ['gz', 'sim', '-r', '-s', '--headless-rendering', str(world)])
         start('agent', ['MicroXRCEAgent', 'udp4', '-p', str(args.agent_port)])
         if args.gui == 'true':
             start('gui', ['gz', 'sim', '-g'])
@@ -57,11 +60,19 @@ def main():
             time.sleep(.5)
         else:
             raise RuntimeError('Gazebo не готов за 45 секунд')
+        if args.stack == 'true':
+            start('ros_stack', ['ros2', 'launch', 'swarm_lidar', 'runtime.launch.py',
+                                'lidar:=' + args.lidar])
         for i in range(4):
             working = runtime / f'uav_{i}'
             working.mkdir()
+            startup = working / 'startup.sh'
+            startup.write_text('. etc/init.d-posix/rcS\n'
+                               'uxrce_dds_client stop\n'
+                               'param set UXRCE_DDS_SYNCT 0\n'
+                               f'uxrce_dds_client start -t udp -p {args.agent_port} -n uav_{i}\n')
             proc = start(f'px4_{i}', [str(build / 'bin/px4'), '-i', str(i),
-                                    '-w', str(working), str(build / 'etc')], cwd=working, stdin=True,
+                                    '-s', str(startup), '-w', str(working), str(build / 'etc')], cwd=working, stdin=True,
                          extra=dict(PX4_GZ_MODEL_NAME=f'uav_{i}',
                                     PX4_UXRCE_DDS_NS=f'uav_{i}',
                                     PX4_UXRCE_DDS_PORT=str(args.agent_port)))
