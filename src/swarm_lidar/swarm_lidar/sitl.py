@@ -103,6 +103,9 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        # Терминал и launch могут доставить SIGINT повторно во время очистки.
+        # Дожидаемся собственных детей даже после второго сигнала.
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
         for name, proc in reversed(processes):
             if proc.poll() is None:
                 # ros2 launch сам передаёт сигнал узлам. Сигнал всей группе
