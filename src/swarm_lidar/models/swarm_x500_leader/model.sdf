@@ -3,7 +3,7 @@
   <model name="swarm_x500_leader">
     <include merge="true"><uri>model://x500</uri></include>
     <link name="lidar_link">
-      <pose relative_to="base_link">0 0 0.45 0 0 0</pose>
+      <pose relative_to="base_link">0 0 1.9 0 0 0</pose>
       <inertial>
         <mass>0.01</mass>
         <inertia><ixx>0.00001</ixx><iyy>0.00001</iyy><izz>0.00001</izz></inertia>
@@ -25,8 +25,8 @@
               <min_angle>-3.141592653589793</min_angle><max_angle>3.141592653589793</max_angle>
             </horizontal>
             <vertical>
-              <samples>32</samples><resolution>1</resolution>
-              <min_angle>-0.349065850398866</min_angle><max_angle>0.349065850398866</max_angle>
+              <samples>64</samples><resolution>1</resolution>
+              <min_angle>-0.523598775598299</min_angle><max_angle>0.523598775598299</max_angle>
             </vertical>
           </scan>
           <range><min>0.15</min><max>80</max><resolution>0.01</resolution></range>

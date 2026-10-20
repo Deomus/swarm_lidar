@@ -15,7 +15,7 @@ from .frames import enu_ned, quaternion_ned_frd_to_enu_flu, command_is_fresh, an
 class AutopilotBridge(Node):
     def __init__(self):
         super().__init__('autopilot_bridge')
-        defaults = dict(uav_id=0, origin_enu=[0., 0., 0.], lidar_offset=[0., 0., .45],
+        defaults = dict(uav_id=0, origin_enu=[0., 0., 0.], lidar_offset=[0., 0., 1.9],
                         map_frame='map', commands_topic='/mesh/commands',
                         states_topic='/swarm/states', odometry_topic='fmu/out/vehicle_odometry',
                         local_position_topic='fmu/out/vehicle_local_position_v1',
@@ -24,7 +24,7 @@ class AutopilotBridge(Node):
                         ack_topic='fmu/out/vehicle_command_ack_v1',
                         offboard_topic='fmu/in/offboard_control_mode',
                         trajectory_topic='fmu/in/trajectory_setpoint',
-                        period=.05, stale_timeout=.5, status_timeout=1.5, command_timeout=.3,
+                        period=.05, stale_timeout=.5, status_timeout=1.5, command_timeout=.5,
                         max_velocity=3., max_yaw_rate=.3, use_offboard=False)
         for key, value in defaults.items():
             self.declare_parameter(key, value)

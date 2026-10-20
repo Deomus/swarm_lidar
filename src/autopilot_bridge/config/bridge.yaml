@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     map_frame: map
-    lidar_offset: [0.0, 0.0, 0.45]
+    lidar_offset: [0.0, 0.0, 1.9]
     commands_topic: /mesh/commands
     states_topic: /swarm/states
     odometry_topic: fmu/out/vehicle_odometry
@@ -14,7 +14,7 @@
     period: 0.05
     stale_timeout: 0.5
     status_timeout: 1.5
-    command_timeout: 0.3
+    command_timeout: 0.5
     max_velocity: 3.0
     max_yaw_rate: 0.3
     use_offboard: false

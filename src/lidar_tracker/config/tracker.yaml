@@ -4,11 +4,11 @@ lidar_tracker:
     output_topic: /swarm/relative_poses
     expected_frame: uav_0/lidar_link
     target_ids: [1, 2, 3]
-    initial_positions: [-4.0, -4.0, 0.0, -4.0, 0.0, 0.0, -4.0, 4.0, 0.0]
+    initial_positions: [-4.0, -4.0, -1.45, -4.0, 0.0, -1.45, -4.0, 4.0, -1.45]
     min_range: 0.5
     max_range: 80.0
-    min_z: -10.0
-    max_z: 10.0
+    min_z: -2.05
+    max_z: -0.65
     cluster_tolerance: 0.5
     min_cluster_size: 3
     max_cluster_size: 500
