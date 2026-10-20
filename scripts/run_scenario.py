@@ -69,6 +69,8 @@ class Scenario:
         def check():
             if self.now() < start:
                 raise RuntimeError(f'{reason}: часы симуляции вернулись назад')
+            if self.now() - start > timeout:
+                raise RuntimeError(f'{reason}: истёк лимит {timeout} с симуляции')
             if predicate():
                 return True
             if self.now() - start >= timeout:

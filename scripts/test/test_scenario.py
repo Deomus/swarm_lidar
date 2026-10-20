@@ -82,3 +82,15 @@ def test_maneuver_rejects_simulation_timeout_and_rewind(scenario_module, new_tim
     scenario.wait = wait
     with pytest.raises(RuntimeError, match=reason):
         scenario.wait_sim(lambda: False, 2., 'Манёвр')
+
+
+def test_success_received_after_simulation_deadline_does_not_pass(scenario_module):
+    scenario = scenario_module.Scenario.__new__(scenario_module.Scenario)
+    clock = [0.]
+    scenario.now = lambda: clock[0]
+    def wait(predicate, timeout, message):
+        clock[0] = 3.
+        predicate()
+    scenario.wait = wait
+    with pytest.raises(RuntimeError, match='лимит'):
+        scenario.wait_sim(lambda: True, 2., 'Манёвр')
