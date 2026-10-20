@@ -53,3 +53,32 @@ def test_cached_disarmed_state_is_not_landing_confirmation(scenario_module, monk
     with pytest.raises(RuntimeError, match='свежей телеметрией'):
         scenario.land()
     assert all(f'/uav_{i}/land' in requests for i in range(4))
+
+
+def test_maneuver_timeout_uses_simulation_clock(scenario_module):
+    scenario = scenario_module.Scenario.__new__(scenario_module.Scenario)
+    clock = [0.]
+    scenario.now = lambda: clock[0]
+    def wait(predicate, timeout, reason):
+        # Симуляция вчетверо медленнее реального времени.
+        for _ in range(int(timeout)):
+            if predicate():
+                return
+            clock[0] += .25
+        raise RuntimeError(reason)
+    scenario.wait = wait
+    scenario.wait_sim(lambda: clock[0] >= 1.5, 2., 'Манёвр')
+    assert clock[0] == 1.5
+
+
+@pytest.mark.parametrize('new_time,reason', [(2.1, 'лимит'), (-1., 'назад')])
+def test_maneuver_rejects_simulation_timeout_and_rewind(scenario_module, new_time, reason):
+    scenario = scenario_module.Scenario.__new__(scenario_module.Scenario)
+    clock = [0.]
+    scenario.now = lambda: clock[0]
+    def wait(predicate, timeout, message):
+        clock[0] = new_time
+        predicate()
+    scenario.wait = wait
+    with pytest.raises(RuntimeError, match=reason):
+        scenario.wait_sim(lambda: False, 2., 'Манёвр')

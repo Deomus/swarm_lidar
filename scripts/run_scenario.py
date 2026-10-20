@@ -63,6 +63,19 @@ class Scenario:
                 return
         raise RuntimeError(f'{reason}; formation={self.status}, execution={self.execution}')
 
+    def wait_sim(self, predicate, timeout, reason):
+        """Бюджет манёвра по /clock с отдельным ограничением реального ожидания."""
+        start = self.now()
+        def check():
+            if self.now() < start:
+                raise RuntimeError(f'{reason}: часы симуляции вернулись назад')
+            if predicate():
+                return True
+            if self.now() - start >= timeout:
+                raise RuntimeError(f'{reason}: истёк лимит {timeout} с симуляции')
+            return False
+        self.wait(check, max(10., timeout * 4), reason + ': истёк предел реального ожидания')
+
     def call(self, path, retry=0.):
         client = self.node.create_client(Trigger, path)
         self.clients.append(client)
@@ -96,7 +109,7 @@ class Scenario:
             self.call(f'/uav_{i}/arm', retry=30.)
             self.wait(lambda: self.states[i].armed, 5., 'Нет arm ack')
             self.call(f'/uav_{i}/takeoff')
-            self.wait(lambda: self.fresh() and self.states[i].armed and
+            self.wait_sim(lambda: self.fresh() and self.states[i].armed and
                       self.states[i].pose.position.z - ground_z > 2.1,
                       35., 'Не выполнен takeoff относительно стартовой высоты')
             self.event(f'uav_{i}: взлёт подтверждён')
@@ -130,7 +143,7 @@ class Scenario:
             elif stable_since[0] is None:
                 stable_since[0] = self.now()
             return good and self.now()-stable_since[0] > 1.
-        self.wait(stable, timeout, 'Формация не установилась')
+        self.wait_sim(stable, timeout, 'Формация не установилась')
 
     def formation(self, name, scale=1., duration=20.):
         self.formation_pub.publish(FormationCommand(formation=name, scale=float(scale), transition_time=float(duration), source='scenario'))
@@ -233,7 +246,7 @@ class Scenario:
             mission_start = self.now()
             self.call('/leader/mission')
             terminal = {'COMPLETE', 'WAYPOINT_TIMEOUT', 'STATE_STALE', 'CLOCK_RESET', 'PATH_REVOKED'}
-            self.wait(lambda: mission_start <= self.execution.get('stamp', -1) <= self.now()
+            self.wait_sim(lambda: mission_start <= self.execution.get('stamp', -1) <= self.now()
                       and self.now()-self.execution['stamp'] < .5
                       and self.execution.get('status') in terminal, 180., 'Миссия не завершилась')
             if self.execution.get('status') != 'COMPLETE':
@@ -250,7 +263,7 @@ class Scenario:
                 elif stable_since[0] is None:
                     stable_since[0] = self.now()
                 return good and self.now() - stable_since[0] >= 1.
-            self.wait(arrived, 30., 'Лидер не остановился у цели')
+            self.wait_sim(arrived, 30., 'Лидер не остановился у цели')
             p, target = self.states[0].pose.position, goal.pose.position
             error = ((p.x-target.x)**2 + (p.y-target.y)**2 + (p.z-target.z)**2)**.5
             self.event(f'Цель достигнута: ошибка положения лидера {error:.3f} м')
