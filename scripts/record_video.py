@@ -5,6 +5,7 @@ import argparse
 import math
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -57,7 +58,10 @@ def record(args):
                    '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p',
                    '-movflags', '+frag_keyframe+empty_moov+default_base_moof',
                    '-f', 'mp4', 'pipe:1']
-        encoder = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=handle)
+        # Ctrl+C получает записывающая программа; кодировщик завершается
+        # после закрытия входа, успевая дописать контейнер без второго SIGINT.
+        encoder = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=handle,
+                                   start_new_session=True)
         frames = Queue(maxsize=5)
         stopping, first_frame = Event(), Event()
         lock = Lock()
@@ -193,6 +197,7 @@ def record(args):
         except KeyboardInterrupt:
             interrupted = True
         finally:
+            previous_sigint = signal.signal(signal.SIGINT, signal.SIG_IGN)
             with lock:
                 stopping.set()
             transport.unsubscribe(args.topic)
@@ -207,6 +212,8 @@ def record(args):
             except subprocess.TimeoutExpired:
                 encoder.kill()
                 code = encoder.wait(timeout=5.)
+            finally:
+                signal.signal(signal.SIGINT, previous_sigint)
         print(f'Кадров: получено {counts["received"]}, записано {counts["written"]}, '
               f'пропущено {counts["dropped"]}, некорректно {counts["invalid"]}.', flush=True)
         if args.follow:
@@ -216,7 +223,8 @@ def record(args):
                 print('Предупреждение: сопровождение группы не подтверждено; '
                       'видео могло остаться со статичной камеры.', file=sys.stderr, flush=True)
         if code != 0 or not counts['written'] or write_failed.is_set():
-            detail = errors[-1] if errors else 'нет записанных кадров'
+            detail = errors[-1] if errors else (
+                'нет записанных кадров' if not counts['written'] else 'кодировщик завершился с ошибкой')
             raise RuntimeError(f'Видео не завершено успешно (код {code}): {detail}')
         reason = 'по Ctrl+C' if interrupted else 'по заданной длительности'
         print(f'Сохранено {output} ({reason}), длительность видео '
