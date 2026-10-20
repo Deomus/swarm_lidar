@@ -124,11 +124,11 @@ class Scenario:
         self.call('/lidar_tracker/reset')
         self.wait(lambda: all(n >= 5 for n in self.valid_counts.values()), 15., 'Нет трёх LiDAR-целей после взлёта')
         for i in range(4):
-            self.call(f'/uav_{i}/enable_stream')
+            self.call(f'/uav_{i}/enable_stream', retry=5.)
         start = self.now()
         self.wait(lambda: self.now()-start > 1.5, 5., 'Не идёт clock')
         for i in range(4):
-            self.call(f'/uav_{i}/offboard')
+            self.call(f'/uav_{i}/offboard', retry=5.)
         self.wait(lambda: all(self.states[i].mode == '14' for i in range(4)), 5., 'Не подтверждён Offboard')
         self.call('/swarm/enable_formation', retry=10.)
         self.settle('line', 1., 30.)
