@@ -17,3 +17,7 @@
     waypoint_tolerance: 0.4
     waypoint_gain: 0.25
     waypoint_timeout: 90.0
+    require_formation_ready: true
+    formation_status_topic: /swarm/formation_status
+    formation_status_timeout: 0.5
+    formation_unavailable_grace: 1.0

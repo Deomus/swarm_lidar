@@ -12,6 +12,7 @@ from std_srvs.srv import Trigger
 from swarm_interfaces.msg import SwarmCommand, SwarmState
 
 from .core import LeaderCore
+from .formation_guard import FormationGuard
 
 
 def seconds(stamp):
@@ -27,7 +28,10 @@ class LeaderInterface(Node):
                         period=.05, max_speed=1.5, max_acceleration=1., max_jerk=2.,
                         max_yaw_rate=.3,
                         manual_timeout=.25, state_timeout=.5, waypoint_tolerance=.4,
-                        waypoint_gain=.25, waypoint_timeout=90.)
+                        waypoint_gain=.25, waypoint_timeout=90.,
+                        require_formation_ready=False,
+                        formation_status_topic='/swarm/formation_status',
+                        formation_status_timeout=.5, formation_unavailable_grace=1.)
         for key, value in defaults.items():
             self.declare_parameter(key, value)
         self.p = {key: self.get_parameter(key).value for key in defaults}
@@ -35,6 +39,10 @@ class LeaderInterface(Node):
             'period', 'max_speed', 'max_acceleration', 'max_jerk', 'manual_timeout',
             'state_timeout', 'waypoint_tolerance', 'waypoint_gain', 'waypoint_timeout',
             'max_yaw_rate')})
+        self.formation_guard = FormationGuard(
+            required=self.p['require_formation_ready'],
+            status_timeout=self.p['formation_status_timeout'],
+            grace=self.p['formation_unavailable_grace'])
         self.command_pub = self.create_publisher(SwarmCommand, self.p['commands_topic'], 10)
         self.status_pub = self.create_publisher(String, self.p['status_topic'], 10)
         self.subscriptions_ = [
@@ -42,6 +50,9 @@ class LeaderInterface(Node):
             self.create_subscription(TwistStamped, self.p['manual_topic'], self.manual, 10),
             self.create_subscription(Path, self.p['path_topic'], self.path, 10),
         ]
+        if self.p['require_formation_ready']:
+            self.subscriptions_.append(self.create_subscription(
+                String, self.p['formation_status_topic'], self.formation_status, 10))
         self.services_ = [self.create_service(
             Trigger, f'/leader/{mode.lower()}',
             lambda req, response, mode=mode: self.select(mode, response))
@@ -94,9 +105,19 @@ class LeaderInterface(Node):
         except ValueError as error:
             self.get_logger().warning(f'Маршрут отклонён: {error}')
 
+    def formation_status(self, message):
+        try:
+            value = json.loads(message.data)
+        except (ValueError, TypeError):
+            return
+        self.formation_guard.update(value, self.now())
+
     def select(self, mode, response):
         try:
-            self.core.select_mode(mode, self.now())
+            now = self.now()
+            if mode in ('MANUAL', 'MISSION'):
+                self.formation_guard.require_ready(now)
+            self.core.select_mode(mode, now)
         except ValueError as error:
             response.message = str(error)
             return response
@@ -105,7 +126,12 @@ class LeaderInterface(Node):
         return response
 
     def tick(self):
-        result = self.core.tick(self.now())
+        now = self.now()
+        result = self.core.tick(now)
+        if self.formation_guard.should_hold(self.core.mode in ('MANUAL', 'MISSION'), now):
+            self.core.select_mode('HOLD', now)
+            self.core.status = 'FORMATION_UNAVAILABLE'
+            result = self.core.tick(now)
         message = SwarmCommand()
         message.uav_id = 0
         message.frame_id = self.p['frame_id']
@@ -121,7 +147,9 @@ class LeaderInterface(Node):
         self.command_pub.publish(message)
         status = dict(mode=self.core.mode, status=result.status, waypoint=result.waypoint_index,
                       total=len(self.core.path) if self.core.path is not None else 0,
-                      valid=result.valid, stamp=self.now())
+                      valid=result.valid, stamp=now,
+                      formation_ready=self.formation_guard.ready(now),
+                      formation_required=self.p['require_formation_ready'])
         self.status_pub.publish(String(data=json.dumps(status, ensure_ascii=False)))
         if result.status != self.last_status:
             self.get_logger().info(f'Лидер: {result.status}, waypoint={result.waypoint_index}')

@@ -449,7 +449,8 @@ class Scenario:
             goal = self.mission_goal()
             mission_start = self.now()
             self.call('/leader/mission')
-            terminal = {'COMPLETE', 'WAYPOINT_TIMEOUT', 'STATE_STALE', 'CLOCK_RESET', 'PATH_REVOKED'}
+            terminal = {'COMPLETE', 'WAYPOINT_TIMEOUT', 'STATE_STALE', 'CLOCK_RESET',
+                        'PATH_REVOKED', 'FORMATION_UNAVAILABLE'}
             self.wait_sim(lambda: mission_start <= self.execution.get('stamp', -1) <= self.now()
                       and self.now()-self.execution['stamp'] < .5
                       and self.execution.get('status') in terminal, 180., 'Миссия не завершилась')
