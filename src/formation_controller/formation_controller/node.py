@@ -13,8 +13,8 @@ from .core import FormationPlan, RelativeVelocityController
 class FormationController(Node):
     def __init__(self):
         super().__init__('formation_controller')
-        defaults = dict(period=.05, kp=.3, stale_timeout=.5, min_confidence=.4,
-                        max_speed=2., max_acceleration=4., max_jerk=8.,
+        defaults = dict(period=.05, kp=.6, stale_timeout=.5, min_confidence=.4,
+                        max_speed=2., max_acceleration=4., max_jerk=32.,
                         min_separation=2., warning_distance=3., repulsion_gain=.5,
                         gap=4., surface_bias=.166, sensor_offset=[0., 0., 1.9],
                         marker_offset_z=.45, poses_topic='/mesh/relative_poses',

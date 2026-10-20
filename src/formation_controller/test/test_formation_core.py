@@ -37,6 +37,17 @@ def test_analytic_distance_finds_crossing_and_leader_collision():
     assert minimum_transition_distance(start, end) == 0
 
 
+def test_wedge_has_leader_at_front_and_safe_transition_from_column():
+    target = formation_offsets('wedge')
+    np.testing.assert_allclose(target, [[-8, -4, 0], [-8, 0, 0], [-8, 4, 0]])
+    plan = FormationPlan()
+    plan.request('column', 1, 14, now=0)
+    plan.request('wedge', 1, 12, now=14)
+    for sample_time in np.linspace(14, 26, 121):
+        positions = plan.sample(sample_time).offsets
+        assert minimum_transition_distance(positions, positions) >= 2 - 1e-9
+
+
 def test_analytic_distance_agrees_with_dense_sample():
     rng = np.random.default_rng(23)
     for _ in range(12):
@@ -140,8 +151,10 @@ def test_zero_and_repeated_pause_preserve_progress():
     np.testing.assert_allclose(plan.sample(13.25).velocities, expected.velocities)
 
 
-def test_limiter_speed_acceleration_and_jerk_under_reversals():
-    limiter = VelocityLimiter(max_speed=3, max_acceleration=2, max_jerk=4, period=0.05)
+@pytest.mark.parametrize('speed,acceleration_limit,jerk_limit', [(3, 2, 4), (2, 4, 32)])
+def test_limiter_speed_acceleration_and_jerk_under_reversals(speed, acceleration_limit, jerk_limit):
+    limiter = VelocityLimiter(max_speed=speed, max_acceleration=acceleration_limit,
+                              max_jerk=jerk_limit, period=0.05)
     velocities = [np.zeros(3)]
     rng = np.random.default_rng(4)
     for n in range(1500):
@@ -150,9 +163,9 @@ def test_limiter_speed_acceleration_and_jerk_under_reversals():
     velocities = np.asarray(velocities)
     acceleration = np.diff(velocities, axis=0) / 0.05
     jerk = np.diff(np.vstack(([0, 0, 0], acceleration)), axis=0) / 0.05
-    assert np.linalg.norm(velocities, axis=1).max() <= 3 + 1e-9
-    assert np.linalg.norm(acceleration, axis=1).max() <= 2 + 1e-9
-    assert np.linalg.norm(jerk, axis=1).max() <= 4 + 1e-9
+    assert np.linalg.norm(velocities, axis=1).max() <= speed + 1e-9
+    assert np.linalg.norm(acceleration, axis=1).max() <= acceleration_limit + 1e-9
+    assert np.linalg.norm(jerk, axis=1).max() <= jerk_limit + 1e-9
 
 
 def test_braking_envelope_bounds_command_distance_and_settling_time():
