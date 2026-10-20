@@ -49,7 +49,12 @@ def main():
     try:
         world = share / 'worlds' / ('swarm_lidar.sdf' if args.lidar == 'true' else 'swarm.sdf')
         start('gazebo', ['gz', 'sim', '-r', '-s', '--headless-rendering', str(world)])
-        start('agent', ['MicroXRCEAgent', 'udp4', '-p', str(args.agent_port)])
+        agent = start('agent', ['MicroXRCEAgent', 'udp4', '-p', str(args.agent_port)])
+        time.sleep(.2)
+        if agent.poll() is not None:
+            raise RuntimeError(
+                f'MicroXRCEAgent не запустился на порту {args.agent_port}; '
+                f'проверьте, не занят ли порт другим запуском. Лог: {runtime / "agent.log"}')
         if args.gui == 'true':
             start('gui', ['gz', 'sim', '-g'])
         # Ждём готовности world service вместо произвольной паузы.
