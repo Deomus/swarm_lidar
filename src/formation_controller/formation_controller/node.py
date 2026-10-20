@@ -13,7 +13,7 @@ from .core import FormationPlan, RelativeVelocityController
 class FormationController(Node):
     def __init__(self):
         super().__init__('formation_controller')
-        defaults = dict(period=.05, kp=.3, stale_timeout=.5, min_confidence=.5,
+        defaults = dict(period=.05, kp=.3, stale_timeout=.5, min_confidence=.4,
                         max_speed=2., max_acceleration=4., max_jerk=8.,
                         min_separation=2., warning_distance=3., repulsion_gain=.5,
                         gap=4., surface_bias=.166, sensor_offset=[0., 0., 1.9],
@@ -81,7 +81,11 @@ class FormationController(Node):
 
     def enable(self, req, response):
         if not self.data_ready():
-            response.message = 'Нужны четыре вооружённых аппарата, свежая телеметрия и три LiDAR-цели'
+            response.message = str(dict(
+                time=self.now(), states={i: dict(valid=s.valid, armed=s.armed,
+                age=self.now()-self.seconds(s.timestamp)) for i, s in self.states.items()},
+                poses={i: dict(valid=p.valid, confidence=p.confidence,
+                age=self.now()-self.seconds(p.measurement_stamp)) for i, p in self.poses.items()}))
             return response
         self.enabled = True
         self.controllers = self.new_controllers()

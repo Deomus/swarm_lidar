@@ -3,7 +3,7 @@ formation_controller:
     period: 0.05
     kp: 0.3
     stale_timeout: 0.5
-    min_confidence: 0.5
+    min_confidence: 0.4
     max_speed: 2.0
     max_acceleration: 4.0
     max_jerk: 8.0
