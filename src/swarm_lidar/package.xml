@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>swarm_lidar</name><version>0.1.0</version>
+  <description>Запуск четырёх PX4 SITL в Gazebo.</description>
+  <maintainer email="smag@todo.invalid">Swarm LiDAR team</maintainer>
+  <license>Apache-2.0</license><buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>launch_ros</exec_depend><exec_depend>ros_gz_bridge</exec_depend>
+  <exec_depend>lidar_tracker</exec_depend><exec_depend>mesh_interface</exec_depend>
+  <exec_depend>swarm_manager</exec_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>
+

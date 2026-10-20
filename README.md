@@ -61,6 +61,9 @@ ros2 run lidar_tracker tracker_node --ros-args --params-file \
 Добавлены программный mesh-канал и менеджер свежести данных. Контракты,
 параметры и запуск: [docs/mesh_health.md](docs/mesh_health.md).
 
+Запуск четырёх PX4 и проверка namespace/телеметрии:
+[docs/sitl.md](docs/sitl.md).
+
 Проверка всей ROS-цепочки на синтетическом облаке:
 
 ```bash
