@@ -9,6 +9,7 @@ from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from swarm_interfaces.msg import FormationCommand, RelativePose, SwarmCommand, SwarmState
 from .core import FormationPlan, RelativeVelocityController
+from .prediction import LeaderVelocityPredictor
 
 class FormationController(Node):
     def __init__(self):
@@ -18,6 +19,8 @@ class FormationController(Node):
                         min_separation=2., warning_distance=3., repulsion_gain=.5,
                         gap=4., surface_bias=.166, sensor_offset=[0., 0., 1.9],
                         marker_offset_z=.45, poses_topic='/mesh/relative_poses',
+                        leader_prediction_horizon=1.9, leader_prediction_max_correction=.6,
+                        leader_prediction_max_acceleration=1., leader_prediction_smoothing=.3,
                         states_topic='/mesh/states', commands_topic='/swarm/commands',
                         formation_topic='/swarm/formation_command',
                         status_topic='/swarm/formation_status', target_topic='/swarm/target_offsets')
@@ -26,6 +29,12 @@ class FormationController(Node):
         self.p = {key: self.get_parameter(key).value for key in defaults}
         self.plan = FormationPlan(self.p['min_separation'], self.p['gap'])
         self.controllers = self.new_controllers()
+        self.predictor = LeaderVelocityPredictor(
+            horizon=self.p['leader_prediction_horizon'],
+            max_correction=self.p['leader_prediction_max_correction'],
+            max_acceleration=self.p['leader_prediction_max_acceleration'],
+            smoothing_time=self.p['leader_prediction_smoothing'],
+            stale_timeout=self.p['stale_timeout'])
         self.poses, self.states = {}, {}
         self.enabled = False
         self.formation, self.scale = 'line', 1.
@@ -89,6 +98,7 @@ class FormationController(Node):
             return response
         self.enabled = True
         self.controllers = self.new_controllers()
+        self.predictor.reset()
         response.success = True
         response.message = 'LiDAR-relative контур включён'
         return response
@@ -96,6 +106,7 @@ class FormationController(Node):
     def hold(self, req, response):
         self.enabled = False
         self.reason = 'HOLD'
+        self.predictor.reset()
         response.success = True
         response.message = 'Контур отключён; ведомым выдаётся нулевая скорость'
         return response
@@ -164,6 +175,7 @@ class FormationController(Node):
                     if previous is not None and now >= previous:
                         self.plan.pause(now - previous)
                 v = leader.velocity.linear
+                forward = self.predictor.update([v.x, v.y, v.z], self.seconds(leader.timestamp), now)
                 for index, controller in enumerate(self.controllers):
                     offset = sample.offsets[index].copy()
                     for j, other in enumerate(all_points):
@@ -175,7 +187,7 @@ class FormationController(Node):
                             offset += self.p['repulsion_gain'] * (self.p['warning_distance']-distance) * delta / distance
                     pose = self.poses[index + 1]
                     result = controller.step(relative[index], offset, sample.velocities[index],
-                        [v.x, v.y, v.z], leader.yaw, leader.yaw_rate,
+                        forward, leader.yaw, leader.yaw_rate,
                         min(self.seconds(pose.measurement_stamp), self.seconds(leader.timestamp)),
                         now, enabled=ready, confidence=pose.confidence)
                     velocities[index] = result.velocity_enu if ready else np.zeros(3)
@@ -184,6 +196,7 @@ class FormationController(Node):
                 ready, state = False, 'INVALID_GEOMETRY'
         if not ready:
             self.controllers = self.new_controllers()
+            self.predictor.reset()
         for i in [1, 2, 3]:
             command = SwarmCommand(uav_id=i, frame_id='map', valid=bool(ready), safety_state=state)
             command.source_stamp = self.get_clock().now().to_msg()
