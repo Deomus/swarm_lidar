@@ -8,10 +8,6 @@
         <mass>0.01</mass>
         <inertia><ixx>0.00001</ixx><iyy>0.00001</iyy><izz>0.00001</izz></inertia>
       </inertial>
-      <visual name="housing">
-        <geometry><cylinder><radius>0.04</radius><length>0.05</length></cylinder></geometry>
-        <material><ambient>0.05 0.1 0.15 1</ambient><diffuse>0.05 0.1 0.15 1</diffuse></material>
-      </visual>
       <sensor name="lidar" type="gpu_lidar">
         <gz_frame_id>uav_0/lidar_link</gz_frame_id>
         <topic>/uav_0/lidar/scan</topic>
@@ -25,7 +21,7 @@
               <min_angle>-3.141592653589793</min_angle><max_angle>3.141592653589793</max_angle>
             </horizontal>
             <vertical>
-              <samples>64</samples><resolution>1</resolution>
+              <samples>256</samples><resolution>1</resolution>
               <min_angle>-0.523598775598299</min_angle><max_angle>0.523598775598299</max_angle>
             </vertical>
           </scan>

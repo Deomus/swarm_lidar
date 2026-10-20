@@ -35,7 +35,7 @@ class Recorder(Node):
     def __init__(self, output):
         super().__init__('evaluation_recorder')
         for key, value in {'period': .1, 'match_tolerance': .15, 'stale_timeout': .5,
-                           'offset_timeout': .5, 'sensor_z': 1.9, 'marker_z': .45,
+                           'offset_timeout': .5, 'sensor_z': 1.9, 'marker_z': 0.,
                            'model_base_z': .24}.items():
             self.declare_parameter(key, value)
         self.p = {key: self.get_parameter(key).value for key in

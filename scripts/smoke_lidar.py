@@ -32,7 +32,7 @@ def main():
         assert clouds, 'Нет настоящего облака Gazebo'
         assert clouds[-1].header.frame_id == 'uav_0/lidar_link', clouds[-1].header.frame_id
         assert all(v >= 10 for v in seen.values()), f'Недостаточно валидных измерений: {seen}'
-        expected = {1: [-4., -4., -1.45], 2: [-4., 0., -1.45], 3: [-4., 4., -1.45]}
+        expected = {1: [-4., -4., -1.9], 2: [-4., 0., -1.9], 3: [-4., 4., -1.9]}
         for i, msg in poses.items():
             p = msg.pose.position
             error = np.linalg.norm(np.array([p.x, p.y, p.z]) - expected[i])

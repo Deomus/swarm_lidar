@@ -18,8 +18,8 @@ from evaluation.record import Recorder
 def recorder(tmp_path):
     rclpy.init()
     node = Recorder(tmp_path)
-    node.set_parameters([Parameter('sensor_z', value=.45)])
-    node.p['sensor_z'] = .45
+    node.set_parameters([Parameter('sensor_z', value=0.)])
+    node.p['sensor_z'] = 0.
     yield node, tmp_path
     node.finish()
     node.destroy_node()

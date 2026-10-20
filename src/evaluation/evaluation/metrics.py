@@ -22,7 +22,7 @@ def rotation(quaternion):
                      [2 * (x*z - y*w), 2 * (y*z + x*w), 1 - 2 * (x*x + y*y)]])
 
 
-def relative_lidar(leader, target, sensor_offset=(0., 0., .45), marker_offset=(0., 0., .45)):
+def relative_lidar(leader, target, sensor_offset=(0., 0., 1.9), marker_offset=(0., 0., 0.)):
     marker_world = np.asarray(target.position) + rotation(target.quaternion) @ marker_offset
     return (rotation(leader.quaternion).T @ (marker_world - leader.position)
             - np.asarray(sensor_offset))

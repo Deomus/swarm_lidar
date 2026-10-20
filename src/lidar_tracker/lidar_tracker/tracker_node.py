@@ -1,7 +1,7 @@
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
+from rclpy.qos import QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2
 from std_srvs.srv import Trigger
@@ -23,7 +23,7 @@ class LidarTracker(Node):
             max_cluster_extent=1.5, confidence_threshold=0.25,
             association_gate=2., ambiguity_margin=0.2, filter_alpha=0.7,
             stale_timeout=0.5, reacquire_timeout=2., check_period=0.1,
-            expected_frame='uav_0/lidar_link', qos_depth=10)
+            expected_frame='uav_0/lidar_link', qos_depth=10, cloud_qos_depth=1)
         for name, value in defaults.items():
             self.declare_parameter(name, value)
         self.params = {name: self.get_parameter(name).value for name in defaults}
@@ -36,13 +36,16 @@ class LidarTracker(Node):
         if (not np.isfinite(p['ground_distance']) or p['ground_distance'] <= 0
                 or p['ground_min_points'] < 3 or not 0 < p['ground_fraction'] <= 1):
             raise ValueError('Некорректные параметры удаления земли')
+        if p['cloud_qos_depth'] < 1:
+            raise ValueError('Очередь облаков должна содержать хотя бы одно сообщение')
         self.tracker = TargetTracker(p['initial_positions'], p['association_gate'],
                                      p['ambiguity_margin'], p['filter_alpha'],
                                      p['reacquire_timeout'])
         self.last_stamp = None
         self.publisher = self.create_publisher(RelativePose, p['output_topic'], p['qos_depth'])
         self.subscription = self.create_subscription(
-            PointCloud2, p['input_topic'], self.pointcloud_callback, qos_profile_sensor_data)
+            PointCloud2, p['input_topic'], self.pointcloud_callback,
+            QoSProfile(depth=p['cloud_qos_depth'], reliability=ReliabilityPolicy.BEST_EFFORT))
         self.timer = self.create_timer(p['check_period'], self.check_stale)
         self.reset_service = self.create_service(Trigger, '/lidar_tracker/reset', self.reset)
 

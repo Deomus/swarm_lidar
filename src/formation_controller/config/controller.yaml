@@ -11,9 +11,9 @@ formation_controller:
     warning_distance: 3.0
     repulsion_gain: 0.5
     gap: 4.0
-    surface_bias: 0.166
+    surface_bias: 0.0
     sensor_offset: [0.0, 0.0, 1.9]
-    marker_offset_z: 0.45
+    marker_offset_z: 0.0
     leader_prediction_horizon: 1.9
     leader_prediction_max_correction: 0.6
     leader_prediction_max_acceleration: 1.0
