@@ -179,11 +179,11 @@ class Scenario:
             self.manual(5., [0., 0., .12])
             self.manual(5., [0., 0., -.12])
             self.call('/leader/hold')
-            self.formation('line', 1.15, 6.)
-            self.formation('line', 1., 6.)
-            self.formation('column', 1., 14.)
-            self.formation('wedge', 1., 12.)
-            self.formation('line', 1., 10.)
+            self.formation('line', 1.15, 12.)
+            self.formation('line', 1., 12.)
+            self.formation('column', 1., 25.)
+            self.formation('wedge', 1., 25.)
+            self.formation('line', 1., 20.)
         elif self.kind == 's2':
             for speed in [.5, 1., 1.5]:
                 self.event(f'Проверка ручного входа: {speed} м/с')
