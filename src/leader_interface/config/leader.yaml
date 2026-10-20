@@ -1,0 +1,19 @@
+/**:
+  ros__parameters:
+    use_sim_time: true
+    states_topic: /mesh/states
+    manual_topic: /leader/cmd_vel
+    path_topic: /mission/path
+    commands_topic: /swarm/commands
+    status_topic: /mission/execution_status
+    frame_id: map
+    period: 0.05
+    max_speed: 1.5
+    max_acceleration: 1.0
+    max_jerk: 2.0
+    max_yaw_rate: 0.3
+    manual_timeout: 0.25
+    state_timeout: 0.5
+    waypoint_tolerance: 0.4
+    waypoint_gain: 0.5
+    waypoint_timeout: 90.0
