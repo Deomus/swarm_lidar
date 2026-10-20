@@ -89,6 +89,9 @@ class Scenario:
         self.wait(self.fresh, 60., 'Нет четырёх свежих состояний')
         self.event('Четыре PX4 готовы')
         for i in range(4):
+            # После посадки PX4 может оставаться в AUTO_LAND, где preflight
+            # не разрешает повторное вооружение. Запрашиваем штатный HOLD.
+            self.call(f'/uav_{i}/hold')
             ground_z = self.states[i].pose.position.z
             self.call(f'/uav_{i}/arm', retry=30.)
             self.wait(lambda: self.states[i].armed, 5., 'Нет arm ack')
