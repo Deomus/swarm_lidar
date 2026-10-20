@@ -31,7 +31,7 @@ def analyze(events, rows):
             samples = [row for row in rows if event['time'] <= row['timestamp'] < end]
             windows.append(dict(**label, start=event['time'], end=end,
                                 duration_s=end-event['time'], metrics=summarize(samples)))
-    return dict(windows=windows,
+    return dict(windows=windows, overall_metrics=summarize(rows),
                 note='Окна ручного входа включают разгон, повороты и торможение; '
                      'это заданные скорости команд, не измеренные постоянные скорости аппарата.')
 
