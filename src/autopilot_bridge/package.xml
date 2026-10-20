@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>autopilot_bridge</name><version>0.1.0</version>
+  <description>Преобразование ROS ENU/FLU и PX4 NED/FRD.</description>
+  <maintainer email="smag@todo.invalid">Swarm LiDAR team</maintainer>
+  <license>Apache-2.0</license><buildtool_depend>ament_python</buildtool_depend>
+  <depend>rclpy</depend><depend>px4_msgs</depend><depend>swarm_interfaces</depend>
+  <depend>geometry_msgs</depend><depend>std_srvs</depend><depend>tf2_ros</depend>
+  <exec_depend>python3-numpy</exec_depend><exec_depend>python3-scipy</exec_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>
+

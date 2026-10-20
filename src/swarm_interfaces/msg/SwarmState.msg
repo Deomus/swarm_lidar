@@ -1,4 +1,7 @@
 uint8 uav_id
+string frame_id
+float32 yaw
+float32 yaw_rate
 geometry_msgs/Pose pose
 geometry_msgs/Twist velocity
 string mode
