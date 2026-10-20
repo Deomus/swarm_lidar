@@ -2,6 +2,7 @@
 """Воспроизводимые сценарии SITL. Ground truth читает только evaluation."""
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -14,6 +15,7 @@ from geometry_msgs.msg import PoseStamped, TwistStamped
 from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from rclpy.parameter_client import AsyncParameterClient
 from rclpy.qos import QoSProfile, DurabilityPolicy
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
@@ -218,6 +220,180 @@ class Scenario:
         self.settle('line', 1., 45.)
         self.event('Передача LiDAR и удержание восстановлены')
 
+    def followers_moving(self, minimum=.5):
+        """Измеренная скорость, а не только величина ручного задания."""
+        if not self.fresh():
+            return False
+        for index in (1, 2, 3):
+            state = self.states[index]
+            v = state.velocity.linear
+            if (not state.armed or state.frame_id != 'map'
+                    or not all(math.isfinite(value) for value in (v.x, v.y, v.z))
+                    or v.x*v.x+v.y*v.y+v.z*v.z < minimum*minimum):
+                return False
+        return True
+
+    def fresh_data_hold(self, start):
+        now = self.now()
+        if (self.status.get('mode') != 'DATA_HOLD'
+                or not start <= self.status.get('time', -1.) <= now
+                or now-self.status['time'] >= .5):
+            return False
+        for index in (1, 2, 3):
+            command = self.commands.get(index)
+            if command is None:
+                return False
+            stamp = command.source_stamp.sec+command.source_stamp.nanosec*1e-9
+            v = command.target_velocity.linear
+            if (command.valid or command.safety_state != 'DATA_HOLD' or command.frame_id != 'map'
+                    or not start <= stamp <= now or now-stamp >= .5
+                    or not all(math.isfinite(value) and abs(value) < 1e-9 for value in (v.x, v.y, v.z))):
+                return False
+        return True
+
+    def braking_stopped(self, start, stable_since, hold_since):
+        """Подтверждение .5 с низкой собственной скорости только внутри защиты."""
+        now = self.now()
+        holding = self.fresh_data_hold(start)
+        if holding and hold_since[0] is None:
+            hold_since[0] = now
+            self.event(f'DATA_HOLD и нулевые команды подтверждены через {now-start:.3f} с')
+        if (hold_since[0] is not None and self.status.get('mode') == 'FOLLOWING'
+                and 0 <= now-self.status.get('time', -1.) < .5):
+            raise RuntimeError('Управление восстановилось до подтверждения физической остановки')
+        good = holding and self.fresh()
+        if good:
+            for index in (1, 2, 3):
+                state = self.states[index]
+                stamp = state.timestamp.sec+state.timestamp.nanosec*1e-9
+                v = state.velocity.linear
+                if (not state.armed or state.frame_id != 'map' or stamp < hold_since[0]
+                        or not all(math.isfinite(value) for value in (v.x, v.y, v.z))
+                        or v.x*v.x+v.y*v.y+v.z*v.z > .15**2):
+                    good = False
+                    break
+        if not good:
+            stable_since[0] = None
+        elif stable_since[0] is None or now < stable_since[0]:
+            stable_since[0] = now
+        return good and now-stable_since[0] >= .5
+
+    def set_drop_duration(self, client, duration):
+        if not math.isfinite(duration) or duration <= 0:
+            raise RuntimeError('Некорректная длительность потери')
+        future = client.set_parameters([Parameter('drop_duration', value=float(duration))])
+        self.wait(future.done, 5., 'Нет ответа установки mesh.drop_duration')
+        response = future.result()
+        if response is None or len(response.results) != 1 or not response.results[0].successful:
+            raise RuntimeError('Не установлен mesh.drop_duration: ' + str(response))
+
+    def check_braking(self):
+        self.call('/leader/hold')
+        self.settle('line', 1., 45.)
+        parameter_client = AsyncParameterClient(self.node, '/mesh_interface')
+        self.clients.append(parameter_client)
+        if not parameter_client.wait_for_services(timeout_sec=5.):
+            raise RuntimeError('Нет сервисов параметров mesh_interface')
+        future = parameter_client.get_parameters(['drop_duration'])
+        self.wait(future.done, 5., 'Нет ответа чтения mesh.drop_duration')
+        response = future.result()
+        if (response is None or len(response.values) != 1
+                or response.values[0].type != Parameter.Type.DOUBLE.value):
+            raise RuntimeError('Не прочитана прежняя длительность mesh.drop_duration')
+        old_duration = response.values[0].double_value
+        if not math.isfinite(old_duration) or old_duration <= 0:
+            raise RuntimeError('Прежняя длительность mesh.drop_duration некорректна')
+        # Сервис обнаруживается до движения: ожидание discovery не должно
+        # погасить ручной вход по его короткому сроку действительности.
+        drop_client = self.node.create_client(Trigger, '/mesh/drop_relative_poses')
+        self.clients.append(drop_client)
+        if not drop_client.wait_for_service(timeout_sec=5.):
+            raise RuntimeError('Нет сервиса /mesh/drop_relative_poses')
+        primary_error = None
+        try:
+            self.set_drop_duration(parameter_client, 3.)
+            self.manual(12., [1., 0., 0.])
+            if (not self.followers_moving(.5) or self.status.get('mode') != 'FOLLOWING'
+                    or not 0 <= self.now()-self.status.get('time', -1.) < .5):
+                raise RuntimeError('Испытание торможения отклонено: нет трёх свежих скоростей >=0.5 м/с')
+            speeds = [math.sqrt(sum(value*value for value in
+                      (self.states[i].velocity.linear.x, self.states[i].velocity.linear.y,
+                       self.states[i].velocity.linear.z))) for i in (1, 2, 3)]
+            self.event(f'Перед потерей ведомые движутся: скорости={speeds} м/с')
+            start = self.now()
+            self.event('Потеря LiDAR-поз в mesh: 3.0 с, торможение в движении')
+            drop_future = drop_client.call_async(Trigger.Request())
+            def dropped():
+                # До ответа на drop продолжаем ручное задание, чтобы отказ
+                # испытывался в движении, а не после истечения TTL входа.
+                command = TwistStamped()
+                command.header.frame_id = 'map'
+                command.header.stamp = self.node.get_clock().now().to_msg()
+                command.twist.linear.x = 1.
+                self.manual_pub.publish(command)
+                return drop_future.done()
+            self.wait(dropped, 5., 'Нет ответа потери LiDAR-поз')
+            response = drop_future.result()
+            if response is None or not response.success:
+                raise RuntimeError('Не введена потеря LiDAR-поз: ' + str(response))
+            self.call('/leader/hold')
+            stable_since, hold_since = [None], [None]
+            self.wait_sim(lambda: self.braking_stopped(start, stable_since, hold_since),
+                          3., 'Не подтверждена физическая остановка до восстановления передачи')
+            self.event('Физическая остановка по собственной оценке: скорость <=0.15 м/с не менее 0.5 с')
+        except BaseException as error:
+            primary_error = error
+            raise
+        finally:
+            try:
+                self.set_drop_duration(parameter_client, old_duration)
+                self.event(f'mesh.drop_duration восстановлен: {old_duration} с')
+            except Exception as restore_error:
+                if primary_error is not None:
+                    raise RuntimeError(f'{primary_error}; не восстановлен mesh.drop_duration: {restore_error}') from primary_error
+                raise
+        self.settle('line', 1., 45.)
+        self.event('Передача LiDAR и удержание восстановлены')
+
+    def finish_operator(self, request, response):
+        self.operator_finished = True
+        response.success = True
+        response.message = 'Оператор завершил проверку; сценарий выполнит удержание и посадку'
+        return response
+
+    def operator_session(self, timeout=1800., stale_timeout=5.):
+        """Ручной прогон с явным завершением, без автоматических манёвров."""
+        if (not all(math.isfinite(value) for value in (timeout, stale_timeout))
+                or min(timeout, stale_timeout) <= 0):
+            raise ValueError('Некорректные пределы операторского ожидания')
+        self.operator_finished = False
+        self.operator_finish_service = self.node.create_service(
+            Trigger, '/scenario/finish', self.finish_operator)
+        self.event('Ожидание оператора')
+        last_progress = [time.monotonic()]
+        previous_stamps = [None]
+        previous_clock = [self.now()]
+        def finished():
+            if self.operator_finished:
+                return True
+            now = self.now()
+            if now < previous_clock[0]:
+                raise RuntimeError('Часы симуляции вернулись назад во время ручного прогона')
+            previous_clock[0] = now
+            if self.fresh():
+                stamps = tuple((self.states[i].timestamp.sec, self.states[i].timestamp.nanosec)
+                               for i in range(4))
+                if stamps != previous_stamps[0]:
+                    last_progress[0] = time.monotonic()
+                    previous_stamps[0] = stamps
+            if time.monotonic()-last_progress[0] >= stale_timeout:
+                raise RuntimeError('Нет новых свежих состояний во время ручного прогона')
+            return False
+        # Реальный предел ожидания, чтобы остановленные часы симуляции
+        # не превращали сессию в бесконечную. Полётные защиты работают сами.
+        self.wait(finished, timeout, 'Истёк предел ручного прогона; оператор не завершил сессию')
+        self.event('Оператор завершил ручной прогон через /scenario/finish')
+
     def mission_goal(self):
         grid = OccupancyGrid()
         grid.header.frame_id = 'map'
@@ -265,6 +441,10 @@ class Scenario:
                 self.manual(4., [0., 0., 0.])
             self.call('/leader/hold')
             self.check_pose_loss()
+        elif self.kind == 'braking':
+            self.check_braking()
+        elif self.kind == 'operator':
+            self.operator_session()
         else:
             goal = self.mission_goal()
             mission_start = self.now()
@@ -326,7 +506,7 @@ class Scenario:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('scenario', choices=['s1', 's2', 's3'])
+    parser.add_argument('scenario', choices=['s1', 's2', 's3', 'braking', 'operator'])
     parser.add_argument('--output', default=None)
     parser.add_argument('--record-bag', action='store_true', help='Записать сообщения сценария в rosbag')
     parser.add_argument('--record-cloud', action='store_true', help='Включить rosbag и исходное облако LiDAR')

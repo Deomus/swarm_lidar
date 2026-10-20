@@ -32,9 +32,21 @@ class MeshNode(Node):
         self.timer = self.create_timer(p['period'], self.flush)
 
     def drop_poses(self, request, response):
-        self.channels[0][0].drop_for(self.now(), self.drop_duration)
+        # Параметр можно временно изменить для отдельного испытания. Значение
+        # читается при запросе, а не из снимка, сделанного при запуске узла.
+        duration = self.get_parameter('drop_duration').value
+        response.success = False
+        if (isinstance(duration, bool) or not isinstance(duration, (float, int))
+                or not math.isfinite(duration) or duration <= 0):
+            response.message = 'Некорректная длительность потери'
+            return response
+        try:
+            self.channels[0][0].drop_for(self.now(), duration)
+        except ValueError as error:
+            response.message = str(error)
+            return response
         response.success = True
-        response.message = f'Передача LiDAR-поз приостановлена на {self.drop_duration} с'
+        response.message = f'Передача LiDAR-поз приостановлена на {duration} с'
         return response
 
     def now(self):
