@@ -5,6 +5,7 @@ from pathlib import Path
 import signal
 import subprocess
 import time
+import xml.etree.ElementTree as ET
 
 from ament_index_python.packages import get_package_share_directory
 
@@ -16,7 +17,10 @@ def main():
     parser.add_argument('--agent-port', type=int, default=8889)
     parser.add_argument('--lidar', choices=['true', 'false'], default='false')
     parser.add_argument('--stack', choices=['true', 'false'], default='true')
+    parser.add_argument('--video', choices=['true', 'false'], default='false')
     args = parser.parse_args()
+    if args.video == 'true' and args.lidar != 'true':
+        parser.error('Обзорная камера требует lidar:=true для системы датчиков мира')
     # launch передаёт аргументы без shell, поэтому `~` не раскрывается
     # автоматически как в интерактивной оболочке.
     px4 = Path(args.px4_dir).expanduser().resolve()
@@ -48,6 +52,12 @@ def main():
         return proc
     try:
         world = share / 'worlds' / ('swarm_lidar.sdf' if args.lidar == 'true' else 'swarm.sdf')
+        if args.video == 'true':
+            document = ET.parse(world)
+            include = ET.SubElement(document.getroot().find('world'), 'include')
+            ET.SubElement(include, 'uri').text = 'model://spectator_camera'
+            world = runtime / 'world.sdf'
+            document.write(world, encoding='utf-8', xml_declaration=True)
         start('gazebo', ['gz', 'sim', '-r', '-s', '--headless-rendering', str(world)])
         agent = start('agent', ['MicroXRCEAgent', 'udp4', '-p', str(args.agent_port)])
         time.sleep(.2)

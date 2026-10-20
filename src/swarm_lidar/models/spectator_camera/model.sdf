@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <model name="spectator_camera">
+    <static>true</static>
+    <pose>-3 -16 17 0 0.815691923316223 1.570796326794897</pose>
+    <link name="camera_link">
+      <sensor name="overview" type="camera">
+        <always_on>true</always_on>
+        <update_rate>10</update_rate>
+        <visualize>false</visualize>
+        <topic>/evaluation/video</topic>
+        <camera>
+          <horizontal_fov>1.05</horizontal_fov>
+          <image><width>1280</width><height>720</height><format>R8G8B8</format></image>
+          <clip><near>0.1</near><far>200</far></clip>
+        </camera>
+      </sensor>
+    </link>
+  </model>
+</sdf>

@@ -15,12 +15,14 @@ def generate_launch_description():
         DeclareLaunchArgument('duration', default_value='0'),
         DeclareLaunchArgument('lidar', default_value='false'),
         DeclareLaunchArgument('stack', default_value='true'),
+        DeclareLaunchArgument('video', default_value='false'),
         ExecuteProcess(cmd=[str(Path(get_package_prefix('swarm_lidar')) / 'lib/swarm_lidar/sitl'),
                             '--px4-dir', LaunchConfiguration('px4_dir'),
                             '--gui', LaunchConfiguration('gui'),
                             '--duration', LaunchConfiguration('duration'),
                             '--lidar', LaunchConfiguration('lidar'),
-                            '--stack', LaunchConfiguration('stack')],
+                            '--stack', LaunchConfiguration('stack'),
+                            '--video', LaunchConfiguration('video')],
                        output='screen', sigterm_timeout='30', sigkill_timeout='10'),
     ])
 
