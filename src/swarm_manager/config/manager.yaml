@@ -1,0 +1,11 @@
+swarm_manager:
+  ros__parameters:
+    expected_uavs: 4
+    poses_topic: /mesh/relative_poses
+    states_topic: /mesh/states
+    health_topic: /swarm/health
+    short_timeout: 0.3
+    long_timeout: 1.0
+    period: 0.1
+    qos_depth: 10
+

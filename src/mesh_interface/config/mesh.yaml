@@ -1,0 +1,16 @@
+mesh_interface:
+  ros__parameters:
+    poses_in: /swarm/relative_poses
+    poses_out: /mesh/relative_poses
+    states_in: /swarm/states
+    states_out: /mesh/states
+    commands_in: /swarm/commands
+    commands_out: /mesh/commands
+    delay: 0.0
+    jitter: 0.0
+    loss: 0.0
+    capacity: 1000
+    seed: 42
+    period: 0.01
+    qos_depth: 10
+

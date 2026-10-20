@@ -58,6 +58,15 @@ ros2 run lidar_tracker tracker_node --ros-args --params-file \
 
 Контракт и ограничения трекера описаны в [docs/tracker.md](docs/tracker.md).
 
+Добавлены программный mesh-канал и менеджер свежести данных. Контракты,
+параметры и запуск: [docs/mesh_health.md](docs/mesh_health.md).
+
+Проверка всей ROS-цепочки на синтетическом облаке:
+
+```bash
+ROS_DOMAIN_ID=71 python3 scripts/smoke_pipeline.py
+```
+
 Код проекта создан с помощью AI (Codex); используются ROS 2, PX4, Gazebo,
 NumPy и SciPy. Названия внешних пакетов и команды сохраняются на английском.
 
