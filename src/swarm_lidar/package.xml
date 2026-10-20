@@ -12,6 +12,14 @@
   <exec_depend>leader_interface</exec_depend>
   <exec_depend>mission_planner</exec_depend>
   <exec_depend>evaluation</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>sensor_msgs_py</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>python3-gz-msgs10</exec_depend>
+  <exec_depend>python3-gz-transport13</exec_depend>
+  <test_depend>python3-pytest</test_depend>
   <export><build_type>ament_python</build_type></export>
 </package>
 

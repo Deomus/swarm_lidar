@@ -8,6 +8,7 @@ setup(name='swarm_lidar', version='0.1.0', packages=['swarm_lidar'],
                   ('share/swarm_lidar/config', glob('config/*.yaml')),
                   *[('share/swarm_lidar/' + folder, glob(folder + '/*'))
                     for folder in glob('models/*')]],
-      install_requires=['setuptools'], zip_safe=True,
-      entry_points={'console_scripts': ['sitl = swarm_lidar.sitl:main']})
+      install_requires=['setuptools', 'numpy', 'PyYAML'], zip_safe=True,
+      entry_points={'console_scripts': ['sitl = swarm_lidar.sitl:main',
+                                       'cloud_source = swarm_lidar.cloud_source:main']})
 

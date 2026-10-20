@@ -29,6 +29,10 @@ def runtime(context):
         nodes.append(Node(package=package, executable=executable,
                           parameters=[str(path), {'use_sim_time': True}], output='screen'))
     if lidar:
+        tracker_config = str(Path(get_package_share_directory('lidar_tracker')) / 'config/tracker.yaml')
+        nodes.append(Node(package='swarm_lidar', executable='cloud_source',
+                          parameters=[{'filter_config': tracker_config, 'use_sim_time': True}],
+                          output='screen'))
         nodes.append(Node(package='evaluation', executable='ground_truth_node',
                           parameters=[{'use_sim_time': True}], output='screen'))
         path = Path(get_package_share_directory('lidar_tracker')) / 'config/tracker.yaml'
