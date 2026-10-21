@@ -166,6 +166,10 @@ class VelocityLimiter:
             steps += 1
         return distance, steps * self.period
 
+    def stopping_displacement(self):
+        """Сумма будущих команд при нулевом входе, без модели физики PX4."""
+        return self.period * (1-self.alpha) / self.alpha * (self.velocity + self._intermediate)
+
 
 @dataclass(frozen=True)
 class ControlResult:

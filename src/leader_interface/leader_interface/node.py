@@ -28,7 +28,7 @@ class LeaderInterface(Node):
                         period=.05, max_speed=1.5, max_acceleration=1., max_jerk=2.,
                         max_yaw_rate=.3,
                         manual_timeout=.25, state_timeout=.5, waypoint_tolerance=.4,
-                        waypoint_gain=.25, waypoint_timeout=90.,
+                        waypoint_gain=.6, waypoint_timeout=90., arrival_speed=.15,
                         require_formation_ready=False,
                         formation_status_topic='/swarm/formation_status',
                         formation_status_timeout=.5, formation_unavailable_grace=1.)
@@ -38,7 +38,7 @@ class LeaderInterface(Node):
         self.core = LeaderCore(**{key: self.p[key] for key in (
             'period', 'max_speed', 'max_acceleration', 'max_jerk', 'manual_timeout',
             'state_timeout', 'waypoint_tolerance', 'waypoint_gain', 'waypoint_timeout',
-            'max_yaw_rate')})
+            'max_yaw_rate', 'arrival_speed')})
         self.formation_guard = FormationGuard(
             required=self.p['require_formation_ready'],
             status_timeout=self.p['formation_status_timeout'],
@@ -71,7 +71,9 @@ class LeaderInterface(Node):
             return
         p = message.pose.position
         valid = message.valid and math.isfinite(message.yaw) and math.isfinite(message.yaw_rate)
-        self.core.state([p.x, p.y, p.z], seconds(message.timestamp), valid, self.now())
+        v = message.velocity.linear
+        self.core.state([p.x, p.y, p.z], seconds(message.timestamp), valid, self.now(),
+                        velocity=[v.x, v.y, v.z])
 
     def manual(self, message):
         if message.header.frame_id != self.p['frame_id']:

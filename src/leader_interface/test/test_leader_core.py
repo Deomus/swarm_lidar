@@ -7,7 +7,61 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'formation_controller'))
 
-from leader_interface.core import LeaderCore  # noqa: E402
+from leader_interface.core import LeaderCore, simplify_straight_path  # noqa: E402
+
+
+def test_path_simplification_keeps_turns_reversals_and_vertical_changes():
+    points = np.array([[0,0,3], [0,0,3], [1,0,3], [2,0,3],
+                       [2,1,3], [2,2,3], [2,1,3], [2,1,4]], float)
+    np.testing.assert_array_equal(simplify_straight_path(points),
+        [[0,0,3], [2,0,3], [2,2,3], [2,1,3], [2,1,4]])
+
+
+def test_arrival_requires_low_measured_speed():
+    core = ready()
+    core.set_path([[2,0,3]])
+    core.select_mode('MISSION', 10)
+    core.state([2,0,3], 10.1, True, 10.1, velocity=[.8,0,0])
+    assert core.tick(10.1).status == 'MISSION'
+    core.state([2,0,3], 10.2, True, 10.2, velocity=[.1,0,0])
+    assert core.tick(10.2).status == 'COMPLETE'
+
+
+def test_dense_straight_route_avoids_braking_at_each_metre():
+    core = ready()
+    core.set_path([[x,0,3] for x in range(13)])
+    core.select_mode('MISSION', 10)
+    position, velocity = np.array([0.,0.,3.]), np.zeros(3)
+    commands = [np.zeros(3)]
+    for step in range(700):
+        now = 10+step*.05
+        core.state(position, now, True, now, velocity=velocity)
+        output = core.tick(now)
+        if output.status == 'COMPLETE':
+            break
+        commands.append(output.velocity)
+        velocity += (output.velocity-velocity)*.05/.35
+        position += velocity*.05
+    assert output.status == 'COMPLETE'
+    assert step*.05 < 30.
+    assert np.linalg.norm(position-[12,0,3]) < .4
+    assert np.linalg.norm(velocity) < .15
+    commands = np.asarray(commands)
+    assert commands[:,0].max() > .8
+    assert abs(position[1]) < 1e-9
+    accelerations = np.diff(commands, axis=0)/.05
+    jerks = np.diff(np.vstack(([0.,0.,0.], accelerations)), axis=0)/.05
+    assert np.linalg.norm(commands, axis=1).max() <= 1.5+1e-9
+    assert np.linalg.norm(accelerations, axis=1).max() <= 1.+1e-9
+    assert np.linalg.norm(jerks, axis=1).max() <= 2.+1e-9
+
+
+def test_invalid_velocity_cannot_enable_mission():
+    core = ready()
+    core.state([0,0,3], 10.1, True, 10.1, velocity=[float('nan'),0,0])
+    core.set_path([[2,0,3]])
+    with pytest.raises(ValueError, match='state'):
+        core.select_mode('MISSION', 10.1)
 
 
 def ready(**parameters):

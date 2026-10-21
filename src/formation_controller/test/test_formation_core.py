@@ -222,3 +222,13 @@ def test_out_of_order_measurement_rejected_and_stale_commands_brake():
     for _ in range(1000):
         result = controller.step(**args, measurement_stamp=19.9, now=21)
     assert np.linalg.norm(result.velocity_enu) < peak * .001
+def test_stopping_displacement_matches_future_zero_input_commands():
+    limiter = VelocityLimiter(max_speed=1.5, max_acceleration=1., max_jerk=2.)
+    for _ in range(100):
+        limiter.step([1., -.4, .2])
+    predicted = limiter.stopping_displacement()
+    displacement = np.zeros(3)
+    for _ in range(3000):
+        displacement += limiter.step(np.zeros(3))*.05
+    np.testing.assert_allclose(predicted, displacement, atol=1e-9)
+

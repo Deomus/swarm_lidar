@@ -19,6 +19,23 @@ def fresh(stamp, now, timeout):
     return math.isfinite(stamp) and math.isfinite(now) and 0 <= now - stamp <= timeout
 
 
+def simplify_straight_path(points):
+    """Убирает только дубли и точки на прямой; углы и возвраты сохраняются."""
+    kept = []
+    for point in points:
+        if kept and np.linalg.norm(point-kept[-1]) < 1e-9:
+            continue
+        while len(kept) >= 2:
+            a, b = kept[-1]-kept[-2], point-kept[-1]
+            # Только совпадающее направление в 3D, без срезания поворотов.
+            if np.dot(a, b) > 0 and np.linalg.norm(np.cross(a,b)) <= 1e-9*np.linalg.norm(a)*np.linalg.norm(b):
+                kept.pop()
+            else:
+                break
+        kept.append(point.copy())
+    return np.asarray(kept)
+
+
 @dataclass(frozen=True)
 class LeaderOutput:
     velocity: np.ndarray
@@ -32,10 +49,11 @@ class LeaderOutput:
 class LeaderCore:
     def __init__(self, period=.05, max_speed=1.5, max_acceleration=1., max_jerk=2.,
                  manual_timeout=.25, state_timeout=.5, waypoint_tolerance=.4,
-                 waypoint_gain=.25, waypoint_timeout=90., max_yaw_rate=.3):
+                 waypoint_gain=.6, waypoint_timeout=90., max_yaw_rate=.3,
+                 arrival_speed=.15):
         parameters = [period, max_speed, max_acceleration, max_jerk, manual_timeout,
                       state_timeout, waypoint_tolerance, waypoint_gain, waypoint_timeout,
-                      max_yaw_rate]
+                      max_yaw_rate, arrival_speed]
         if not all(math.isfinite(v) and v > 0 for v in parameters):
             raise ValueError('Parameters must be positive and finite')
         self.period = period
@@ -46,6 +64,8 @@ class LeaderCore:
         self.tolerance = waypoint_tolerance
         self.gain = waypoint_gain
         self.waypoint_timeout = waypoint_timeout
+        self.arrival_speed = arrival_speed
+        self.measured_velocity = np.zeros(3)
         self.limits = dict(max_speed=max_speed, max_acceleration=max_acceleration,
                            max_jerk=max_jerk, period=period)
         self.limiter = VelocityLimiter(**self.limits)
@@ -63,15 +83,18 @@ class LeaderCore:
         self.waypoint_started = 0.
         self.last_tick = None
 
-    def state(self, position, stamp, valid, now):
+    def state(self, position, stamp, valid, now, velocity=None):
         if not fresh(stamp, now, self.state_timeout) or stamp < self.state_stamp:
             return False
         try:
             position = vector3(position)
+            velocity = np.zeros(3) if velocity is None else vector3(velocity)
         except ValueError:
             valid = False
             position = np.zeros(3)
+            velocity = np.zeros(3)
         self.position, self.state_stamp, self.state_valid = position, stamp, bool(valid)
+        self.measured_velocity = velocity
         return True
 
     def manual(self, velocity, stamp, now, yaw_rate=0.):
@@ -91,7 +114,7 @@ class LeaderCore:
         points = np.asarray(waypoints, dtype=float)
         if points.ndim != 2 or points.shape[1] != 3 or len(points) == 0 or not np.isfinite(points).all():
             raise ValueError('Path must contain finite XYZ waypoints')
-        self.pending_path = points.copy()
+        self.pending_path = simplify_straight_path(points)
 
     def revoke_path(self):
         """Пустой путь планировщика отзывает ожидающую и текущую миссию."""
@@ -141,7 +164,9 @@ class LeaderCore:
                 yaw_rate = self.manual_yaw_rate
                 stamp = min(self.manual_stamp, self.state_stamp)
         elif self.mode == 'MISSION':
-            while self.index < len(self.path) and np.linalg.norm(self.path[self.index] - self.position) <= self.tolerance:
+            while (self.index < len(self.path)
+                   and np.linalg.norm(self.path[self.index] - self.position) <= self.tolerance
+                   and np.linalg.norm(self.measured_velocity) <= self.arrival_speed):
                 self.index += 1
                 self.waypoint_started = now
             if self.index == len(self.path):
@@ -149,7 +174,10 @@ class LeaderCore:
             elif now - self.waypoint_started > self.waypoint_timeout:
                 self.mode, self.status = 'HOLD', 'WAYPOINT_TIMEOUT'
             else:
-                desired = clip_norm(self.gain * (self.path[self.index] - self.position), self.max_speed)
+                # Компенсируем хвост сглаживания: торможение начинается до
+                # точки, а не после пролёта мимо неё. Геометрия пути прежняя.
+                error = self.path[self.index] - self.position - self.limiter.stopping_displacement()
+                desired = clip_norm(self.gain * error, self.max_speed)
                 self.status, valid, stamp = 'MISSION', True, self.state_stamp
         velocity = self.limiter.step(desired)
         # HOLD/deadman — явное запрещение дальнейшего движения, не скрытое следование.
