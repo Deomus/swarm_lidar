@@ -20,7 +20,7 @@ from evaluation.metrics import (Pose, min_pair_distance, model_id, model_to_base
 from evaluation.route_metrics import distance_to_path
 
 
-FIELDS = ['timestamp', 'target_id', 'measurement_timestamp', 'gt_match_delta_s',
+FIELDS = ['timestamp', 'target_id', 'measurement_timestamp', 'gt_match_delta_s', 'truth_timestamp',
           'localization_error_m', 'formation_error_m', 'min_pair_distance_m',
           'relative_stale', 'leader_state_stale', 'gt_missing', 'formation_missing',
           'localization_missing', 'controller_active', 'transitioning', 'formation_code', 'scale',
@@ -146,7 +146,11 @@ class Recorder(Node):
             self.last_time = now
             return
         self.last_time = now
-        truth = nearest(self.gt, now, self.p['match_tolerance'])
+        # Выбираем уже окружённое заданиями время, чтобы не экстраполировать
+        # движущиеся места и не терять почти все последние снимки эталона.
+        reference = min(now, self.offsets[-1][0]) if self.offsets else now
+        candidates = [sample for sample in self.gt if sample[0] <= reference]
+        truth = nearest(candidates, now, self.p['match_tolerance'])
         desired_offsets = self.offsets_at(truth[0]) if truth else None
         state_fresh = (self.state is not None and self.state.valid
                        and 0 <= now - seconds(self.state.timestamp) <= self.p['stale_timeout'])
@@ -177,6 +181,7 @@ class Recorder(Node):
             if sample:
                 row['measurement_timestamp'] = sample[0]
             if truth and all(i in truth[1] for i in range(4)):
+                row['truth_timestamp'] = truth[0]
                 row['gt_missing'] = 0
                 row['min_pair_distance_m'] = min_pair_distance(truth[1])
                 if row['mission_active']:

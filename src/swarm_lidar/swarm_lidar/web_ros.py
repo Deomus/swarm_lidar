@@ -174,9 +174,9 @@ class PanelBackend(Node):
                 self.action = dict(state='ok', message='Подготовка началась. Ожидайте подтверждённого взлёта.')
                 return
             if action == 'land':
-                self.cancel_goal()
                 if session['phase'] == 'landing':
                     return
+                self.cancel_goal()
                 if self.flight.active():
                     while not self.commands.empty():
                         self.commands.get_nowait()

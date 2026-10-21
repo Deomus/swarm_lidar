@@ -155,6 +155,14 @@ def test_second_landing_request_does_not_interrupt_landing(backend):
     assert not backend.flight.cancelled
 
 
+def test_repeated_landing_preserves_queued_finish(backend):
+    feed(backend, armed=True)
+    backend.flight.phase, backend.flight.kind = 'ready', 'operator'
+    backend.submit('land', {})
+    backend.submit('land', {})
+    assert backend.commands.get_nowait() == ('finish', None)
+
+
 def test_landing_has_priority_over_pending_formation(backend):
     feed(backend, armed=True)
     backend.flight.phase, backend.flight.kind = 'ready', 'operator'

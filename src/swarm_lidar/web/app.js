@@ -9,10 +9,10 @@ let view = {cx:0, cy:0, scale:12, ready:false}, dragging = null;
 // Те же ориентиры, что и в учебной площадке Gazebo: ось X красная,
 // ось Y синяя, цилиндры находятся на расстоянии 25 м от начала координат.
 const groundMarks = [
-  {x:25, y:0, color:'#f27966', label:'X +25'},
-  {x:-25, y:0, color:'#b785e8', label:'X −25'},
-  {x:0, y:25, color:'#55c98a', label:'Y +25'},
-  {x:0, y:-25, color:'#e7c34d', label:'Y −25'},
+  {x:25, y:0, color:'#f26114', label:'X +25'},
+  {x:-25, y:0, color:'#a638cc', label:'X −25'},
+  {x:0, y:25, color:'#1fa647', label:'Y +25'},
+  {x:0, y:-25, color:'#f2c714', label:'Y −25'},
 ];
 const token = document.querySelector('meta[name=panel-token]').content;
 const rows = names.map((name, i) => {
@@ -35,7 +35,7 @@ $('prepare').onclick=()=>command('prepare',{record:$('record').checked});
 $('hold').onclick=()=>command('hold');
 $('land').onclick=()=>command('land');
 $('go-to-target').onclick=()=>target&&command('goal',{x:target.x,y:target.y,z:5});
-$('clear-target').onclick=()=>{target=null;$('target-label').textContent='Точка не выбрана';draw();};
+$('clear-target').onclick=()=>{target=null;$('target-label').textContent='Точка не выбрана';$('clear-target').disabled=true;$('go-to-target').disabled=true;draw();};
 document.querySelectorAll('[data-scenario]').forEach(button=>button.onclick=()=>command(button.dataset.scenario,{record:$('record').checked}));
 $('formation-form').onsubmit=event=>{event.preventDefault();if(!$('apply').disabled) command('formation',{formation:$('formation').value,scale:Number($('scale').value),duration:Number($('duration').value)});};
 function render(state) {
@@ -109,6 +109,8 @@ function draw() {
 const map=$('map');
 map.addEventListener('wheel',event=>{event.preventDefault();const rect=map.getBoundingClientRect(),mx=event.clientX-rect.left,my=event.clientY-rect.top;const before=[(mx-rect.width/2)/view.scale+view.cx,(rect.height/2-my)/view.scale+view.cy];view.scale=Math.max(3,Math.min(80,view.scale*Math.exp(-event.deltaY*.001)));view.cx=before[0]-(mx-rect.width/2)/view.scale;view.cy=before[1]+(my-rect.height/2)/view.scale;view.ready=true;draw();},{passive:false});
 map.addEventListener('pointerdown',event=>{map.setPointerCapture(event.pointerId);dragging={x:event.clientX,y:event.clientY,cx:view.cx,cy:view.cy};});
+map.addEventListener('pointercancel',()=>{dragging=null;});
+map.addEventListener('lostpointercapture',()=>{dragging=null;});
 map.addEventListener('pointermove',event=>{if(!dragging)return;const rect=map.getBoundingClientRect();view.cx=dragging.cx-(event.clientX-dragging.x)/view.scale;view.cy=dragging.cy+(event.clientY-dragging.y)/view.scale;draw();});
 map.addEventListener('pointerup',event=>{if(!dragging)return;const moved=Math.hypot(event.clientX-dragging.x,event.clientY-dragging.y);if(moved<5){const rect=map.getBoundingClientRect();target={x:view.cx+(event.clientX-rect.left-rect.width/2)/view.scale,y:view.cy-(event.clientY-rect.top-rect.height/2)/view.scale};$('target-label').textContent=`Цель: X=${target.x.toFixed(1)} м, Y=${target.y.toFixed(1)} м`;}$('clear-target').disabled=!target;dragging=null;draw();});
 new ResizeObserver(draw).observe($('map'));
