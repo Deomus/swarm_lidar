@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "flight": true,
+  "errors": [],
+  "operator_output": "/home/smag/swarm_lidar/log/audit_web_vertical_20261021/operator_5d4m4g0a/flight",
+  "label": "Цель: X=12.7 м, Y=2.8 м",
+  "horizontal_error": 0.3186069041439419,
+  "altitude_error": 0.097869873046875,
+  "landing_confirmed": true,
+  "source": "log/audit_goal_vertical_20261021/result.json",
+  "runtime_revision": "0c1d314",
+  "operator_result": {
+    "passed": true,
+    "passed_run": true,
+    "passed_landing": true,
+    "bag_recorded": true,
+    "run_error": null,
+    "landing_error": null
+  },
+  "note": "Один автоматизированный полёт через Chromium; ошибки вычислены по собственной оценке PX4, не по эталону. Это не проверка человеком и не статистическая серия."
+}
