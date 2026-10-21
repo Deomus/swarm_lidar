@@ -286,5 +286,6 @@ def test_hold_waits_for_actual_leader_mode_confirmation(backend):
     backend.tick()
     assert backend.pending is not None
     backend.execution = dict(mode='HOLD', stamp=10.)
+    backend.formation = dict(time=10., leader_mode='HOLD', leader_intent_stamp=10.)
     backend.tick()
     assert backend.pending is None and backend.action['state'] == 'ok'

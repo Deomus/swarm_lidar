@@ -290,6 +290,8 @@ class FormationController(Node):
         self.status_pub.publish(String(data=json.dumps(
             dict(mode=state, formation=self.formation, scale=self.scale,
                  min_distance=minimum, errors=errors, time=now,
+                 leader_mode=(self.leader_intent or {}).get('mode'),
+                 leader_intent_stamp=(self.leader_intent or {}).get('stamp', -1),
                  request_error=self.request_error, request_stamp=self.request_stamp))))
         if state != self.last_status:
             self.get_logger().info(f'{state}, min_distance={minimum}, t={now:.3f}')

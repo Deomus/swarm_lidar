@@ -298,7 +298,9 @@ class PanelBackend(Node):
                         execution = self.execution or {}
                         hold_confirmed = (execution.get('mode') == 'HOLD'
                             and sent_at <= execution.get('stamp', -1) <= now
-                            and now-execution['stamp'] <= .5)
+                            and now-execution['stamp'] <= .5
+                            and (self.formation or {}).get('leader_mode') == 'HOLD'
+                            and sent_at <= (self.formation or {}).get('leader_intent_stamp', -1) <= now)
                         if name != 'hold' or hold_confirmed:
                             self.action = dict(state='ok', message='Режим миссии включён.' if name == 'mission'
                                                else ('Посадка запрошена.' if name == 'finish'

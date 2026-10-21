@@ -200,7 +200,9 @@ class Scenario:
         start = self.now()
         self.call('/leader/hold')
         self.wait(lambda: self.execution.get('mode') == 'HOLD'
-            and start <= self.execution.get('stamp', -1) <= self.now(),
+            and start <= self.execution.get('stamp', -1) <= self.now()
+            and self.status.get('leader_mode') == 'HOLD'
+            and start <= self.status.get('leader_intent_stamp', -1) <= self.now(),
             5., 'Нет подтверждённого удержания перед перестроением')
         self.formation_pub.publish(FormationCommand(formation=name, scale=float(scale), transition_time=float(duration), source='scenario'))
         self.event(f'Перестроение: {name}, scale={scale}')
