@@ -36,6 +36,7 @@ API:
 | Вход | `/mission/goal` | `geometry_msgs/msg/PoseStamped` |
 | Выход | `/mission/path` | `nav_msgs/msg/Path` |
 | Выход | `/mission/status` | `std_msgs/msg/String` |
+| Выход | `/mission/plan_result` | `std_msgs/msg/String`, JSON с goal_id, status и path_stamp либо reason |
 
 Карта принимается reliable/transient-local, остальные входы reliable/volatile.
 Карта, поза и цель должны быть в `map` (ENU); origin карты пока должен иметь
@@ -53,6 +54,10 @@ SwarmState проверяется по общим ROS-часам: старые �
 Перепланирование происходит по новой `/mission/goal`. Изменение карты
 или увеличение габаритов строя отзывает прежний маршрут. Планировщик не
 выполняет takeoff, не отправляет setpoint и не управляет ведомыми.
+
+Панель и S3 сопоставляют результат с отметкой отправленной цели и ждут
+`accepted_path_stamp` от ведущего до вызова `/leader/mission`.
+Текстовый статус сохраняется для совместимости и отображения.
 
 Запуск после сборки и source окружения:
 

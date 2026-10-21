@@ -16,8 +16,9 @@ arm, takeoff, переключение PX4 в Offboard и посадка в па
 | вход | `/leader/cmd_vel` | `geometry_msgs/TwistStamped`, линейная скорость ENU, angular.z — производная Euler yaw ENU |
 | вход | `/mission/path` | `nav_msgs/Path`, XYZ waypoints в map |
 | вход при контроле группы | `/swarm/formation_status` | `std_msgs/String`, режим контроллера формации и исходное время `time` |
+| вход при ограничении движения группы | `/swarm/target_offsets` | `geometry_msgs/PoseArray`, актуальные места ведомых |
 | выход | `/swarm/commands` | `swarm_interfaces/SwarmCommand`, всегда uav_id=0, frame_id=map |
-| выход | `/mission/execution_status` | `std_msgs/String`, JSON mode/status/waypoint/total/valid/stamp |
+| выход | `/mission/execution_status` | `std_msgs/String`, JSON mode/status/waypoint/total/valid/stamp, accepted_path_stamp и group_motion_scale |
 
 Сервисы `std_srvs/Trigger`: `/leader/hold`, `/leader/manual`, `/leader/mission`.
 При запуске режим HOLD. MANUAL/MISSION требуют свежего собственного состояния;
@@ -93,9 +94,12 @@ angular.x/y должны быть нулевыми. angular.z ограничен
 ## Маршрут и ограничения
 
 Лидер пропускает достигнутые waypoints в пределах waypoint_tolerance=0.4 м,
-летит к текущему waypoint с P-регулятором waypoint_gain=0.25 и ограниченной
+летит к текущему waypoint с P-регулятором waypoint_gain=0.6 и ограниченной
 нормой скорости. По достижении последнего: HOLD, valid=false, нулевая скорость,
-статус COMPLETE. Превышение waypoint_timeout=90 с: HOLD/WAYPOINT_TIMEOUT.
+статус COMPLETE. Прибытие требует скорости не выше 0,15 м/с.
+Предел участка равен `waypoint_timeout + 2 * distance / max_speed`;
+отсутствие продвижения на 0,1 м за `waypoint_timeout=90 с` также вызывает
+HOLD/WAYPOINT_TIMEOUT. Коллинеарные промежуточные точки удаляются.
 При stale собственного состояния — HOLD/STATE_STALE. Откат `/clock` очищает
 входные watermark и фильтр, включает HOLD/CLOCK_RESET; движение требует нового
 валидного состояния и повторного вызова сервиса режима.
@@ -108,6 +112,12 @@ max_acceleration=1 м/с², max_jerk=2 м/с³ при фиксированном
 торможение и подтверждение остановки выполняются ниже в bridge/PX4.
 Консервативная фильтрация добавляет задержку, поэтому отсутствие столкновений
 или точность полёта не следуют из этих unit-тестов.
+
+В общем запуске `require_slot_geometry=true`: линейная и угловая команды
+дополнительно уменьшаются с учётом полной скорости каждого места ведомого,
+включая перестроение. Используются `follower_max_speed=2 м/с` и запас
+`follower_speed_reserve=0.15`. Этот защитный предел имеет приоритет над
+производными команды; при отсутствии свежей геометрии движение прекращается.
 
 Это исполнитель готовых waypoints, без obstacle avoidance и перепланирования.
 Planner обязан предоставить безопасный маршрут и высоту с учётом всего строя.
