@@ -46,6 +46,7 @@ class LidarTracker(Node):
                                      p['reacquire_timeout'])
         self.last_stamp = None
         self.previous_clock = None
+        self.rejection_reason = None
         self.orientation_history = OrientationHistory()
         self.create_subscription(SwarmState, p['orientation_topic'], self.on_orientation, 10)
         self.publisher = self.create_publisher(RelativePose, p['output_topic'], p['qos_depth'])
@@ -91,6 +92,7 @@ class LidarTracker(Node):
             self.publish(self.last_stamp)
 
     def pointcloud_callback(self, cloud):
+        self.rejection_reason = None
         self.observe_clock()
         p = self.params
         stamp = cloud.header.stamp.sec + cloud.header.stamp.nanosec * 1e-9
@@ -108,6 +110,7 @@ class LidarTracker(Node):
             points = point_cloud2.read_points_numpy(
                 cloud, field_names=('x', 'y', 'z'), skip_nans=True).reshape(-1, 3)
         except (ValueError, AssertionError, KeyError):
+            self.rejection_reason = 'pointcloud_decode_rejected'
             self.publish(cloud.header.stamp)
             return
         points = points[np.isfinite(points).all(axis=1)]
@@ -120,10 +123,12 @@ class LidarTracker(Node):
             heights = (level_heights(points, self.orientation_history.at(stamp), p['sensor_offset'])
                        if p['level_filter'] else points[:, 2])
         except ValueError:
+            self.rejection_reason = 'orientation_unavailable'
             self.publish(cloud.header.stamp)
             return
         points = points[(heights >= p['min_z']) & (heights <= p['max_z'])]
         if len(points) > p['max_processing_points']:
+            self.rejection_reason = 'processing_budget_exceeded'
             self.publish(cloud.header.stamp)
             return
         centers, confidences = [], []

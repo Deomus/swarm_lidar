@@ -96,9 +96,9 @@ def reliable_tracker_worker(ros_args):
             if not current['active']:
                 reason = 'stale_timer'
             elif reason is None:
-                reason = ('no_candidate_clusters' if current['centers'] == 0
+                reason = (node.rejection_reason or ('no_candidate_clusters' if current['centers'] == 0
                           else 'association_missing' if current['centers'] is not None
-                          else 'pointcloud_decode_rejected')
+                          else 'pointcloud_decode_rejected'))
             counts = diagnostics['invalid_target_results']
             counts[reason] = counts.get(reason, 0) + missing
         original_publish(stamp, results, confidences)
