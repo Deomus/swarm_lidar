@@ -1,5 +1,5 @@
 import pytest
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PoseArray, Pose
 from nav_msgs.msg import OccupancyGrid
 import rclpy
 from rclpy.parameter import Parameter
@@ -74,3 +74,32 @@ def test_path_finishes_at_requested_point_instead_of_cell_center(planner):
     path = planner.plan(goal)
     assert path.poses[-1].pose.position.x == pytest.approx(8.1)
     assert path.poses[-1].pose.position.y == pytest.approx(7.2)
+
+
+def test_requested_altitude_and_rejection_outside_limits(planner):
+    goal = inputs(planner)
+    goal.pose.position.z = 12.
+    assert all(p.pose.position.z == 12. for p in planner.plan(goal).poses)
+    goal.pose.position.z = 31.
+    with pytest.raises(PlanningError, match='Высота'):
+        planner.plan(goal)
+
+
+def test_column_geometry_blocks_path_near_obstacle(planner):
+    goal = inputs(planner)
+    grid = planner.map
+    grid.info.width = grid.info.height = 50
+    grid.data = [0] * 2500
+    grid.data[21*50+8] = 100
+    planner.state.pose.position.x, planner.state.pose.position.y = 20.5, 20.5
+    goal.pose.position.x, goal.pose.position.y = 20.5, 22.5
+    offsets = PoseArray()
+    offsets.header.frame_id = 'uav_0/heading'
+    offsets.header.stamp = planner.get_clock().now().to_msg()
+    for x in [-4., -8., -12.]:
+        p = Pose()
+        p.position.x = x
+        offsets.poses.append(p)
+    planner.on_offsets(offsets)
+    with pytest.raises(PlanningError, match='препятствии'):
+        planner.plan(goal)

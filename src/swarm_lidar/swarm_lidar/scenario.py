@@ -33,6 +33,8 @@ class Scenario:
         self.execution, self.planner = {}, ''
         self.events = []
         self.clients = []
+        self.map_before = None
+        self.map_overridden = False
         self.subs = [
             self.node.create_subscription(SwarmCommand, '/mesh/commands', lambda m: self.commands.update({m.uav_id: m}), 10),
             self.node.create_subscription(SwarmState, '/mesh/states', lambda m: self.states.update({m.uav_id: m}), 10),
@@ -43,11 +45,27 @@ class Scenario:
         self.formation_pub = self.node.create_publisher(FormationCommand, '/swarm/formation_command', 10)
         self.manual_pub = self.node.create_publisher(TwistStamped, '/leader/cmd_vel', 10)
         self.map_pub = self.node.create_publisher(OccupancyGrid, '/map', QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+        self.subs.append(self.node.create_subscription(OccupancyGrid, '/map', self.on_map,
+            QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)))
         self.goal_pub = self.node.create_publisher(PoseStamped, '/mission/goal', 10)
         self.processes = []
 
     def now(self):
         return self.node.get_clock().now().nanoseconds * 1e-9
+
+    def on_map(self, msg):
+        if not self.map_overridden:
+            self.map_before = msg
+
+    def restore_map(self):
+        if self.map_overridden and self.map_before is not None:
+            self.map_pub.publish(self.map_before)
+            # Дать существующему планировщику получить восстановленную карту
+            # до уничтожения издателя сценария.
+            deadline = time.monotonic() + .3
+            while time.monotonic() < deadline:
+                rclpy.spin_once(self.node, timeout_sec=.02)
+            self.map_overridden = False
 
     def on_pose(self, msg):
         self.poses[msg.target_id] = msg
@@ -400,6 +418,8 @@ class Scenario:
         self.event('Оператор завершил ручной прогон через /scenario/finish')
 
     def mission_goal(self):
+        self.wait(lambda: self.map_before is not None, 5., 'Нет исходной карты для восстановления')
+        self.map_overridden = True
         grid = OccupancyGrid()
         grid.header.frame_id = 'map'
         grid.info.width = grid.info.height = 100
@@ -566,6 +586,7 @@ def main():
             if run_error is None:
                 raise
         finally:
+            scenario.restore_map()
             recorder.send_signal(signal.SIGINT)
             try:
                 recorder.wait(timeout=10)

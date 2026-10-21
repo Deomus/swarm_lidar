@@ -27,6 +27,27 @@ def test_arrival_requires_low_measured_speed():
     assert core.tick(10.2).status == 'COMPLETE'
 
 
+def test_long_straight_segment_can_finish_without_false_timeout():
+    core = LeaderCore()
+    position = np.array([-80., -80., 3.])
+    velocity = np.zeros(3)
+    core.state(position, 0., True, 0., velocity=velocity)
+    core.set_path([[-80., -80., 3.], [0., 0., 3.], [80., 80., 3.]])
+    core.select_mode('MISSION', 0.)
+    for step in range(5000):
+        now = step * core.period
+        core.state(position, now, True, now, velocity=velocity)
+        result = core.tick(now)
+        assert result.status != 'WAYPOINT_TIMEOUT'
+        if result.status == 'COMPLETE':
+            break
+        velocity = result.velocity
+        position += velocity * core.period
+    else:
+        pytest.fail('Длинный маршрут не завершился')
+    assert np.linalg.norm(position - [80., 80., 3.]) <= core.tolerance
+
+
 def test_dense_straight_route_avoids_braking_at_each_metre():
     core = ready()
     core.set_path([[x,0,3] for x in range(13)])

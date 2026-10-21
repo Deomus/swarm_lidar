@@ -7,3 +7,7 @@ mission_planner:
     pose_timeout: 0.5
     occupancy_threshold: 50
     max_map_cells: 40000
+    require_formation_geometry: true
+    geometry_timeout: 0.5
+    min_altitude: 1.0
+    max_altitude: 30.0

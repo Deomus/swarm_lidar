@@ -81,6 +81,9 @@ class LeaderCore:
         self.path = None
         self.index = 0
         self.waypoint_started = 0.
+        self.waypoint_budget = waypoint_timeout
+        self.progress_time = 0.
+        self.progress_distance = math.inf
         self.last_tick = None
 
     def state(self, position, stamp, valid, now, velocity=None):
@@ -134,6 +137,9 @@ class LeaderCore:
                 raise ValueError('No accepted mission path')
             self.path = self.pending_path.copy()
             self.index, self.waypoint_started = 0, now
+            self.waypoint_budget = self.segment_budget()
+            self.progress_time = now
+            self.progress_distance = float(np.linalg.norm(self.path[0] - self.position))
         self.mode = self.status = mode
 
     def reset_time(self):
@@ -143,6 +149,10 @@ class LeaderCore:
         self.limiter = VelocityLimiter(**self.limits)
         self.last_tick = None
         self.pending_path = self.path = None
+
+    def segment_budget(self):
+        distance = float(np.linalg.norm(self.path[self.index] - self.position))
+        return self.waypoint_timeout + 2. * distance / self.max_speed
 
     def tick(self, now):
         if not math.isfinite(now):
@@ -169,9 +179,18 @@ class LeaderCore:
                    and np.linalg.norm(self.measured_velocity) <= self.arrival_speed):
                 self.index += 1
                 self.waypoint_started = now
+                if self.index < len(self.path):
+                    self.waypoint_budget = self.segment_budget()
+                    self.progress_time = now
+                    self.progress_distance = float(np.linalg.norm(self.path[self.index] - self.position))
+            if self.index < len(self.path):
+                distance = float(np.linalg.norm(self.path[self.index] - self.position))
+                if distance < self.progress_distance - .1:
+                    self.progress_time, self.progress_distance = now, distance
             if self.index == len(self.path):
                 self.mode, self.status = 'HOLD', 'COMPLETE'
-            elif now - self.waypoint_started > self.waypoint_timeout:
+            elif (now - self.waypoint_started > self.waypoint_budget
+                  or now - self.progress_time > self.waypoint_timeout):
                 self.mode, self.status = 'HOLD', 'WAYPOINT_TIMEOUT'
             else:
                 # Компенсируем хвост сглаживания: торможение начинается до
