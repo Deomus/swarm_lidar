@@ -18,7 +18,12 @@ Swarm LiDAR — проект на ROS 2 для симуляции группы �
 
 ## Сборка и запуск
 
-Сначала установите ROS 2 Jazzy и подготовьте PX4 SITL с совместимыми `px4_msgs`. Micro XRCE-DDS Agent должен быть установлен и доступен в `PATH`.
+Сначала установите ROS 2 Jazzy и подготовьте PX4 SITL с совместимыми `px4_msgs`. Micro XRCE-DDS Agent должен быть установлен и доступен в `PATH`. Перед первым запуском PX4 один раз соберите:
+
+```bash
+cd "$HOME/PX4-Autopilot"
+make px4_sitl
+```
 
 Из корня репозитория выполните:
 
@@ -28,6 +33,27 @@ source ~/px4_ros_ws/install/setup.bash
 colcon build --symlink-install
 source install/setup.bash
 ```
+
+После сборки запускайте симуляцию из корня репозитория. Команда ниже открывает Gazebo, включает LiDAR и все узлы управления формацией:
+
+```bash
+ROS_DOMAIN_ID=72 ros2 launch swarm_lidar swarm_demo.launch.py \
+  px4_dir:="$HOME/PX4-Autopilot" gui:=true lidar:=true stack:=true
+```
+
+Для запуска без окна Gazebo замените `gui:=true` на `gui:=false`. Оставьте этот терминал работающим до завершения полёта.
+
+Для управления через браузер откройте второй терминал, снова подключите окружение и запустите локальную панель:
+
+```bash
+cd ~/swarm_lidar
+source /opt/ros/jazzy/setup.bash
+source ~/px4_ros_ws/install/setup.bash
+source install/setup.bash
+ROS_DOMAIN_ID=72 ros2 run swarm_lidar web_panel
+```
+
+Откройте в браузере `http://127.0.0.1:8080`. Сначала дождитесь готовности четырёх аппаратов, затем используйте кнопки подготовки и взлёта. Подробное описание панели находится в [docs/web_panel.md](docs/web_panel.md).
 
 Запуск тестов Python:
 
@@ -41,14 +67,7 @@ python3 -m pytest src -q
 ROS_DOMAIN_ID=71 python3 scripts/smoke_pipeline.py
 ```
 
-Для запуска полной симуляции:
-
-```bash
-ROS_DOMAIN_ID=72 ros2 launch swarm_lidar swarm_demo.launch.py \
-  px4_dir:=~/PX4-Autopilot gui:=false lidar:=true stack:=true
-```
-
-Параметр `gui:=false` запускает симуляцию без окна Gazebo. Доступные параметры launch-файла:
+Доступные параметры launch-файла:
 
 ```bash
 ros2 launch swarm_lidar swarm_demo.launch.py --show-args
