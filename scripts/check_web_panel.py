@@ -79,6 +79,7 @@ def main():
                     wait(lambda s: s['formation'] is not None
                          and s['formation']['formation'] == name
                          and s['formation']['mode'] == 'FOLLOWING'
+                         and s.get('formation_settled', False)
                          and len(s['formation']['errors']) == 3
                          and max(s['formation']['errors']) < .6, 120., 'Не установлен выбранный строй')
                     page.wait_for_function("document.getElementById('formation-status').textContent.includes('Строй установлен')")

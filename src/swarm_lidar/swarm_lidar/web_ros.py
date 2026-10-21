@@ -37,6 +37,8 @@ class PanelBackend(Node):
         self.flight = FlightSession(log_dir)
         self.states = {}
         self.formation = None
+        self.settled_since = None
+        self.settled_target = None
         self.execution = None
         self.clock_previous = None
         self.clock_progress = 0.
@@ -108,7 +110,9 @@ class PanelBackend(Node):
             formation = self.formation
             formation_fresh = (formation is not None and 0 <= now-formation['time'] <= .5
                                and wall-self.clock_progress <= 1.)
-            return dict(connected=connected, time=now, drones=rows,
+            settled = (formation_fresh and connected and self.settled_since is not None
+                       and now-self.settled_since >= 1.)
+            return dict(connected=connected, time=now, drones=rows, formation_settled=settled,
                         formation=formation if formation_fresh else None,
                         execution=self.execution if (self.execution is not None
                             and 0 <= now-self.execution['stamp'] <= .5) else None,
@@ -157,8 +161,7 @@ class PanelBackend(Node):
             if self.action['state'] == 'pending':
                 raise ValueError('Дождитесь подтверждения предыдущей команды')
             values = formation_request(body) if action == 'formation' else None
-            if action == 'formation' and (snapshot['formation'] is None
-                                          or snapshot['formation'].get('mode') != 'FOLLOWING'):
+            if action == 'formation' and not snapshot['formation_settled']:
                 raise ValueError('Дождитесь установления текущего строя')
             self.commands.put_nowait((action, values))
             self.action = dict(state='pending', message='Команда отправляется; ожидайте подтверждения.')
@@ -182,6 +185,18 @@ class PanelBackend(Node):
             if now != self.clock_previous:
                 self.clock_progress = wall
                 self.clock_previous = now
+            status = self.formation or {}
+            errors = status.get('errors', [])
+            close = (status.get('mode') == 'FOLLOWING' and 0 <= now-status.get('time', -1) <= .5
+                     and all(i in self.states and self.fresh(self.states[i], now, wall) for i in range(4))
+                     and isinstance(errors, list) and len(errors) == 3
+                     and all(isinstance(e, (int, float)) and not isinstance(e, bool)
+                             and math.isfinite(e) and 0 <= e < .6 for e in errors))
+            target = (status.get('formation'), status.get('scale'))
+            if not close:
+                self.settled_since = self.settled_target = None
+            elif self.settled_since is None or target != self.settled_target:
+                self.settled_since, self.settled_target = now, target
             if self.pending is not None:
                 name, future, deadline, target, sent_at = self.pending
                 try:

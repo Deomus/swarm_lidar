@@ -94,7 +94,8 @@ def backend(tmp_path):
 def feed(node, armed=False):
     for i in range(4):
         state = SwarmState(uav_id=i, valid=True, armed=armed, frame_id='map')
-        state.timestamp.sec = 10
+        state.timestamp.sec = int(node.now())
+        state.timestamp.nanosec = int((node.now()-state.timestamp.sec)*1e9)
         node.on_state(state)
 
 
@@ -126,6 +127,7 @@ def test_commands_require_prepared_operator_and_established_formation(backend):
     with pytest.raises(ValueError, match='установления'):
         backend.submit('formation', dict(formation='column', scale=1., duration=25.))
     backend.on_formation(String(data=json.dumps(dict(time=10., mode='FOLLOWING', formation='line', scale=1.))))
+    backend.settled_since = 8.
     backend.submit('formation', dict(formation='column', scale=1., duration=25.))
     assert backend.commands.get_nowait() == ('formation', ('column', 1., 25.))
 
@@ -146,6 +148,27 @@ def test_landing_has_priority_over_pending_formation(backend):
     assert backend.commands.get_nowait() == ('finish', None)
     assert backend.commands.empty()
     assert backend.flight.phase == 'landing'
+
+
+def test_established_formation_requires_sustained_small_errors(backend):
+    clock = [10.]
+    backend.now = lambda: clock[0]
+    def update(error):
+        feed(backend)
+        backend.on_formation(String(data=json.dumps(dict(time=clock[0], mode='FOLLOWING',
+            formation='line', scale=1., errors=[.1, error, .1]))))
+        backend.tick()
+    update(.7)
+    assert not backend.snapshot()['formation_settled']
+    clock[0] = 10.2
+    update(.1)
+    assert not backend.snapshot()['formation_settled']
+    clock[0] = 11.3
+    update(.1)
+    assert backend.snapshot()['formation_settled']
+    clock[0] = 11.4
+    update(.65)
+    assert not backend.snapshot()['formation_settled']
 
 
 def test_external_landing_needs_fresh_disarmed_confirmation(backend):

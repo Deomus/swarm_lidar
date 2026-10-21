@@ -36,7 +36,7 @@ function render(state) {
   $('connection').className='badge'+(state.connected?' connected':'');
   $('prepare').disabled=!available;$('hold').disabled=!ready;
   $('land').disabled=!(active||state.drones.some(d=>d.armed))||flight.phase==='landing'||sending;
-  $('apply').disabled=!ready||!state.formation||state.formation.mode!=='FOLLOWING';
+  $('apply').disabled=!ready||!state.formation_settled;
   document.querySelectorAll('[data-scenario]').forEach(button=>button.disabled=!available);
   $('record').disabled=active;
   $('flight-status').textContent=phases[flight.phase]||'Ожидание';
@@ -56,7 +56,8 @@ function render(state) {
     cells[3].textContent=drone.fresh?`${Math.hypot(...drone.velocity).toFixed(2)} м/с`:'—';
   });
   const formation=state.formation;
-  $('formation-status').textContent=formation?`${shapes[formation.formation]||''} · ${modes[formation.mode]||'Ожидание'}`:'Нет свежих данных';
+  const formationLabel=formation?.mode==='FOLLOWING'&&!state.formation_settled?'Занимают места':modes[formation?.mode];
+  $('formation-status').textContent=formation?`${shapes[formation.formation]||''} · ${formationLabel||'Ожидание'}`:'Нет свежих данных';
   $('errors').textContent=formation&&Array.isArray(formation.errors)&&formation.errors.length===3?`Ошибки по LiDAR: ${formation.errors.map(e=>Number(e).toFixed(2)).join(' / ')} м`:'Ошибки строя: —';
   const translate=line=>names.reduce((text,name,i)=>text.replaceAll(`uav_${i}`,name),line).replaceAll('column','колонна').replaceAll('wedge','клин').replaceAll('line','линия');
   const text=flight.logs.slice(-24).map(translate).join('\n')||'Событий пока нет.';
