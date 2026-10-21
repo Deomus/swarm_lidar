@@ -1,5 +1,6 @@
 """ROS-адаптер A*: только путь, без команд автопилоту."""
 from math import floor, isfinite
+import json
 
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import OccupancyGrid, Path
@@ -27,6 +28,7 @@ class MissionPlanner(Node):
         self.state = None
         self.path_pub = self.create_publisher(Path, '/mission/path', 10)
         self.status_pub = self.create_publisher(String, '/mission/status', 10)
+        self.result_pub = self.create_publisher(String, '/mission/plan_result', 10)
         map_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                              durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.create_subscription(OccupancyGrid, '/map', self.on_map, map_qos)
@@ -54,9 +56,14 @@ class MissionPlanner(Node):
             path = self.plan(goal)
         except (PlanningError, ValueError, OverflowError) as error:
             self.fail(str(error))
+            self.result_pub.publish(String(data=json.dumps(dict(status='REJECTED',
+                goal_id=[goal.header.stamp.sec, goal.header.stamp.nanosec], reason=str(error)))))
             return
         self.path_pub.publish(path)
         self.status_pub.publish(String(data=f'PLANNED: {len(path.poses)} точек'))
+        self.result_pub.publish(String(data=json.dumps(dict(status='PLANNED',
+            goal_id=[goal.header.stamp.sec, goal.header.stamp.nanosec],
+            path_stamp=[path.header.stamp.sec, path.header.stamp.nanosec]))))
 
     def plan(self, goal):
         grid, state = self.map, self.state

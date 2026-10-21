@@ -53,6 +53,10 @@ class PanelBackend(Node):
         self.execution = None
         self.mission_status = None
         self.goal_waiting = False
+        self.goal_id = None
+        self.goal_result = None
+        self.goal_deadline = 0.
+        self.create_subscription(String, '/mission/plan_result', self.on_plan_result, 10)
         self.clock_previous = None
         self.clock_progress = 0.
         self.action = dict(state='idle', message='Запустите симуляцию и дождитесь подключения четырёх аппаратов.')
@@ -113,6 +117,24 @@ class PanelBackend(Node):
         with self.lock:
             self.mission_status = msg.data
 
+    def on_plan_result(self, msg):
+        try:
+            result = json.loads(msg.data)
+        except (ValueError, TypeError):
+            return
+        with self.lock:
+            if isinstance(result, dict) and self.goal_waiting and result.get('goal_id') == self.goal_id:
+                self.goal_result = result
+
+    def cancel_goal(self):
+        self.goal_waiting = False
+        self.goal_id = self.goal_result = None
+        while not self.commands.empty():
+            self.commands.get_nowait()
+        if self.pending and self.pending[1] is not None:
+            self.pending[1].cancel()
+        self.pending = None
+
     def fresh(self, row, now, wall):
         return (row['valid'] and 0 <= now-row['stamp'] <= .5
                 and wall-row['received'] <= 1. and wall-self.clock_progress <= 1.)
@@ -152,6 +174,7 @@ class PanelBackend(Node):
                 self.action = dict(state='ok', message='Подготовка началась. Ожидайте подтверждённого взлёта.')
                 return
             if action == 'land':
+                self.cancel_goal()
                 if session['phase'] == 'landing':
                     return
                 if self.flight.active():
@@ -187,14 +210,19 @@ class PanelBackend(Node):
                 self.mission_status = None
                 self.goal_publisher.publish(goal)
                 self.goal_waiting = True
+                self.goal_id = [goal.header.stamp.sec, goal.header.stamp.nanosec]
+                self.goal_deadline = time.monotonic() + 10.
+                self.goal_result = None
                 self.action = dict(state='pending', message=f'Маршрут строится: X={x:.1f}, Y={y:.1f}, высота={z:.1f} м')
                 return
             if action not in ('formation', 'hold'):
                 raise ValueError('Неизвестная команда')
             if session['phase'] != 'ready' or session['kind'] != 'operator' or not snapshot['connected']:
                 raise ValueError('Сначала выполните «Подготовить и взлететь» и дождитесь готовности')
-            if self.action['state'] == 'pending':
+            if self.action['state'] == 'pending' and action != 'hold':
                 raise ValueError('Дождитесь подтверждения предыдущей команды')
+            if action == 'hold':
+                self.cancel_goal()
             values = formation_request(body) if action == 'formation' else None
             if action == 'formation' and not snapshot['formation_settled']:
                 raise ValueError('Дождитесь установления текущего строя')
@@ -214,6 +242,7 @@ class PanelBackend(Node):
         with self.lock:
             now, wall = self.now(), time.monotonic()
             if self.clock_previous is not None and now < self.clock_previous:
+                self.cancel_goal()
                 self.states.clear()
                 self.formation = self.execution = None
                 self.flight.stop()
@@ -272,19 +301,27 @@ class PanelBackend(Node):
                         self.flight.stop()
                     self.action = dict(state='error', message=str(error))
                     self.pending = None
-            if self.goal_waiting and isinstance(self.mission_status, str):
-                if self.mission_status.startswith('PLANNED:'):
+            if self.goal_waiting:
+                result = self.goal_result or {}
+                session = self.flight.snapshot()
+                allowed = session['phase'] == 'ready' and session['kind'] == 'operator' and not self.closing
+                if not allowed or wall >= self.goal_deadline:
+                    self.cancel_goal()
+                    self.action = dict(state='error', message='Ожидание маршрута отменено или истёк срок подтверждения.')
+                elif result.get('status') == 'PLANNED' and (self.execution or {}).get('accepted_path_stamp') == result.get('path_stamp'):
                     self.commands.put_nowait(('mission', None))
                     self.goal_waiting = False
                     self.action = dict(state='pending', message='Маршрут построен; ведущий начинает полёт.')
-                elif self.mission_status.startswith('REJECTED:'):
+                elif result.get('status') == 'REJECTED':
                     self.goal_waiting = False
-                    self.action = dict(state='error', message='Маршрут отклонён: '+self.mission_status[9:])
+                    self.action = dict(state='error', message='Маршрут отклонён: '+str(result.get('reason', 'нет причины')))
             # Посадка не ждёт завершения запроса перестроения или HOLD.
             if not self.commands.empty():
                 name, values = self.commands.get_nowait()
                 try:
                     if name == 'mission':
+                        if self.flight.snapshot()['phase'] != 'ready' or self.closing:
+                            raise ValueError('Запуск миссии отменён')
                         future = self.call('/leader/mission')
                     elif name == 'land':
                         self.last_landing_request = 0.

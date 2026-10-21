@@ -218,3 +218,53 @@ def test_finished_process_without_landing_ack_is_not_successful_shutdown(tmp_pat
     assert not session.close()
     session.landing_confirmed = True
     assert session.close()
+
+
+def test_landing_cancels_goal_even_when_planner_answers_late(backend):
+    feed(backend, armed=True)
+    backend.flight.phase, backend.flight.kind = 'ready', 'operator'
+    backend.goal_waiting, backend.goal_id = True, [10, 0]
+    backend.submit('land', {})
+    backend.on_plan_result(String(data=json.dumps(dict(status='PLANNED', goal_id=[10, 0], path_stamp=[10, 0]))))
+    assert not backend.goal_waiting
+    assert backend.commands.get_nowait() == ('finish', None)
+    assert backend.commands.empty()
+
+
+def test_goal_waits_for_matching_result_and_leader_acceptance(backend):
+    feed(backend, armed=True)
+    backend.flight.phase, backend.flight.kind = 'ready', 'operator'
+    backend.goal_waiting, backend.goal_id = True, [10, 0]
+    backend.goal_deadline = time.monotonic() + 10.
+    backend.on_plan_result(String(data=json.dumps(dict(status='PLANNED', goal_id=[9, 0], path_stamp=[9, 0]))))
+    backend.tick()
+    assert backend.goal_waiting and backend.commands.empty()
+    backend.on_plan_result(String(data=json.dumps(dict(status='PLANNED', goal_id=[10, 0], path_stamp=[10, 1]))))
+    backend.tick()
+    assert backend.goal_waiting
+    backend.execution = dict(accepted_path_stamp=[10, 1])
+    calls = []
+    backend.call = lambda path: calls.append(path) or SimpleNamespace(done=lambda: False)
+    backend.tick()
+    assert calls == ['/leader/mission']
+
+
+def test_missing_plan_expires_and_hold_can_cancel_pending_goal(backend):
+    feed(backend, armed=True)
+    backend.flight.phase, backend.flight.kind = 'ready', 'operator'
+    backend.goal_waiting = True
+    backend.goal_deadline = time.monotonic() - 1.
+    backend.tick()
+    assert not backend.goal_waiting and backend.action['state'] == 'error'
+    backend.action['state'] = 'pending'
+    backend.goal_waiting = True
+    backend.submit('hold', {})
+    assert not backend.goal_waiting
+    assert backend.commands.get_nowait() == ('hold', None)
+
+
+def test_error_of_finished_flight_still_requires_landing_confirmation(tmp_path):
+    session = FlightSession(tmp_path)
+    session.phase = 'error'
+    session.landing_confirmed = False
+    assert not session.close()

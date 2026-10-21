@@ -106,4 +106,5 @@ class FlightSession:
         if self.thread:
             self.thread.join(timeout=timeout)
         ended = self.thread is None or not self.thread.is_alive()
-        return ended and (not was_active or self.landing_confirmed is True)
+        had_flight = self.process is not None or self.landing_confirmed is not None or was_active
+        return ended and (not had_flight or self.landing_confirmed is True)

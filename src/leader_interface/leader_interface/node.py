@@ -59,6 +59,7 @@ class LeaderInterface(Node):
             for mode in ('HOLD', 'MANUAL', 'MISSION')]
         self.timer = self.create_timer(self.p['period'], self.tick)
         self.last_status = None
+        self.accepted_path_stamp = None
 
     def now(self):
         return self.get_clock().now().nanoseconds * 1e-9
@@ -95,6 +96,7 @@ class LeaderInterface(Node):
             self.get_logger().warning('Маршрут отклонён: timestamp из будущего')
             return
         if not message.poses:
+            self.accepted_path_stamp = None
             self.core.revoke_path()
             self.get_logger().warning('Маршрут отозван планировщиком')
             return
@@ -104,6 +106,7 @@ class LeaderInterface(Node):
         try:
             self.core.set_path([[p.pose.position.x, p.pose.position.y, p.pose.position.z]
                                 for p in message.poses])
+            self.accepted_path_stamp = [message.header.stamp.sec, message.header.stamp.nanosec]
         except ValueError as error:
             self.get_logger().warning(f'Маршрут отклонён: {error}')
 
@@ -150,6 +153,7 @@ class LeaderInterface(Node):
         status = dict(mode=self.core.mode, status=result.status, waypoint=result.waypoint_index,
                       total=len(self.core.path) if self.core.path is not None else 0,
                       valid=result.valid, stamp=now,
+                      accepted_path_stamp=self.accepted_path_stamp,
                       formation_ready=self.formation_guard.ready(now),
                       formation_required=self.p['require_formation_ready'])
         self.status_pub.publish(String(data=json.dumps(status, ensure_ascii=False)))

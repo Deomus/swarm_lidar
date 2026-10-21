@@ -35,7 +35,7 @@ $('prepare').onclick=()=>command('prepare',{record:$('record').checked});
 $('hold').onclick=()=>command('hold');
 $('land').onclick=()=>command('land');
 $('go-to-target').onclick=()=>target&&command('goal',{x:target.x,y:target.y,z:5});
-$('clear-target').onclick=()=>{target=null;draw();};
+$('clear-target').onclick=()=>{target=null;$('target-label').textContent='Точка не выбрана';draw();};
 document.querySelectorAll('[data-scenario]').forEach(button=>button.onclick=()=>command(button.dataset.scenario,{record:$('record').checked}));
 $('formation-form').onsubmit=event=>{event.preventDefault();if(!$('apply').disabled) command('formation',{formation:$('formation').value,scale:Number($('scale').value),duration:Number($('duration').value)});};
 function render(state) {
@@ -45,7 +45,7 @@ function render(state) {
   const ready=state.connected&&flight.phase==='ready'&&flight.kind==='operator'&&!sending&&state.action.state!=='pending';
   $('connection').textContent=state.connected?'Четыре аппарата подключены':'Ожидание свежих данных';
   $('connection').className='badge'+(state.connected?' connected':'');
-  $('prepare').disabled=!available;$('hold').disabled=!ready;
+  $('prepare').disabled=!available;$('hold').disabled=!(state.connected&&flight.phase==='ready'&&flight.kind==='operator')||sending;
   $('land').disabled=!(active||state.drones.some(d=>d.armed))||flight.phase==='landing'||sending;
   $('apply').disabled=!ready||!state.formation_settled;
   $('go-to-target').disabled=!target||!ready||sending;
