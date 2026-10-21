@@ -8,6 +8,7 @@ import time
 
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from swarm_interfaces.msg import FormationCommand, SwarmState
@@ -28,6 +29,16 @@ def formation_request(body):
         raise ValueError('Масштаб: 0,75–2; время перестроения: 2–120 с')
     formation_offsets(name, scale, gap=4., min_separation=2.)
     return name, float(scale), float(duration)
+
+
+def goal_request(body):
+    values = [body.get(key) for key in ('x', 'y', 'z')]
+    if (any(isinstance(value, bool) or not isinstance(value, (int, float))
+            or not math.isfinite(value) for value in values)
+            or not all(-100. <= value <= 100. for value in values[:2])
+            or not 1. <= values[2] <= 30.):
+        raise ValueError('Точка: X/Y от −100 до 100 м, высота от 1 до 30 м')
+    return tuple(float(value) for value in values)
 
 
 class PanelBackend(Node):
@@ -52,6 +63,7 @@ class PanelBackend(Node):
         self.create_subscription(String, '/swarm/formation_status', self.on_formation, 10)
         self.create_subscription(String, '/mission/execution_status', self.on_execution, 10)
         self.publisher = self.create_publisher(FormationCommand, '/swarm/formation_command', 10)
+        self.goal_publisher = self.create_publisher(PoseStamped, '/mission/goal', 10)
         self.create_timer(.05, self.tick)
 
     def now(self):
@@ -153,6 +165,20 @@ class PanelBackend(Node):
                     return
                 self.commands.put_nowait(('land', None))
                 self.action = dict(state='pending', message='Запрошена посадка всех аппаратов; ожидайте подтверждения.')
+                return
+            if action == 'goal':
+                if session['phase'] != 'ready' or session['kind'] != 'operator' or not snapshot['connected']:
+                    raise ValueError('Сначала выполните «Подготовить и взлететь» и дождитесь готовности')
+                if self.action['state'] == 'pending':
+                    raise ValueError('Дождитесь завершения предыдущей команды')
+                x, y, z = goal_request(body)
+                goal = PoseStamped()
+                goal.header.frame_id = 'map'
+                goal.header.stamp = self.get_clock().now().to_msg()
+                goal.pose.position.x, goal.pose.position.y, goal.pose.position.z = x, y, z
+                goal.pose.orientation.w = 1.
+                self.goal_publisher.publish(goal)
+                self.action = dict(state='ok', message=f'Маршрут задан: X={x:.1f}, Y={y:.1f}, высота={z:.1f} м')
                 return
             if action not in ('formation', 'hold'):
                 raise ValueError('Неизвестная команда')

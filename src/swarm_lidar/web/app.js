@@ -4,7 +4,8 @@ const names = ['Ведущий', 'Ведомый 1', 'Ведомый 2', 'Вед
 const shapes = {line:'Линия',column:'Колонна',wedge:'Клин'};
 const phases = {idle:'Ожидание полёта',starting:'Подготовка и взлёт',running:'Выполняется сценарий',ready:'Группа готова к командам',landing:'Выполняется посадка',complete:'Полёт завершён',cancelled:'Полёт прерван, посадка выполнена',error:'Проверьте журнал полёта'};
 const modes = {FOLLOWING:'Строй установлен',FORMATION_CHANGE:'Перестроение',DATA_HOLD:'Ожидание измерений',DISABLED:'Управление строем выключено',HOLD:'Удержание',COLLISION_STOP:'Остановка при сближении',CLOCK_RESET:'Сброс времени'};
-let current = null, sending = false, localError = '';
+let current = null, sending = false, localError = '', target = null;
+let view = {cx:0, cy:0, scale:12, ready:false}, dragging = null;
 const token = document.querySelector('meta[name=panel-token]').content;
 const rows = names.map((name, i) => {
   const tr = document.createElement('tr');
@@ -25,6 +26,8 @@ async function command(action, values={}) {
 $('prepare').onclick=()=>command('prepare',{record:$('record').checked});
 $('hold').onclick=()=>command('hold');
 $('land').onclick=()=>command('land');
+$('go-to-target').onclick=()=>target&&command('goal',{x:target.x,y:target.y,z:5});
+$('clear-target').onclick=()=>{target=null;draw();};
 document.querySelectorAll('[data-scenario]').forEach(button=>button.onclick=()=>command(button.dataset.scenario,{record:$('record').checked}));
 $('formation-form').onsubmit=event=>{event.preventDefault();if(!$('apply').disabled) command('formation',{formation:$('formation').value,scale:Number($('scale').value),duration:Number($('duration').value)});};
 function render(state) {
@@ -37,6 +40,8 @@ function render(state) {
   $('prepare').disabled=!available;$('hold').disabled=!ready;
   $('land').disabled=!(active||state.drones.some(d=>d.armed))||flight.phase==='landing'||sending;
   $('apply').disabled=!ready||!state.formation_settled;
+  $('go-to-target').disabled=!target||!ready||sending;
+  $('clear-target').disabled=!target;
   document.querySelectorAll('[data-scenario]').forEach(button=>button.disabled=!available);
   $('record').disabled=active;
   $('flight-status').textContent=phases[flight.phase]||'Ожидание';
@@ -71,9 +76,8 @@ function draw() {
   const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);
   const w=rect.width,h=rect.height,valid=(current?.drones||[]).filter(d=>d.fresh);
   if(!valid.length){ctx.fillStyle='#9babb9';ctx.font='13px system-ui';ctx.textAlign='center';ctx.fillText('Положение появится после подключения',w/2,h/2);return;}
-  const xs=valid.map(d=>d.position[0]),ys=valid.map(d=>d.position[1]);
-  const cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
-  const scale=Math.min((w-90)/Math.max(16,Math.max(...xs)-Math.min(...xs)),(h-80)/Math.max(16,Math.max(...ys)-Math.min(...ys)));
+  if(!view.ready){const xs=valid.map(d=>d.position[0]),ys=valid.map(d=>d.position[1]);view.cx=(Math.min(...xs)+Math.max(...xs))/2;view.cy=(Math.min(...ys)+Math.max(...ys))/2;view.scale=Math.min((w-90)/Math.max(16,Math.max(...xs)-Math.min(...xs)),(h-80)/Math.max(16,Math.max(...ys)-Math.min(...ys)));view.ready=true;}
+  const cx=view.cx,cy=view.cy,scale=view.scale;
   const px=x=>w/2+(x-cx)*scale,py=y=>h/2-(y-cy)*scale;
   ctx.lineWidth=1;ctx.strokeStyle='#27343f';ctx.fillStyle='#8295a6';ctx.font='10px system-ui';ctx.textAlign='center';
   const step=scale<8?10:2;
@@ -85,7 +89,13 @@ function draw() {
     ctx.font='11px system-ui';ctx.textAlign=drone.id===0?'left':'center';
     ctx.fillText(names[drone.id],drone.id===0?x+11:x,drone.id===0?y+4:y-13);
   });
+  if(target){const x=px(target.x),y=py(target.y);ctx.strokeStyle='#e9bf77';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(x-12,y);ctx.lineTo(x+12,y);ctx.moveTo(x,y-12);ctx.lineTo(x,y+12);ctx.stroke();}
 }
+const map=$('map');
+map.addEventListener('wheel',event=>{event.preventDefault();const rect=map.getBoundingClientRect(),mx=event.clientX-rect.left,my=event.clientY-rect.top;const before=[(mx-rect.width/2)/view.scale+view.cx,(rect.height/2-my)/view.scale+view.cy];view.scale=Math.max(3,Math.min(80,view.scale*Math.exp(-event.deltaY*.001)));view.cx=before[0]-(mx-rect.width/2)/view.scale;view.cy=before[1]+(my-rect.height/2)/view.scale;view.ready=true;draw();},{passive:false});
+map.addEventListener('pointerdown',event=>{map.setPointerCapture(event.pointerId);dragging={x:event.clientX,y:event.clientY,cx:view.cx,cy:view.cy};});
+map.addEventListener('pointermove',event=>{if(!dragging)return;const rect=map.getBoundingClientRect();view.cx=dragging.cx-(event.clientX-dragging.x)/view.scale;view.cy=dragging.cy+(event.clientY-dragging.y)/view.scale;draw();});
+map.addEventListener('pointerup',event=>{if(!dragging)return;const moved=Math.hypot(event.clientX-dragging.x,event.clientY-dragging.y);if(moved<5){const rect=map.getBoundingClientRect();target={x:view.cx+(event.clientX-rect.left-rect.width/2)/view.scale,y:view.cy-(event.clientY-rect.top-rect.height/2)/view.scale};$('target-label').textContent=`Цель: X=${target.x.toFixed(1)} м, Y=${target.y.toFixed(1)} м`;}$('clear-target').disabled=!target;dragging=null;draw();});
 new ResizeObserver(draw).observe($('map'));
 async function poll(){
   try{const response=await fetch('/api/state',{signal:AbortSignal.timeout(3000)});if(!response.ok)throw new Error();render(await response.json());}

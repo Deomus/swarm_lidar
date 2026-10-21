@@ -12,7 +12,7 @@ from std_msgs.msg import String
 from swarm_interfaces.msg import SwarmState
 
 from swarm_lidar.web_panel import make_server
-from swarm_lidar.web_ros import PanelBackend, formation_request
+from swarm_lidar.web_ros import PanelBackend, formation_request, goal_request
 from swarm_lidar.web_session import FlightSession
 
 
@@ -78,6 +78,21 @@ def test_bad_request_and_unlisted_asset(http_panel):
 def test_invalid_formation_never_reaches_ros(scale, duration):
     with pytest.raises(ValueError):
         formation_request(dict(formation='wedge', scale=scale, duration=duration))
+
+
+@pytest.mark.parametrize('body', [
+    {'x': float('nan'), 'y': 0., 'z': 5.},
+    {'x': 0., 'y': 101., 'z': 5.},
+    {'x': 0., 'y': 0., 'z': 0.},
+    {'x': True, 'y': 0., 'z': 5.},
+])
+def test_invalid_goal_is_rejected(body):
+    with pytest.raises(ValueError):
+        goal_request(body)
+
+
+def test_goal_request_accepts_map_coordinates():
+    assert goal_request({'x': 12, 'y': -4.5, 'z': 5}) == (12., -4.5, 5.)
 
 
 @pytest.fixture
