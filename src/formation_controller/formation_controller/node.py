@@ -31,6 +31,7 @@ class FormationController(Node):
                         status_topic='/swarm/formation_status', target_topic='/swarm/target_offsets')
         defaults.update(require_transition_map=False, transition_map_margin=.75)
         defaults.update(vertical_kp=1., vertical_kd=1.2, vertical_derivative_time=.2)
+        defaults.update(velocity_smoothing='exponential')
         for key, value in defaults.items():
             self.declare_parameter(key, value)
         self.p = {key: self.get_parameter(key).value for key in defaults}
@@ -74,6 +75,7 @@ class FormationController(Node):
             max_acceleration=self.p['max_acceleration'], max_jerk=self.p['max_jerk'],
             vertical_kp=self.p['vertical_kp'], vertical_kd=self.p['vertical_kd'],
             vertical_derivative_time=self.p['vertical_derivative_time'],
+            velocity_smoothing=self.p['velocity_smoothing'],
             period=self.p['period']) for _ in range(3)]
 
     def now(self):

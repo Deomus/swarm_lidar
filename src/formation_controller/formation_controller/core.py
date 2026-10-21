@@ -53,6 +53,47 @@ def minimum_transition_distance(start, end):
     return result
 
 
+class WindowedVelocityLimiter:
+    """Два скользящих средних с конечной памятью и теми же границами команды.
+
+    Для входа с нормой <= V и окна N отсчётов:
+    |dv/dt| <= 2V/(NT), |d²v/dt²| <= 4V/(NT)².
+    Усреднение сохраняет ограничение нормы скорости. Начальная история нулевая.
+    В отличие от двух экспоненциальных звеньев задержка равна (N-1)T,
+    а после 2N нулевых входов остаток команды исчезает полностью.
+    """
+
+    def __init__(self, max_speed=3., max_acceleration=2., max_jerk=4., period=.05):
+        self.max_speed = _positive(max_speed, 'max_speed')
+        self.period = _positive(period, 'period')
+        acceleration = _positive(max_acceleration, 'max_acceleration')
+        jerk = _positive(max_jerk, 'max_jerk')
+        self.window = max(1, math.ceil(max(2*self.max_speed/(acceleration*self.period),
+            math.sqrt(4*self.max_speed/jerk)/self.period)))
+        self.delay = (self.window-1)*self.period
+        self._first = np.zeros((self.window, 3))
+        self._second = np.zeros((self.window, 3))
+        self._first_sum = np.zeros(3)
+        self._second_sum = np.zeros(3)
+        self._index = 0
+        self.velocity = np.zeros(3)
+
+    def step(self, desired):
+        desired = np.asarray(desired, dtype=float)
+        if desired.shape != (3,) or not np.isfinite(desired).all():
+            raise ValueError('Expected finite velocity vector')
+        desired = clip_norm(desired, self.max_speed)
+        index = self._index
+        self._first_sum += desired-self._first[index]
+        self._first[index] = desired
+        intermediate = self._first_sum/self.window
+        self._second_sum += intermediate-self._second[index]
+        self._second[index] = intermediate
+        self._index = (index+1) % self.window
+        self.velocity = self._second_sum/self.window
+        return self.velocity.copy()
+
+
 @dataclass(frozen=True)
 class FormationSample:
     offsets: np.ndarray
@@ -208,7 +249,8 @@ class RelativeVelocityController:
 
     def __init__(self, kp=0.6, stale_timeout=0.3, min_confidence=0.5,
                  max_speed=3.0, max_acceleration=2.0, max_jerk=4.0, period=0.05,
-                 vertical_kp=None, vertical_kd=0., vertical_derivative_time=.2):
+                 vertical_kp=None, vertical_kd=0., vertical_derivative_time=.2,
+                 velocity_smoothing='exponential'):
         self.kp = _positive(kp, 'kp')
         self.vertical_kp = self.kp if vertical_kp is None else _positive(vertical_kp, 'vertical_kp')
         if not math.isfinite(vertical_kd) or vertical_kd < 0:
@@ -220,7 +262,10 @@ class RelativeVelocityController:
         if not math.isfinite(min_confidence) or not 0 <= min_confidence <= 1:
             raise ValueError('min_confidence must be in [0, 1]')
         self.min_confidence = min_confidence
-        self.limiter = VelocityLimiter(max_speed, max_acceleration, max_jerk, period)
+        if velocity_smoothing not in ('exponential', 'windowed'):
+            raise ValueError('Unknown velocity_smoothing')
+        limiter_type = WindowedVelocityLimiter if velocity_smoothing == 'windowed' else VelocityLimiter
+        self.limiter = limiter_type(max_speed, max_acceleration, max_jerk, period)
         self.last_stamp = -math.inf
 
     def step(self, relative_flu, offset_flu, offset_velocity_flu, leader_velocity_enu,
