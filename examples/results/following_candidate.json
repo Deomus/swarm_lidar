@@ -1,0 +1,97 @@
+{
+  "runs": [
+    {
+      "source": "log/following_candidate_series_20261022/s2_1/flight",
+      "scenario": "s2",
+      "passed": true,
+      "passed_landing": true,
+      "runtime_revision": "bf7102dfffb70f49d0913b196de76fe0746a3a48",
+      "configuration_sha256": "ccf234d6bb0ab4fdd4d0d094c648f7cd4b58d420355aeb7d64dc325b876ced93",
+      "formation": {
+        "count": 2283,
+        "mean": 0.41147896254592253,
+        "rms": 0.5216787647398908,
+        "max": 1.8175543247181978,
+        "min": 0.017611526594564934
+      },
+      "localization": {
+        "count": 2283,
+        "mean": 0.03628796152781222,
+        "rms": 0.03753935195003955,
+        "max": 0.07682347987111465,
+        "min": 0.006344401689309756
+      },
+      "min_pair_distance_m": 3.5788355950439685,
+      "active_rows": 2283,
+      "relative_stale_share": 0,
+      "leader_state_stale_share": 0,
+      "formation_missing_share": 0,
+      "localization_missing_share": 0,
+      "manual_windows": {
+        "0.5": {
+          "count": 723,
+          "mean": 0.31546575331558063,
+          "rms": 0.4508548886480316,
+          "max": 1.5209161336508075,
+          "min": 0.0189929001463802
+        },
+        "1.0": {
+          "count": 726,
+          "mean": 0.416682305780466,
+          "rms": 0.520920061149978,
+          "max": 1.7013750984732157,
+          "min": 0.017611526594564934
+        },
+        "1.5": {
+          "count": 762,
+          "mean": 0.5104787975259659,
+          "rms": 0.595182489955527,
+          "max": 1.8175543247181978,
+          "min": 0.08044132092323424
+        }
+      },
+      "confirmed_zero_delay_s": 0.356,
+      "transitions": null
+    }
+  ],
+  "all_passed": true,
+  "formation_rms_m": {
+    "count": 1,
+    "mean": 0.5216787647398908,
+    "sample_std": null,
+    "min": 0.5216787647398908,
+    "max": 0.5216787647398908
+  },
+  "formation_max_m": {
+    "count": 1,
+    "mean": 1.8175543247181978,
+    "sample_std": null,
+    "min": 1.8175543247181978,
+    "max": 1.8175543247181978
+  },
+  "min_pair_distance_m": {
+    "count": 1,
+    "mean": 3.5788355950439685,
+    "sample_std": null,
+    "min": 3.5788355950439685,
+    "max": 3.5788355950439685
+  },
+  "localization_rms_m": {
+    "count": 1,
+    "mean": 0.03753935195003955,
+    "sample_std": null,
+    "min": 0.03753935195003955,
+    "max": 0.03753935195003955
+  },
+  "confirmed_zero_delay_s": {
+    "count": 1,
+    "mean": 0.356,
+    "sample_std": null,
+    "min": 0.356,
+    "max": 0.356
+  },
+  "planned_runs": 3,
+  "completed_runs": 1,
+  "series_complete": false,
+  "note": "Первый повтор основной серии. Предварительный опыт исключён; параметры совпадают с bf7102d."
+}
