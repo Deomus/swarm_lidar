@@ -22,3 +22,6 @@
     formation_status_topic: /swarm/formation_status
     formation_status_timeout: 0.5
     formation_unavailable_grace: 1.0
+    require_slot_geometry: true
+    follower_max_speed: 2.0
+    follower_speed_reserve: 0.15

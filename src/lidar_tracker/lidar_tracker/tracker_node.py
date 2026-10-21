@@ -42,6 +42,7 @@ class LidarTracker(Node):
                                      p['ambiguity_margin'], p['filter_alpha'],
                                      p['reacquire_timeout'])
         self.last_stamp = None
+        self.previous_clock = None
         self.publisher = self.create_publisher(RelativePose, p['output_topic'], p['qos_depth'])
         self.subscription = self.create_subscription(
             PointCloud2, p['input_topic'], self.pointcloud_callback,
@@ -76,6 +77,7 @@ class LidarTracker(Node):
             self.publisher.publish(msg)
 
     def check_stale(self):
+        self.observe_clock()
         if self.last_stamp is None:
             return
         now = self.get_clock().now().nanoseconds * 1e-9
@@ -84,6 +86,7 @@ class LidarTracker(Node):
             self.publish(self.last_stamp)
 
     def pointcloud_callback(self, cloud):
+        self.observe_clock()
         p = self.params
         stamp = cloud.header.stamp.sec + cloud.header.stamp.nanosec * 1e-9
         age = self.get_clock().now().nanoseconds * 1e-9 - stamp
@@ -121,6 +124,13 @@ class LidarTracker(Node):
                 centers.append(center)
                 confidences.append(confidence)
         self.publish(cloud.header.stamp, self.tracker.update(centers, stamp), confidences)
+
+    def observe_clock(self):
+        now = self.get_clock().now().nanoseconds * 1e-9
+        if self.previous_clock is not None and now < self.previous_clock:
+            self.last_stamp = None
+            self.tracker.reset(now)
+        self.previous_clock = now
 
 
 def main(args=None):

@@ -63,9 +63,10 @@ class FormationSample:
 class FormationPlan:
     """Выбор безопасной перестановки slots; request не меняет план при отказе."""
 
-    def __init__(self, min_separation=2.0, gap=4.0):
+    def __init__(self, min_separation=2.0, gap=4.0, max_slot_speed=None):
         self.min_separation = _positive(min_separation, 'min_separation')
         self.gap = _positive(gap, 'gap')
+        self.max_slot_speed = None if max_slot_speed is None else _positive(max_slot_speed, 'max_slot_speed')
         self._start = formation_offsets('line', gap=gap, min_separation=min_separation)
         self._end = self._start.copy()
         self._time = 0.0
@@ -108,9 +109,33 @@ class FormationPlan:
         if not candidates:
             raise ValueError('No collision-free straight transition exists')
         _, order, end = min(candidates, key=lambda candidate: (candidate[0], candidate[1]))
+        if self.max_slot_speed is not None:
+            duration = max(duration, 1.5 * float(np.linalg.norm(end-current.offsets, axis=1).max()) / self.max_slot_speed)
         self._start, self._end = current.offsets, end.copy()
         self._time, self._duration = float(now), float(duration)
         return order
+
+
+def limit_group_motion(velocity, yaw_rate, offsets, offset_velocities, heading, max_speed):
+    """Ограничивает движение ведущего по скорости всех заданных мест.
+
+    Геометрия перестроения не масштабируется: она задаётся отдельным планом.
+    Общий коэффициент сохраняет соотношение поступательного движения и поворота.
+    """
+    c, s = math.cos(heading), math.sin(heading)
+    rotation = np.array([[c, -s, 0.], [s, c, 0.], [0., 0., 1.]])
+    offsets, offset_velocities = _points(offsets), _points(offset_velocities)
+    factor = 1.
+    for offset, offset_velocity in zip(offsets, offset_velocities):
+        a = np.asarray(velocity) + rotation @ np.cross([0., 0., yaw_rate], offset)
+        b = rotation @ offset_velocity
+        if np.linalg.norm(b) > max_speed + 1e-6:
+            raise ValueError('Скорость перестроения превышает возможности ведомых')
+        aa, ab = float(a @ a), float(a @ b)
+        if aa > 1e-12:
+            bound = (-ab + math.sqrt(max(0., ab*ab-aa*(float(b @ b)-max_speed**2)))) / aa
+            factor = min(factor, max(0., bound))
+    return np.asarray(velocity) * factor, yaw_rate * factor, factor
 
 
 def clip_norm(vector, limit):

@@ -10,6 +10,7 @@ from std_srvs.srv import Trigger
 from swarm_interfaces.msg import FormationCommand, RelativePose, SwarmCommand, SwarmState
 from .core import FormationPlan, RelativeVelocityController, slot_feedforward
 from .prediction import LeaderVelocityPredictor
+from .timing import OrientationHistory
 
 class FormationController(Node):
     def __init__(self):
@@ -28,7 +29,8 @@ class FormationController(Node):
         for key, value in defaults.items():
             self.declare_parameter(key, value)
         self.p = {key: self.get_parameter(key).value for key in defaults}
-        self.plan = FormationPlan(self.p['min_separation'], self.p['gap'])
+        self.plan = FormationPlan(self.p['min_separation'] + .2, self.p['gap'],
+                                  max_slot_speed=self.p['max_speed'] * .75)
         self.controllers = self.new_controllers()
         self.predictors = [LeaderVelocityPredictor(
             horizon=self.p['leader_prediction_horizon'],
@@ -42,6 +44,7 @@ class FormationController(Node):
         self.previous_time = None
         self.last_status = None
         self.leader_intent = None
+        self.orientation_history = OrientationHistory()
         self.reason = 'DISABLED'
         self.command_pub = self.create_publisher(SwarmCommand, self.p['commands_topic'], 10)
         self.status_pub = self.create_publisher(String, self.p['status_topic'], 10)
@@ -79,6 +82,12 @@ class FormationController(Node):
         if 0 <= self.now() - self.seconds(msg.timestamp) <= self.p['stale_timeout']:
             if old is None or self.seconds(msg.timestamp) >= self.seconds(old.timestamp):
                 self.states[msg.uav_id] = msg
+                if msg.uav_id == 0 and msg.valid:
+                    q = msg.pose.orientation
+                    try:
+                        self.orientation_history.add(self.seconds(msg.timestamp), [q.x, q.y, q.z, q.w])
+                    except ValueError:
+                        pass
 
     def on_leader_status(self, msg):
         try:
@@ -164,7 +173,17 @@ class FormationController(Node):
             raw = np.array([p.x, p.y, p.z])
             # Модель видимой поверхности сферы, без ground truth.
             raw *= 1 + self.p['surface_bias'] / max(1e-9, np.linalg.norm(raw))
-            target_enu = rotation.apply(raw + self.p['sensor_offset']) - [0., 0., self.p['marker_offset_z']]
+            measured_rotation = (self.orientation_history.at(self.seconds(self.poses[i].measurement_stamp))
+                                 if hasattr(self, 'orientation_history') else rotation)
+            target_enu = measured_rotation.apply(raw + self.p['sensor_offset']) - [0., 0., self.p['marker_offset_z']]
+            if hasattr(self, 'orientation_history'):
+                # Короткое предсказание относительного движения только по
+                # собственным скоростям PX4; абсолютные позиции не используются.
+                age = max(0., self.seconds(leader.timestamp) - self.seconds(self.poses[i].measurement_stamp))
+                follower_velocity = self.states[i].velocity.linear
+                leader_velocity = leader.velocity.linear
+                target_enu += age * np.array([follower_velocity.x-leader_velocity.x,
+                    follower_velocity.y-leader_velocity.y, follower_velocity.z-leader_velocity.z])
             relative.append(heading.inv().apply(target_enu))
         return np.asarray(relative)
 
@@ -175,6 +194,7 @@ class FormationController(Node):
             self.enabled = False
             self.poses.clear()
             self.states.clear()
+            self.orientation_history.clear()
             self.controllers = self.new_controllers()
             self.reason = 'CLOCK_RESET'
         self.previous_time = now

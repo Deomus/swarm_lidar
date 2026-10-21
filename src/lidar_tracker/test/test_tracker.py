@@ -52,6 +52,28 @@ def test_cloud_pipeline_reacquires_column_after_reset(monkeypatch):
         rclpy.shutdown()
 
 
+def test_clock_rewind_accepts_new_cloud_epoch(monkeypatch):
+    rclpy.init()
+    node = LidarTracker()
+    clock = [100.]
+    monkeypatch.setattr(node, 'get_clock', lambda: SimpleNamespace(
+        now=lambda: SimpleNamespace(nanoseconds=round(clock[0]*1e9))))
+    messages = []
+    node.publisher = SimpleNamespace(publish=messages.append)
+    points = np.vstack([np.array([x, y, 0.]) + np.random.default_rng(7).normal(0., .01, (12, 3))
+                        for x, y in [(-4., -4.), (-4., 0.), (-4., 4.)]])
+    try:
+        for stamp in [100, 1]:
+            clock[0] = float(stamp)
+            node.pointcloud_callback(create_cloud_xyz32(Header(stamp=Time(sec=stamp),
+                frame_id='uav_0/lidar_link'), points))
+            assert all(m.valid for m in messages[-3:])
+            assert node.last_stamp.sec == stamp
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
 class TestClusterPoints(unittest.TestCase):
     def test_separates_targets(self):
         points = np.array([

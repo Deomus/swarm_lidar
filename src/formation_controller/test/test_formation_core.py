@@ -233,3 +233,21 @@ def test_stopping_displacement_matches_future_zero_input_commands():
     for _ in range(3000):
         displacement += limiter.step(np.zeros(3))*.05
     np.testing.assert_allclose(predicted, displacement, atol=1e-9)
+def test_group_motion_respects_follower_speed_during_turn_and_transition():
+    from formation_controller.core import formation_offsets, limit_group_motion, slot_feedforward
+    offsets = formation_offsets('column', scale=2.)
+    offset_velocity = np.tile([.1, 0., 0.], (3, 1))
+    velocity, yaw_rate, scale = limit_group_motion(np.array([1.5, 0., 0.]), .3,
+        offsets, offset_velocity, .2, 1.7)
+    assert 0 < scale < 1
+    for point, rate in zip(offsets, offset_velocity):
+        slot = slot_feedforward(point, rate, velocity, .2, yaw_rate)
+        assert np.linalg.norm(slot) <= 1.7 + 1e-10
+
+
+def test_short_transition_is_lengthened_to_feasible_speed():
+    from formation_controller.core import FormationPlan
+    plan = FormationPlan(max_slot_speed=1.5)
+    plan.request('column', 2., 2., 1.)
+    for time in np.linspace(1., 40., 200):
+        assert np.linalg.norm(plan.sample(time).velocities, axis=1).max() <= 1.5 + 1e-8
