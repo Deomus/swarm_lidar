@@ -545,6 +545,8 @@ def main():
         run_error = f'{type(error).__name__}: {error}'
         raise
     finally:
+        # Повторный сигнал остановки не должен прерывать уже начавшуюся посадку.
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
         try:
             scenario.land()
             landed = True

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="panel-token" content="__PANEL_TOKEN__">
+  <title>Рой · управление симуляцией</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <div><p class="eyebrow">РОЙ · ЛИДАР</p><h1>Управление группой</h1><p class="subtitle">Четыре аппарата · локальная симуляция</p></div>
+      <span id="connection" class="badge">Ожидание подключения</span>
+    </header>
+    <div id="notice" class="notice" role="status" aria-live="polite">Подключение к панели…</div>
+    <section class="card flight-bar" aria-label="Управление полётом">
+      <div><h2>Полёт</h2><p id="flight-status">Ожидание симуляции</p></div>
+      <div class="buttons">
+        <button id="prepare" class="primary" disabled>Подготовить и взлететь</button>
+        <button id="hold" disabled>Удерживать</button>
+        <button id="land" class="danger" disabled>Посадить всех</button>
+      </div>
+    </section>
+    <div class="columns">
+      <section class="card">
+        <div class="section-heading"><h2>Аппараты</h2><span id="sim-time" class="muted">Время —</span></div>
+        <div class="table-wrap"><table><thead><tr><th>Аппарат</th><th>Состояние</th><th>Высота</th><th>Скорость</th></tr></thead><tbody id="drones"></tbody></table></div>
+        <div class="map-heading"><h3>Положение на площадке</h3><span class="muted">Вид сверху · оценка PX4</span></div>
+        <canvas id="map" aria-label="Положение аппаратов на площадке"></canvas>
+        <p class="map-note">Красный — ведущий, светлые — ведомые. Координаты в метрах, север сверху.</p>
+      </section>
+      <div class="controls">
+        <section class="card">
+          <div class="section-heading"><h2>Строй</h2><span id="formation-status" class="muted">Нет данных</span></div>
+          <form id="formation-form">
+            <label for="formation">Фигура</label>
+            <select id="formation"><option value="line">Линия</option><option value="column">Колонна</option><option value="wedge">Клин</option></select>
+            <div class="fields"><div><label for="scale">Масштаб</label><input id="scale" type="number" min="0.5" max="2" step="0.05" value="1" required></div>
+            <div><label for="duration">Перестроение, с</label><input id="duration" type="number" min="2" max="120" step="1" value="25" required></div></div>
+            <button id="apply" type="submit" disabled>Применить строй</button>
+          </form>
+          <p class="hint">Доступно после взлёта. Дождитесь завершения текущего перестроения перед следующим.</p>
+          <p id="errors" class="metric">Ошибки строя: —</p>
+        </section>
+        <section class="card">
+          <h2>Готовые сценарии</h2>
+          <p class="hint">Каждый сценарий сам выполняет взлёт, проверку и посадку.</p>
+          <div class="scenario-buttons"><button data-scenario="s1" disabled><span>Перестроения</span><small>Линия, колонна, клин и масштаб</small></button>
+          <button data-scenario="s2" disabled><span>Сопровождение</span><small>Три скорости и потеря данных</small></button>
+          <button data-scenario="s3" disabled><span>Маршрут к точке</span><small>Автоматическая миссия</small></button></div>
+          <label class="checkbox"><input id="record" type="checkbox" checked> Сохранять измерения полёта</label>
+        </section>
+      </div>
+    </div>
+    <section class="card log-card"><div class="section-heading"><h2>События</h2><span id="output" class="muted"></span></div><pre id="events" aria-live="off">Событий пока нет.</pre></section>
+    <footer>Панель подключается к запущенной симуляции. Закрытие вкладки не завершает полёт — используйте «Посадить всех».</footer>
+  </main>
+</body>
+</html>
