@@ -10,6 +10,29 @@ def scenario_module():
     return importlib.import_module('swarm_lidar.scenario')
 
 
+def test_prepare_requests_line_after_previous_column(scenario_module):
+    scenario = scenario_module.Scenario.__new__(scenario_module.Scenario)
+    scenario.states = {i: SimpleNamespace(pose=SimpleNamespace(
+        position=SimpleNamespace(z=0.))) for i in range(4)}
+    scenario.status = dict(formation='column', scale=1., mode='DISABLED')
+    scenario.fresh = lambda: True
+    scenario.wait = lambda *args: None
+    scenario.wait_sim = lambda *args: None
+    scenario.wait_ground_settled = lambda: None
+    scenario.now = lambda: 10.
+    scenario.event = lambda _: None
+    actions = []
+    scenario.call = lambda path, **kwargs: actions.append(path)
+    scenario.formation_pub = SimpleNamespace(publish=lambda msg: actions.append(msg))
+    scenario.settle = lambda *args: actions.append(args)
+    scenario.prepare()
+    index = actions.index('/swarm/enable_formation')
+    command = actions[index+1]
+    assert command.formation == 'line' and command.scale == 1.
+    assert command.transition_time == 25.
+    assert actions[index+2] == ('line', 1., 70.)
+
+
 def make_scenario(module, monkeypatch, fresh=True):
     scenario = module.Scenario.__new__(module.Scenario)
     scenario.node = object()

@@ -35,3 +35,36 @@ def test_long_loss_and_old_timestamp_do_not_rebind():
     tracker.update([[0, 0, 0]], 1.)
     assert tracker.update([[0, 0, 0]], .5) == [None]
     assert tracker.update([[0, 0, 0]], 3.) == [None]
+
+
+def test_restart_after_column_landing_preserves_lidar_ids():
+    line = np.array([[-4., -4., -1.9], [-4., 0., -1.9], [-4., 4., -1.9]])
+    column = np.array([[-8., 0., -1.9], [-4., 0., -1.9], [-12., 0., -1.9]])
+    tracker = TargetTracker(line, alpha=1.)
+    for step in range(61):
+        positions = line + (column-line) * step/60
+        assert all(r is not None for r in tracker.update(positions[::-1], 1.+step*.1))
+    assert tracker.update(column, 30.) == [None]*3
+    assert tracker.reset(31.)
+    results = tracker.update(column[::-1], 31.1)
+    np.testing.assert_allclose([r[0] for r in results], column)
+    np.testing.assert_allclose(tracker.velocity, 0.)
+
+
+def test_reset_uses_complete_frame_not_partial_landing_measurements():
+    seeds = np.array([[-8., 0., -1.9], [-4., 0., -1.9], [-12., 0., -1.9]])
+    tracker = TargetTracker(seeds, alpha=1.)
+    tracker.update(seeds, 1.)
+    tracker.update([[-8., 0., -1.]], 1.1)
+    assert tracker.reset(10.)
+    np.testing.assert_allclose(tracker.positions, seeds)
+    assert tracker.reset(11.)  # Повторный reset не теряет сохранённый кадр.
+    np.testing.assert_allclose(tracker.positions, seeds)
+
+
+def test_reset_without_measurements_and_after_clock_rewind_uses_initial_slots():
+    tracker = TargetTracker([[0., 0., 0.]], alpha=1.)
+    assert not tracker.reset(1.)
+    tracker.update([[1., 0., 0.]], 10.)
+    assert not tracker.reset(0.)
+    np.testing.assert_allclose(tracker.positions, [[0., 0., 0.]])

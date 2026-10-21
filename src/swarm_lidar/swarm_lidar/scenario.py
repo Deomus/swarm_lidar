@@ -132,7 +132,11 @@ class Scenario:
             self.call(f'/uav_{i}/offboard', retry=5.)
         self.wait(lambda: all(self.states[i].mode == '14' for i in range(4)), 5., 'Не подтверждён Offboard')
         self.call('/swarm/enable_formation', retry=10.)
-        self.settle('line', 1., 30.)
+        # Контроллер сохраняет предыдущий строй после посадки. Явно
+        # возвращаем линию, а не ждём её появления без команды.
+        self.formation_pub.publish(FormationCommand(
+            formation='line', scale=1., transition_time=25., source='scenario'))
+        self.settle('line', 1., 70.)
         self.event('LiDAR-контур включён; line удерживается')
 
     def wait_ground_settled(self):

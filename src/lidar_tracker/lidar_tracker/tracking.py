@@ -69,11 +69,30 @@ def cluster_points(points, tolerance=0.8, min_size=3, max_size=5000):
 
 class TargetTracker:
     def __init__(self, seeds, gate=2.0, ambiguity=0.2, alpha=0.7, timeout=1.0):
-        self.positions = np.asarray(seeds, dtype=float).reshape(-1, 3)
+        self.positions = np.asarray(seeds, dtype=float).reshape(-1, 3).copy()
+        self.initial_positions = self.positions.copy()
+        self.last_complete_positions = None
+        self.last_complete_stamp = None
         self.velocity = np.zeros_like(self.positions)
         self.stamps = [None] * len(self.positions)
         self.gate, self.ambiguity = gate, ambiguity
         self.alpha, self.timeout = alpha, timeout
+
+    def reset(self, now):
+        """Повторный поиск по последнему полному LiDAR-кадру с сохранением ID.
+
+        Сбрасываем скорость и возраст треков, но не забываем расположение
+        аппаратов после перестроения. При возврате часов к новому миру
+        сохранённая расстановка больше не применима.
+        """
+        if self.last_complete_stamp is not None and now < self.last_complete_stamp:
+            self.last_complete_positions = None
+            self.last_complete_stamp = None
+        retained = self.last_complete_positions is not None
+        self.positions = (self.last_complete_positions if retained else self.initial_positions).copy()
+        self.velocity = np.zeros_like(self.positions)
+        self.stamps = [None] * len(self.positions)
+        return retained
 
     def update(self, centers, stamp):
         centers = np.asarray(centers, dtype=float).reshape(-1, 3)
@@ -107,4 +126,7 @@ class TargetTracker:
                 self.velocity[i] = (position - self.positions[i]) / (stamp - last)
             self.positions[i], self.stamps[i] = position, stamp
             result[i] = (position.copy(), j)
+        if all(item is not None for item in result):
+            self.last_complete_positions = self.positions.copy()
+            self.last_complete_stamp = stamp
         return result

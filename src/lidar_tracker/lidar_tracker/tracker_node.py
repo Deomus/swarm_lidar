@@ -50,14 +50,12 @@ class LidarTracker(Node):
         self.reset_service = self.create_service(Trigger, '/lidar_tracker/reset', self.reset)
 
     def reset(self, request, response):
-        p = self.params
-        self.tracker = TargetTracker(p['initial_positions'], p['association_gate'],
-                                     p['ambiguity_margin'], p['filter_alpha'],
-                                     p['reacquire_timeout'])
+        retained = self.tracker.reset(self.get_clock().now().nanoseconds * 1e-9)
         self.last_stamp = None
-        self.get_logger().warning('Повторный bootstrap: допустим только в известных стартовых слотах')
         response.success = True
-        response.message = 'Треки сброшены к initial_positions из YAML'
+        response.message = ('Повторный поиск по последнему полному LiDAR-кадру'
+                            if retained else 'Первичный поиск по initial_positions из YAML')
+        self.get_logger().info(response.message)
         return response
 
     def publish(self, stamp, results=None, confidences=None):
