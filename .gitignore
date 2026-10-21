@@ -1,3 +1,4 @@
+.venv/
 task.md
 agents.md
 build/
@@ -6,3 +7,5 @@ log/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.vscode/
+.ruff_cache/
