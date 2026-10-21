@@ -6,6 +6,14 @@ const phases = {idle:'Ожидание полёта',starting:'Подготов�
 const modes = {FOLLOWING:'Строй установлен',FORMATION_CHANGE:'Перестроение',DATA_HOLD:'Ожидание измерений',DISABLED:'Управление строем выключено',HOLD:'Удержание',COLLISION_STOP:'Остановка при сближении',CLOCK_RESET:'Сброс времени'};
 let current = null, sending = false, localError = '', target = null;
 let view = {cx:0, cy:0, scale:12, ready:false}, dragging = null;
+// Те же ориентиры, что и в учебной площадке Gazebo: ось X красная,
+// ось Y синяя, цилиндры находятся на расстоянии 25 м от начала координат.
+const groundMarks = [
+  {x:25, y:0, color:'#f27966', label:'X +25'},
+  {x:-25, y:0, color:'#b785e8', label:'X −25'},
+  {x:0, y:25, color:'#55c98a', label:'Y +25'},
+  {x:0, y:-25, color:'#e7c34d', label:'Y −25'},
+];
 const token = document.querySelector('meta[name=panel-token]').content;
 const rows = names.map((name, i) => {
   const tr = document.createElement('tr');
@@ -76,13 +84,20 @@ function draw() {
   const ctx=canvas.getContext('2d');ctx.scale(ratio,ratio);
   const w=rect.width,h=rect.height,valid=(current?.drones||[]).filter(d=>d.fresh);
   if(!valid.length){ctx.fillStyle='#9babb9';ctx.font='13px system-ui';ctx.textAlign='center';ctx.fillText('Положение появится после подключения',w/2,h/2);return;}
-  if(!view.ready){const xs=valid.map(d=>d.position[0]),ys=valid.map(d=>d.position[1]);view.cx=(Math.min(...xs)+Math.max(...xs))/2;view.cy=(Math.min(...ys)+Math.max(...ys))/2;view.scale=Math.min((w-90)/Math.max(16,Math.max(...xs)-Math.min(...xs)),(h-80)/Math.max(16,Math.max(...ys)-Math.min(...ys)));view.ready=true;}
+  if(!view.ready){const xs=valid.map(d=>d.position[0]).concat(groundMarks.map(mark=>mark.x)),ys=valid.map(d=>d.position[1]).concat(groundMarks.map(mark=>mark.y));view.cx=(Math.min(...xs)+Math.max(...xs))/2;view.cy=(Math.min(...ys)+Math.max(...ys))/2;view.scale=Math.min((w-90)/Math.max(16,Math.max(...xs)-Math.min(...xs)),(h-80)/Math.max(16,Math.max(...ys)-Math.min(...ys)));view.ready=true;}
   const cx=view.cx,cy=view.cy,scale=view.scale;
   const px=x=>w/2+(x-cx)*scale,py=y=>h/2-(y-cy)*scale;
   ctx.lineWidth=1;ctx.strokeStyle='#27343f';ctx.fillStyle='#8295a6';ctx.font='10px system-ui';ctx.textAlign='center';
   const step=scale<8?10:2;
   for(let x=Math.floor((cx-w/scale/2)/step)*step;x<cx+w/scale/2;x+=step){ctx.beginPath();ctx.moveTo(px(x),0);ctx.lineTo(px(x),h);ctx.stroke();ctx.fillText(x.toFixed(0),px(x),h-9);}
   for(let y=Math.floor((cy-h/scale/2)/step)*step;y<cy+h/scale/2;y+=step){ctx.beginPath();ctx.moveTo(0,py(y));ctx.lineTo(w,py(y));ctx.stroke();}
+  // Цвета и координаты совпадают с разметкой training_ground в Gazebo.
+  ctx.lineWidth=2;
+  ctx.strokeStyle='#ef604f';ctx.beginPath();ctx.moveTo(px(-100),py(0));ctx.lineTo(px(100),py(0));ctx.stroke();
+  ctx.strokeStyle='#4f86ed';ctx.beginPath();ctx.moveTo(px(0),py(-100));ctx.lineTo(px(0),py(100));ctx.stroke();
+  ctx.font='10px system-ui';ctx.textAlign='left';ctx.fillStyle='#ef8a7d';ctx.fillText('X',Math.min(w-14,px(100)-8),Math.max(12,py(0)-6));
+  ctx.fillStyle='#82aaf4';ctx.fillText('Y',Math.min(w-14,px(0)+6),Math.max(12,py(100)+12));
+  groundMarks.forEach(mark=>{const x=px(mark.x),y=py(mark.y);ctx.fillStyle=mark.color;ctx.strokeStyle='#10151b';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,5.5,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.font='10px system-ui';ctx.textAlign='center';ctx.fillText(mark.label,x,y-9);});
   valid.forEach(drone=>{
     const x=px(drone.position[0]),y=py(drone.position[1]);ctx.fillStyle=drone.id===0?'#f09588':'#cde8dc';ctx.beginPath();ctx.arc(x,y,drone.id===0?6:4.5,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle=ctx.fillStyle;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+14*Math.cos(drone.yaw),y-14*Math.sin(drone.yaw));ctx.stroke();
