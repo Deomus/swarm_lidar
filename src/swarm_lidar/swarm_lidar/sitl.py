@@ -41,6 +41,9 @@ def main():
     env['GZ_SIM_RESOURCE_PATH'] = str(share / 'models') + ':' + str(models) + ':' + env.get('GZ_SIM_RESOURCE_PATH', '')
     env['GZ_SIM_SYSTEM_PLUGIN_PATH'] = str(build / 'src/modules/simulation/gz_plugins')
     processes, handles = [], []
+    def terminate(signum, frame):
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM, terminate)
     def start(name, cmd, cwd=None, extra=None, stdin=False):
         log = open(runtime / (name + '.log'), 'w')
         handles.append(log)
@@ -106,6 +109,7 @@ def main():
         # Терминал и launch могут доставить SIGINT повторно во время очистки.
         # Дожидаемся собственных детей даже после второго сигнала.
         signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
         for name, proc in reversed(processes):
             if proc.poll() is None:
                 # ros2 launch сам передаёт сигнал узлам. Сигнал всей группе

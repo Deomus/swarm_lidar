@@ -31,6 +31,7 @@ class Scenario:
         self.commands = {}
         self.valid_counts = {1: 0, 2: 0, 3: 0}
         self.execution, self.planner = {}, ''
+        self.plan_result = None
         self.events = []
         self.clients = []
         self.map_before = None
@@ -41,7 +42,8 @@ class Scenario:
             self.node.create_subscription(RelativePose, '/mesh/relative_poses', self.on_pose, 10),
             self.node.create_subscription(String, '/swarm/formation_status', lambda m: setattr(self, 'status', json.loads(m.data)), 10),
             self.node.create_subscription(String, '/mission/execution_status', lambda m: setattr(self, 'execution', json.loads(m.data)), 10),
-            self.node.create_subscription(String, '/mission/status', lambda m: setattr(self, 'planner', m.data), 10)]
+            self.node.create_subscription(String, '/mission/status', lambda m: setattr(self, 'planner', m.data), 10),
+            self.node.create_subscription(String, '/mission/plan_result', lambda m: setattr(self, 'plan_result', json.loads(m.data)), 10)]
         self.formation_pub = self.node.create_publisher(FormationCommand, '/swarm/formation_command', 10)
         self.manual_pub = self.node.create_publisher(TwistStamped, '/leader/cmd_vel', 10)
         self.map_pub = self.node.create_publisher(OccupancyGrid, '/map', QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
@@ -439,10 +441,16 @@ class Scenario:
         goal.header.stamp = self.node.get_clock().now().to_msg()
         goal.pose.position.x, goal.pose.position.y, goal.pose.position.z = 6., 3., 3.
         goal.pose.orientation.w = 1.
+        self.planner, self.plan_result = '', None
         self.goal_pub.publish(goal)
         self.wait(lambda: self.planner.startswith(('PLANNED', 'REJECTED')), 10., 'Нет результата A*')
         if not self.planner.startswith('PLANNED'):
             raise RuntimeError(self.planner)
+        goal_id = [goal.header.stamp.sec, goal.header.stamp.nanosec]
+        self.wait(lambda: self.plan_result is not None and self.plan_result.get('goal_id') == goal_id
+            and self.plan_result.get('status') == 'PLANNED'
+            and self.execution.get('accepted_path_stamp') == self.plan_result.get('path_stamp'),
+            10., 'Ведущий не подтвердил нужный маршрут')
         self.event(self.planner)
         return goal
 
@@ -475,7 +483,7 @@ class Scenario:
             mission_start = self.now()
             self.call('/leader/mission')
             terminal = {'COMPLETE', 'WAYPOINT_TIMEOUT', 'STATE_STALE', 'CLOCK_RESET',
-                        'PATH_REVOKED', 'FORMATION_UNAVAILABLE'}
+                        'PATH_REVOKED', 'FORMATION_UNAVAILABLE', 'GROUP_MOTION_UNAVAILABLE'}
             self.wait_sim(lambda: mission_start <= self.execution.get('stamp', -1) <= self.now()
                       and self.now()-self.execution['stamp'] < .5
                       and self.execution.get('status') in terminal, 180., 'Миссия не завершилась')
@@ -560,7 +568,7 @@ def main():
                       '/swarm/relative_poses', '/mesh/relative_poses', '/swarm/commands', '/mesh/commands',
                       '/swarm/formation_command', '/swarm/formation_status', '/swarm/target_offsets',
                       '/swarm/health', '/leader/cmd_vel', '/mission/goal', '/mission/path',
-                      '/mission/status', '/mission/execution_status', '/evaluation/ground_truth']
+                      '/mission/status', '/mission/plan_result', '/mission/execution_status', '/evaluation/ground_truth']
             if args.record_cloud:
                 topics.append('/uav_0/lidar/points')
             bag_log = (output/'rosbag.log').open('x')

@@ -85,6 +85,33 @@ def test_missing_streams_and_json(recorder):
     assert json.loads(json.dumps(result))['localization_error_m']['mean'] is None
 
 
+def test_formation_metric_uses_offsets_at_truth_time(recorder):
+    node, _ = recorder
+    from evaluation.metrics import Pose as MetricPose
+    node.gt.clear()
+    node.gt.append((9.86, {i: MetricPose((float(-i*2)+.86, 0., 0.), (0., 0., 0., 1.))
+                          for i in range(4)}))
+    for stamp, shift in [(9.8, 0.), (10., .2)]:
+        offsets = PoseArray()
+        offsets.header.frame_id = 'uav_0/heading'
+        offsets.header.stamp.sec = int(stamp)
+        offsets.header.stamp.nanosec = round((stamp-int(stamp))*1e9)
+        for i in range(1, 4):
+            p = Pose()
+            p.position.x = float(-i*2)+shift
+            offsets.poses.append(p)
+        node.on_offsets(offsets)
+    # За 0,06 с после первого задания каждый ведомый сместился на 0,06 м.
+    leader = node.gt[0][1][0]
+    for i in range(1, 4):
+        node.gt[0][1][i] = MetricPose((leader.position[0]-i*2+.06, 0., 0.), (0., 0., 0., 1.))
+    desired = node.offsets_at(9.86)
+    assert desired[0][0] == pytest.approx(-1.94)
+    from evaluation.metrics import relative_heading
+    actual = relative_heading(node.gt[0][1][0], node.gt[0][1][1])
+    assert abs(actual[0]-desired[0][0]) < 1e-10
+
+
 def test_control_phases_exclude_takeoff_hold_and_stale_status(recorder):
     from evaluation.metrics import summarize
     node, _ = recorder
@@ -132,4 +159,4 @@ def test_route_error_uses_truth_and_empty_path_revokes_measurement(recorder):
     path.poses = []
     node.on_path(path)
     node.tick()
-    assert all(row['mission_active'] == 0 for row in node.rows[-3:])
+    assert all(row['mission_active'] == 0 for row in list(node.rows)[-3:])

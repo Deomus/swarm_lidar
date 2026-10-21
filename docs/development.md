@@ -1,22 +1,14 @@
 # Разработка
 
-## Python и VS Code в WSL
+## Проверки
 
-Открывайте репозиторий через VS Code Remote — WSL и используйте интерпретатор
-`/usr/bin/python3` (Python 3.12 для Ubuntu 24.04). Настройки проекта в
-`.vscode/settings.json` добавляют ROS 2 Jazzy и исходники пакетов в поиск
-Pylance. Сгенерированные сообщения доступны после сборки `swarm_interfaces`.
-
-Если ранее выбран другой интерпретатор, выполните `Python: Select Interpreter`
-и укажите `/usr/bin/python3`: `defaultInterpreterPath` не заменяет уже
-сохранённый выбор. Затем выполните `Python: Restart Language Server` или
-`Developer: Reload Window`.
-
-Настройки Pylance не подключают окружение терминала. Перед запуском команд:
+Перед запуском команд подключите окружение ROS и собранных пакетов:
 
 ```bash
 source /opt/ros/jazzy/setup.bash
+source ~/px4_ros_ws/install/setup.bash
 source install/setup.bash
+python3 -m pytest src scripts/test -q
 ```
 
 ## Чекпоинты

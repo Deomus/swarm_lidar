@@ -68,3 +68,20 @@ def test_stats_rms_and_missing():
     assert stats['rms'] == pytest.approx((12.5) ** .5)
     assert stats['max'] == 4.
     assert scalar_stats([])['rms'] is None
+def test_streaming_summary_matches_batch_statistics():
+    from evaluation.metrics import SummaryAccumulator, summarize
+    import json
+    rows = []
+    accumulator = SummaryAccumulator()
+    for i in range(1000):
+        row = dict(target_id=i % 3 + 1, localization_error_m=i*.001,
+            formation_error_m=i*.002, min_pair_distance_m=3., route_error_m=float('nan'),
+            goal_error_m=1., relative_stale=i % 2, leader_state_stale=0, gt_missing=0,
+            formation_missing=0, localization_missing=0, controller_active=i % 2,
+            transitioning=0, formation_code=i % 3 + 1, mission_active=i % 2)
+        rows.append(row)
+        accumulator.update(row)
+    expected, actual = summarize(rows), accumulator.result()
+    # Числа с плавающей точкой сравниваются после округления накоплений.
+    normalize = lambda value: json.loads(json.dumps(value), parse_float=lambda v: round(float(v), 10))
+    assert normalize(actual) == normalize(expected)

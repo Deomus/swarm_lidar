@@ -16,7 +16,7 @@ from std_msgs.msg import String
 from tf2_msgs.msg import TFMessage
 
 from evaluation.metrics import (Pose, min_pair_distance, model_id, model_to_base, nearest,
-                                relative_heading, relative_lidar, summarize)
+                                relative_heading, relative_lidar, SummaryAccumulator, interpolate_truth)
 from evaluation.route_metrics import distance_to_path
 
 
@@ -49,7 +49,8 @@ class Recorder(Node):
         self.file = (self.output / 'samples.csv').open('x', newline='')
         self.writer = csv.DictWriter(self.file, fieldnames=FIELDS)
         self.writer.writeheader()
-        self.rows = []
+        self.rows = deque(maxlen=300)
+        self.summary = SummaryAccumulator()
         self.gt = deque(maxlen=1000)
         self.relative = {i: deque(maxlen=100) for i in range(1, 4)}
         self.offsets = deque(maxlen=100)
@@ -146,8 +147,7 @@ class Recorder(Node):
             return
         self.last_time = now
         truth = nearest(self.gt, now, self.p['match_tolerance'])
-        offsets = self.latest(self.offsets, now)
-        offsets_fresh = offsets is not None and now - offsets[0] <= self.p['offset_timeout']
+        desired_offsets = self.offsets_at(truth[0]) if truth else None
         state_fresh = (self.state is not None and self.state.valid
                        and 0 <= now - seconds(self.state.timestamp) <= self.p['stale_timeout'])
         for index in range(1, 4):
@@ -183,12 +183,12 @@ class Recorder(Node):
                     position = truth[1][0].position
                     row['route_error_m'] = distance_to_path(position, self.route)
                     row['goal_error_m'] = float(np.linalg.norm(np.asarray(position) - self.route[-1]))
-                if offsets_fresh:
-                    desired = offsets[1].poses[index - 1].position
+                if desired_offsets is not None:
+                    desired = desired_offsets[index - 1]
                     actual = relative_heading(truth[1][0], truth[1][index])
-                    row['formation_error_m'] = float(np.linalg.norm(actual - [desired.x, desired.y, desired.z]))
+                    row['formation_error_m'] = float(np.linalg.norm(actual - desired))
                     row['formation_missing'] = 0
-            matched = nearest(self.gt, sample[0], self.p['match_tolerance']) if valid else None
+            matched = interpolate_truth(self.gt, sample[0], self.p['match_tolerance']) if valid else None
             if matched and 0 in matched[1] and index in matched[1]:
                 point = sample[1].pose.position
                 if all(isfinite(v) for v in [point.x, point.y, point.z]):
@@ -199,13 +199,28 @@ class Recorder(Node):
                     row['localization_missing'] = 0
             self.writer.writerow(row)
             self.rows.append(row)
+            self.summary.update(row)
         self.file.flush()
 
     def finish(self):
         self.file.close()
-        result = summarize(self.rows)
+        result = self.summary.result()
         result['parameters'] = self.p
         (self.output / 'summary.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
+
+    def offsets_at(self, stamp):
+        before = [s for s in self.offsets if s[0] <= stamp]
+        after = [s for s in self.offsets if s[0] >= stamp]
+        if not before or not after:
+            return None
+        a, b = max(before, key=lambda s: s[0]), min(after, key=lambda s: s[0])
+        if max(stamp-a[0], b[0]-stamp) > self.p['offset_timeout']:
+            return None
+        points = lambda msg: np.array([[p.position.x, p.position.y, p.position.z] for p in msg.poses])
+        if a[0] == b[0]:
+            return points(a[1])
+        fraction = (stamp-a[0])/(b[0]-a[0])
+        return (1.-fraction)*points(a[1]) + fraction*points(b[1])
 
 
 def main(args=None):
