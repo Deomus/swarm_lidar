@@ -68,8 +68,11 @@ def read_bag(path, start, end, base_z=.24):
         statuses[t] for t in sorted(statuses)]
 
 
-def safety_window(commands, statuses, loss_time, end, freshness=.5, max_gap=.2):
+def safety_window(commands, statuses, loss_time, end, freshness=.5, max_gap=.2,
+                  clock_tolerance=0.):
     """Только свежая invalid/нулевая DATA_HOLD; восстановление обрывает окно."""
+    if not math.isfinite(clock_tolerance) or not 0 <= clock_tolerance <= .05:
+        raise ValueError('Допуск согласования часов должен быть от 0 до 0.05 с')
     first, last = None, None
     status_times = np.array([value['time'] for value in statuses])
     for command in commands:
@@ -82,7 +85,7 @@ def safety_window(commands, statuses, loss_time, end, freshness=.5, max_gap=.2):
                         and -1e-9 <= stamp-status['time'] <= freshness)
         zero = (not command['valid'] and command['safety'] == 'DATA_HOLD'
                 and command['frame'] == 'map'
-                and -1e-9 <= stamp-command['source_time'] <= freshness
+                and -clock_tolerance-1e-9 <= stamp-command['source_time'] <= freshness
                 and all(math.isfinite(v) and abs(v) <= 1e-9 for v in command['velocity'])
                 and fresh_status)
         if first is None:
@@ -97,10 +100,11 @@ def safety_window(commands, statuses, loss_time, end, freshness=.5, max_gap=.2):
 
 
 def analyze_loss(positions, commands, statuses, loss_time, end, speed_threshold=.15,
-                 dwell=.5, motion_threshold=.3, max_gap=.2):
+                 dwell=.5, motion_threshold=.3, max_gap=.2, clock_tolerance=0.):
     followers, rows = {}, []
     for index in (1, 2, 3):
-        window = safety_window(commands[index], statuses, loss_time, end, max_gap=max_gap)
+        window = safety_window(commands[index], statuses, loss_time, end, max_gap=max_gap,
+                               clock_tolerance=clock_tolerance)
         if window is None:
             followers[str(index)] = dict(physical_braking_verified=False,
                                          unverified_reason='fresh_zero_command_not_found')
@@ -129,12 +133,15 @@ def main(argv=None):
     parser.add_argument('--dwell', type=float, default=.5)
     parser.add_argument('--motion-threshold', type=float, default=.3)
     parser.add_argument('--max-gap', type=float, default=.2)
+    parser.add_argument('--clock-tolerance', type=float, default=0.,
+                        help='Явный допуск невязки часов записи и источника, с (0..0.05)')
     parser.add_argument('--model-base-z', type=float, default=.24)
     args = parser.parse_args(argv)
     if (not all(math.isfinite(v) for v in (args.speed_threshold, args.dwell, args.motion_threshold,
-                                          args.max_gap, args.model_base_z))
+                                          args.max_gap, args.model_base_z, args.clock_tolerance))
             or min(args.speed_threshold, args.dwell, args.max_gap) <= 0
-            or args.motion_threshold <= args.speed_threshold):
+            or args.motion_threshold <= args.speed_threshold
+            or not 0 <= args.clock_tolerance <= .05):
         parser.error('Некорректные пороги или интервалы')
     if args.output.exists() or (args.samples_csv and args.samples_csv.exists()):
         parser.error('Выходные файлы уже существуют')
@@ -148,8 +155,17 @@ def main(argv=None):
             raise ValueError('Некорректное время потери данных')
         positions, commands, statuses = read_bag(args.scenario/'bag', loss-2., loss+5., args.model_base_z)
         report, rows = analyze_loss(positions, commands, statuses, loss, loss+5.,
-                                    args.speed_threshold, args.dwell, args.motion_threshold, args.max_gap)
+                                    args.speed_threshold, args.dwell, args.motion_threshold, args.max_gap,
+                                    args.clock_tolerance)
+        leads = [command['source_time']-command['time'] for stream in commands.values()
+                 for command in stream if not command['valid'] and command['safety'] == 'DATA_HOLD'
+                 and math.isfinite(command['source_time']) and math.isfinite(command['time'])]
         report.update(source=str(args.scenario), model_base_z=args.model_base_z,
+                      clock_alignment_tolerance_s=args.clock_tolerance,
+                      command_clock_diagnostics=dict(
+                          sampled_zero_commands=len(leads),
+                          source_ahead_count=sum(value > 1e-9 for value in leads),
+                          max_source_ahead_s=max([0., *leads])),
                       gt_frame='map ENU', velocity_method='finite differences at interval midpoints',
                       command_event_clock='bag recording timestamp (ROS simulation clock)',
                       note='Низкая скорость уже до потери данных не подтверждает торможение '

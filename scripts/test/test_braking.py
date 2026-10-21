@@ -2,6 +2,7 @@
 
 import importlib.util
 from pathlib import Path
+import pytest
 
 spec = importlib.util.spec_from_file_location('analyze_braking',
                                             Path(__file__).parents[1] / 'analyze_braking.py')
@@ -25,6 +26,21 @@ def test_stale_and_future_source_stamp_do_not_establish_fresh_zero():
     commands = [command(1., source=.1), command(1.1, source=1.5), command(1.2)]
     statuses = [dict(time=1., mode='DATA_HOLD')]
     assert module.safety_window(commands, statuses, .8, 2.) == (1.2, 1.2)
+
+
+def test_record_clock_skew_requires_explicit_offline_tolerance():
+    commands = [command(1.), command(1.1, source=1.104), command(1.2)]
+    statuses = [dict(time=1., mode='DATA_HOLD')]
+    assert module.safety_window(commands, statuses, .8, 2.) == (1., 1.)
+    assert module.safety_window(commands, statuses, .8, 2., clock_tolerance=.005) == (1., 1.2)
+    commands[1]['source_time'] = 1.11
+    assert module.safety_window(commands, statuses, .8, 2., clock_tolerance=.005) == (1., 1.)
+
+
+@pytest.mark.parametrize('tolerance', [-.001, .051, float('nan')])
+def test_invalid_clock_tolerance_is_rejected(tolerance):
+    with pytest.raises(ValueError, match='Допуск'):
+        module.safety_window([], [], 0., 1., clock_tolerance=tolerance)
 
 
 def test_gap_ends_confirmation_at_last_contiguous_zero():
