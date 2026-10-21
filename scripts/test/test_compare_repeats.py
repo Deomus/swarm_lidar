@@ -40,3 +40,26 @@ def test_failed_and_unsettled_runs_remain_visible(compare):
 def test_different_parameters_cannot_be_reported_as_same_series(compare):
     with pytest.raises(ValueError, match='параметры'):
         compare.summarize_runs([run(), run(fingerprint='other')])
+
+
+def test_compact_transition_preserves_unavailable_and_largest_overshoot(compare):
+    result = compare.compact_transition(dict(number=1, formation='line', scale=1.,
+        followers={'1': dict(projection=dict(overshoot_m=.2)),
+                   '2': dict(projection=dict(overshoot_m=.4)), '3': dict(projection=None)}))
+    assert result['max_projected_overshoot_m'] == .4
+    missing = compare.compact_transition(dict(number=1, unavailable='incomplete_target_history'))
+    assert missing['unavailable'] == 'incomplete_target_history'
+    assert missing['max_projected_overshoot_m'] is None
+
+
+def test_equal_command_windows_exclude_settling_but_keep_inactive_errors(compare):
+    rows = []
+    for stamp, error, active in [(9., 100., 1), (10., .2, 1), (11., .4, 0), (12., 99., 1)]:
+        rows.append(dict(timestamp=stamp, target_id=1, formation_error_m=error,
+                         localization_error_m=.04, min_pair_distance_m=3., relative_stale=0,
+                         leader_state_stale=0, gt_missing=0, formation_missing=0,
+                         localization_missing=0, controller_active=active))
+    result = compare.fixed_profile_summary([dict(kind='manual_input', start=10.)], rows, 2.)
+    assert result['rows'] == 2
+    assert result['formation_error_m']['rms'] == pytest.approx(.1**.5)
+    assert result['controller_active_share'] == .5

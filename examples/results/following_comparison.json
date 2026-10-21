@@ -52,6 +52,22 @@
           }
         },
         "confirmed_zero_delay_s": 0.356,
+        "fixed_manual_profiles": {
+          "rows": 2160,
+          "formation_error_m": {
+            "count": 2160,
+            "mean": 0.5695757070185088,
+            "rms": 0.7258656069344605,
+            "max": 2.258763597684025,
+            "min": 0.023010433710555975
+          },
+          "relative_stale_share": 0,
+          "formation_missing_share": 0,
+          "min_pair_distance_m": 3.3772521726877334,
+          "window_duration_s": 24,
+          "window_count": 3,
+          "controller_active_share": 1
+        },
         "transitions": null
       },
       {
@@ -105,6 +121,22 @@
           }
         },
         "confirmed_zero_delay_s": 0.356,
+        "fixed_manual_profiles": {
+          "rows": 2160,
+          "formation_error_m": {
+            "count": 2160,
+            "mean": 0.5671772083090143,
+            "rms": 0.7236572976448064,
+            "max": 2.28140200088674,
+            "min": 0.01679563026882519
+          },
+          "relative_stale_share": 0,
+          "formation_missing_share": 0,
+          "min_pair_distance_m": 3.413184097100779,
+          "window_duration_s": 24,
+          "window_count": 3,
+          "controller_active_share": 1
+        },
         "transitions": null
       },
       {
@@ -158,6 +190,22 @@
           }
         },
         "confirmed_zero_delay_s": 0.404,
+        "fixed_manual_profiles": {
+          "rows": 2160,
+          "formation_error_m": {
+            "count": 2160,
+            "mean": 0.5826052908622974,
+            "rms": 0.7395113275696232,
+            "max": 2.2715133258647504,
+            "min": 0.009936674200769878
+          },
+          "relative_stale_share": 0,
+          "formation_missing_share": 0,
+          "min_pair_distance_m": 3.3882558224935684,
+          "window_duration_s": 24,
+          "window_count": 3,
+          "controller_active_share": 1
+        },
         "transitions": null
       }
     ],
@@ -196,6 +244,27 @@
       "sample_std": 0.027712812921102063,
       "min": 0.356,
       "max": 0.404
+    },
+    "fixed_profile_rms_m": {
+      "count": 3,
+      "mean": 0.7296780773829633,
+      "sample_std": 0.00858712783209719,
+      "min": 0.7236572976448064,
+      "max": 0.7395113275696232
+    },
+    "fixed_profile_max_m": {
+      "count": 3,
+      "mean": 2.270559641478505,
+      "sample_std": 0.01134929338433012,
+      "min": 2.258763597684025,
+      "max": 2.28140200088674
+    },
+    "fixed_profile_min_pair_distance_m": {
+      "count": 3,
+      "mean": 3.392897364094027,
+      "sample_std": 0.01841015288713813,
+      "min": 3.3772521726877334,
+      "max": 3.413184097100779
     }
   },
   "candidate": {
@@ -251,6 +320,22 @@
           }
         },
         "confirmed_zero_delay_s": 0.356,
+        "fixed_manual_profiles": {
+          "rows": 2160,
+          "formation_error_m": {
+            "count": 2160,
+            "mean": 0.41535203400434556,
+            "rms": 0.52871482465057,
+            "max": 1.8175543247181978,
+            "min": 0.017611526594564934
+          },
+          "relative_stale_share": 0,
+          "formation_missing_share": 0,
+          "min_pair_distance_m": 3.5788355950439685,
+          "window_duration_s": 24,
+          "window_count": 3,
+          "controller_active_share": 1
+        },
         "transitions": null
       },
       {
@@ -304,6 +389,22 @@
           }
         },
         "confirmed_zero_delay_s": 0.404,
+        "fixed_manual_profiles": {
+          "rows": 2160,
+          "formation_error_m": {
+            "count": 2160,
+            "mean": 0.41412975677932273,
+            "rms": 0.523359008355484,
+            "max": 1.8030811581605388,
+            "min": 0.011458003539220666
+          },
+          "relative_stale_share": 0,
+          "formation_missing_share": 0,
+          "min_pair_distance_m": 3.576577291305417,
+          "window_duration_s": 24,
+          "window_count": 3,
+          "controller_active_share": 1
+        },
         "transitions": null
       },
       {
@@ -357,6 +458,22 @@
           }
         },
         "confirmed_zero_delay_s": 0.312,
+        "fixed_manual_profiles": {
+          "rows": 2160,
+          "formation_error_m": {
+            "count": 2160,
+            "mean": 0.42520254031330795,
+            "rms": 0.5348822997994708,
+            "max": 1.7982388080278353,
+            "min": 0.023177255636695003
+          },
+          "relative_stale_share": 0,
+          "formation_missing_share": 0,
+          "min_pair_distance_m": 3.6207906819035234,
+          "window_duration_s": 24,
+          "window_count": 3,
+          "controller_active_share": 1
+        },
         "transitions": null
       }
     ],
@@ -395,9 +512,32 @@
       "sample_std": 0.04601449047129974,
       "min": 0.312,
       "max": 0.404
+    },
+    "fixed_profile_rms_m": {
+      "count": 3,
+      "mean": 0.5289853776018416,
+      "sample_std": 0.00576640794605672,
+      "min": 0.523359008355484,
+      "max": 0.5348822997994708
+    },
+    "fixed_profile_max_m": {
+      "count": 3,
+      "mean": 1.8062914303021906,
+      "sample_std": 0.010049959287057687,
+      "min": 1.7982388080278353,
+      "max": 1.8175543247181978
+    },
+    "fixed_profile_min_pair_distance_m": {
+      "count": 3,
+      "mean": 3.592067856084303,
+      "sample_std": 0.024900311769631412,
+      "min": 3.576577291305417,
+      "max": 3.6207906819035234
     }
   },
   "note": "Среднее и выборочное стандартное отклонение метрик отдельных полётов; это не доверительный интервал и не доказательство надёжности.",
   "formation_rms_m_reduction_percent": 27.196326673803917,
-  "formation_max_m_reduction_percent": 20.447303065512074
+  "formation_max_m_reduction_percent": 20.447303065512074,
+  "fixed_profile_rms_m_reduction_percent": 27.50427976415556,
+  "fixed_profile_max_m_reduction_percent": 20.447303065512074
 }

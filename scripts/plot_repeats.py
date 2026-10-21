@@ -17,6 +17,7 @@ def main():
     parser.add_argument('report', type=Path)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--transitions-output', type=Path)
+    parser.add_argument('--fixed-windows', action='store_true', help='Сравнивать одинаковые окна команд')
     args = parser.parse_args()
     data = json.loads(args.report.read_text())
     groups = [data['baseline'], data['candidate']]
@@ -25,6 +26,15 @@ def main():
     metrics = [('formation_rms_m', 'RMS ошибки строя, м', lambda r: r['formation']['rms']),
                ('formation_max_m', 'Максимальная ошибка, м', lambda r: r['formation']['max']),
                ('min_pair_distance_m', 'Минимальная дистанция, м', lambda r: r['min_pair_distance_m'])]
+    if args.fixed_windows:
+        metrics = [('fixed_profile_rms_m', 'RMS в окнах команд, м',
+                    lambda r: r['fixed_manual_profiles']['formation_error_m']['rms']),
+                   ('fixed_profile_max_m', 'Максимум в окнах команд, м',
+                    lambda r: r['fixed_manual_profiles']['formation_error_m']['max']),
+                   ('fixed_profile_min_pair_distance_m', 'Минимальная дистанция, м',
+                    lambda r: r['fixed_manual_profiles']['min_pair_distance_m'])]
+        if any(key not in group for group in groups for key, title, extract in metrics):
+            parser.error('В отчёте нет метрик одинаковых окон команд')
     for axis, (metric, title, extract) in zip(axes, metrics):
         for index, group in enumerate(groups):
             stats = group[metric]
@@ -46,7 +56,7 @@ def main():
         transitions = group['transition_summary']
         fig, axis = plt.subplots(figsize=(10, 5), layout='constrained')
         names = {'line': 'Линия', 'column': 'Колонна', 'wedge': 'Клин'}
-        labels = [f"{item['number']}. {names[item['formation']]}\nмасштаб {item['scale']:.2g}"
+        labels = [f"{item['number']}. {names[item['formation']]}\nмасштаб {item['scale']:.3g}"
                   for item in transitions]
         for index, item in enumerate(transitions):
             stats = item['settling_duration_s']
