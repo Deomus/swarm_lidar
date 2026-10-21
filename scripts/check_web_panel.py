@@ -82,7 +82,7 @@ def main():
                          and s.get('formation_settled', False)
                          and len(s['formation']['errors']) == 3
                          and max(s['formation']['errors']) < .6, 120., 'Не установлен выбранный строй')
-                    page.wait_for_function("document.getElementById('formation-status').textContent.includes('Строй установлен')")
+                    page.locator('#formation-status').filter(has_text='Строй установлен').wait_for()
                     page.screenshot(path=str(args.output/(name+'.png')), full_page=True)
                 click('Удерживать')
                 wait(lambda s: s['action']['state'] == 'ok' and s['execution'] is not None

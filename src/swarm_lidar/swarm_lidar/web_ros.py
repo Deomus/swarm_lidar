@@ -24,8 +24,8 @@ def formation_request(body):
     if (isinstance(scale, bool) or isinstance(duration, bool)
             or not isinstance(scale, (int, float)) or not isinstance(duration, (int, float))
             or not math.isfinite(scale) or not math.isfinite(duration)
-            or not .5 <= scale <= 2. or not 2. <= duration <= 120.):
-        raise ValueError('Масштаб: 0,5–2; время перестроения: 2–120 с')
+            or not .75 <= scale <= 2. or not 2. <= duration <= 120.):
+        raise ValueError('Масштаб: 0,75–2; время перестроения: 2–120 с')
     formation_offsets(name, scale, gap=4., min_separation=2.)
     return name, float(scale), float(duration)
 

@@ -20,6 +20,7 @@ class FlightSession:
         self.kind = None
         self.output = None
         self.cancelled = False
+        self.landing_confirmed = None
         self.logs = deque(maxlen=80)
 
     def active(self):
@@ -45,6 +46,7 @@ class FlightSession:
             if record:
                 args.append('--record-bag')
             self.phase, self.kind, self.cancelled = 'starting', kind, False
+            self.landing_confirmed = None
             self.logs.clear()
             try:
                 self.process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -74,6 +76,7 @@ class FlightSession:
         except (OSError, ValueError):
             result = {}
         with self.lock:
+            self.landing_confirmed = result.get('passed_landing') is True
             if self.cancelled and result.get('passed_landing'):
                 self.phase = 'cancelled'
             elif self.process.returncode == 0 and result.get('passed'):
@@ -97,7 +100,10 @@ class FlightSession:
                     self.process.send_signal(signal.SIGINT)
 
     def close(self, timeout=100.):
+        with self.lock:
+            was_active = self.active()
         self.stop()
         if self.thread:
             self.thread.join(timeout=timeout)
-        return self.thread is None or not self.thread.is_alive()
+        ended = self.thread is None or not self.thread.is_alive()
+        return ended and (not was_active or self.landing_confirmed is True)

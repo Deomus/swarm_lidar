@@ -74,7 +74,7 @@ def test_bad_request_and_unlisted_asset(http_panel):
 
 
 @pytest.mark.parametrize('scale,duration', [(float('nan'), 25.), (1., float('inf')),
-                                          (.4, 25.), (1., 1.), (True, 25.)])
+                                          (.5, 25.), (1., 1.), (True, 25.)])
 def test_invalid_formation_never_reaches_ros(scale, duration):
     with pytest.raises(ValueError):
         formation_request(dict(formation='wedge', scale=scale, duration=duration))
@@ -192,3 +192,14 @@ def test_session_rejects_parallel_process_and_arbitrary_scenario(tmp_path):
     session.phase = 'ready'
     with pytest.raises(ValueError, match='текущий'):
         session.start('s1')
+
+
+def test_finished_process_without_landing_ack_is_not_successful_shutdown(tmp_path):
+    session = FlightSession(tmp_path)
+    session.phase = 'landing'
+    session.process = SimpleNamespace(poll=lambda: 1)
+    session.thread = SimpleNamespace(join=lambda **kwargs: None, is_alive=lambda: False)
+    session.landing_confirmed = False
+    assert not session.close()
+    session.landing_confirmed = True
+    assert session.close()
