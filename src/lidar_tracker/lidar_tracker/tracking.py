@@ -6,7 +6,7 @@ from scipy.spatial import cKDTree
 def level_heights(points, rotation, sensor_offset):
     """Высота для отбора с компенсацией наклона; исходные XYZ не меняются."""
     offset = np.asarray(sensor_offset, dtype=float)
-    return np.asarray(points) @ rotation.as_matrix()[2] + rotation.apply(offset)[2] - offset[2]
+    return np.einsum('ij,j->i', np.asarray(points), rotation.as_matrix()[2]) + rotation.apply(offset)[2] - offset[2]
 
 
 def remove_ground(points, distance=.04, min_points=1000, fraction=.7):

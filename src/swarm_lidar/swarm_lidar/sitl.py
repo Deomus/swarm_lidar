@@ -44,6 +44,14 @@ def main():
     def terminate(signum, frame):
         raise KeyboardInterrupt
     signal.signal(signal.SIGTERM, terminate)
+    def stop_signal(proc, signum, group=True):
+        try:
+            if group:
+                os.killpg(proc.pid, signum)
+            else:
+                proc.send_signal(signum)
+        except ProcessLookupError:
+            pass  # Процесс мог завершиться между poll/wait и отправкой сигнала.
     def start(name, cmd, cwd=None, extra=None, stdin=False):
         log = open(runtime / (name + '.log'), 'w')
         handles.append(log)
@@ -115,18 +123,18 @@ def main():
                 # ros2 launch сам передаёт сигнал узлам. Сигнал всей группе
                 # приводил к повторному Ctrl+C во время destroy_node.
                 if name == 'ros_stack':
-                    proc.send_signal(signal.SIGINT)
+                    stop_signal(proc, signal.SIGINT, group=False)
                 else:
-                    os.killpg(proc.pid, signal.SIGINT)
+                    stop_signal(proc, signal.SIGINT)
         for _, proc in reversed(processes):
             try:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                os.killpg(proc.pid, signal.SIGTERM)
+                stop_signal(proc, signal.SIGTERM)
                 try:
                     proc.wait(timeout=3)
                 except subprocess.TimeoutExpired:
-                    os.killpg(proc.pid, signal.SIGKILL)
+                    stop_signal(proc, signal.SIGKILL)
                     proc.wait()
         for handle in handles:
             handle.close()

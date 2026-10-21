@@ -1,4 +1,5 @@
 import math
+from collections import deque
 import numpy as np
 import rclpy
 from builtin_interfaces.msg import Time
@@ -31,6 +32,7 @@ class AutopilotBridge(Node):
         self.p = {key: self.get_parameter(key).value for key in defaults}
         self.uid = self.p['uav_id']
         self.odom = self.status = self.local = self.command = None
+        self.future_telemetry = {key: deque(maxlen=32) for key in ('odom', 'status', 'local')}
         self.ack = None
         self.stream_enabled = self.p['use_offboard']
         self.state_pub = self.create_publisher(SwarmState, self.p['states_topic'], 10)
@@ -65,13 +67,35 @@ class AutopilotBridge(Node):
         return self.get_clock().now().nanoseconds * 1e-9
 
     def on_odom(self, msg):
-        self.odom = msg
+        self.accept_telemetry('odom', msg)
 
     def on_status(self, msg):
-        self.status = msg
+        self.accept_telemetry('status', msg)
 
     def on_local(self, msg):
-        self.local = msg
+        self.accept_telemetry('local', msg)
+
+    def accept_telemetry(self, field, msg):
+        now = self.now()
+        if msg.timestamp * 1e-6 > now:
+            if msg.timestamp * 1e-6 - now <= self.p['stale_timeout']:
+                self.future_telemetry[field].append(msg)
+            return
+        previous = getattr(self, field)
+        if previous is None or msg.timestamp >= previous.timestamp:
+            setattr(self, field, msg)
+
+    def advance_telemetry(self):
+        now = self.now()
+        for field, queue in self.future_telemetry.items():
+            waiting = []
+            while queue:
+                msg = queue.popleft()
+                if msg.timestamp * 1e-6 <= now:
+                    self.accept_telemetry(field, msg)
+                else:
+                    waiting.append(msg)
+            queue.extend(waiting)
 
     def on_ack(self, msg):
         self.ack = msg
@@ -139,8 +163,11 @@ class AutopilotBridge(Node):
             self.stream_enabled = False
             self.stream_started = None
             self.command = self.odom = self.status = self.local = None
+            for queue in self.future_telemetry.values():
+                queue.clear()
             self.get_logger().warning('Откат часов: Offboard stream отключён, требуется enable_stream')
         self.last_time = self.now()
+        self.advance_telemetry()
         if self.odom is None:
             return
         now = self.get_clock().now()
