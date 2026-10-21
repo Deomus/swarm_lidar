@@ -44,6 +44,8 @@ def read_run(directory):
                 configuration_sha256=fingerprint, formation=active['formation_error_m'],
                 localization=active['localization_error_m'],
                 min_pair_distance_m=active['min_pair_distance_m']['min'],
+                active_rows=active['rows'], relative_stale_share=active['relative_stale_share'],
+                leader_state_stale_share=active['leader_state_stale_share'],
                 formation_missing_share=active['formation_missing_share'],
                 localization_missing_share=active['localization_missing_share'],
                 manual_windows=speeds, confirmed_zero_delay_s=delay,

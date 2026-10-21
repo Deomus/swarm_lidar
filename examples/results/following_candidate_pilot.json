@@ -1,0 +1,58 @@
+{
+  "source": "log/following_candidate_pilot_20261022/s2_1/flight",
+  "scenario": "s2",
+  "passed": true,
+  "passed_landing": true,
+  "runtime_revision": "b33215a374c91bd6cfc1d80c9539ff16493d2d90",
+  "configuration_sha256": "ccf234d6bb0ab4fdd4d0d094c648f7cd4b58d420355aeb7d64dc325b876ced93",
+  "formation": {
+    "count": 2313,
+    "mean": 0.409664723010496,
+    "rms": 0.5139956947974497,
+    "max": 1.7669191799034651,
+    "min": 0.010803091185040846
+  },
+  "localization": {
+    "count": 2313,
+    "mean": 0.036152188246163876,
+    "rms": 0.037361767558700014,
+    "max": 0.07183615187300393,
+    "min": 0.006267765071338196
+  },
+  "min_pair_distance_m": 3.600862994998301,
+  "active_rows": 2313,
+  "relative_stale_share": 0,
+  "leader_state_stale_share": 0,
+  "formation_missing_share": 0,
+  "localization_missing_share": 0,
+  "manual_windows": {
+    "0.5": {
+      "count": 723,
+      "mean": 0.30916041552753826,
+      "rms": 0.4308153914802798,
+      "max": 1.4445364618554757,
+      "min": 0.020194526207967967
+    },
+    "1.0": {
+      "count": 723,
+      "mean": 0.41493478870039724,
+      "rms": 0.5161760740379849,
+      "max": 1.6680209856969501,
+      "min": 0.037528532063083896
+    },
+    "1.5": {
+      "count": 768,
+      "mean": 0.509649521392947,
+      "rms": 0.5926992176047841,
+      "max": 1.7669191799034651,
+      "min": 0.010803091185040846
+    }
+  },
+  "confirmed_zero_delay_s": 0.46,
+  "transitions": null,
+  "parameter_changes": {
+    "velocity_smoothing": "windowed",
+    "leader_prediction_horizon": 0.95
+  },
+  "note": "Предварительный опыт. YAML изменён поверх указанной ревизии; фактические параметры сохранены в configuration.json и проверены через ROS. В последующую формальную серию не включается."
+}

@@ -10,6 +10,7 @@ formation_controller:
     max_speed: 2.0
     max_acceleration: 4.0
     max_jerk: 8.0
+    velocity_smoothing: windowed
     min_separation: 2.0
     warning_distance: 3.0
     repulsion_gain: 0.5
@@ -17,7 +18,7 @@ formation_controller:
     surface_bias: 0.0
     sensor_offset: [0.0, 0.0, 1.9]
     marker_offset_z: 0.0
-    leader_prediction_horizon: 1.9
+    leader_prediction_horizon: 0.95
     leader_prediction_max_correction: 0.6
     leader_prediction_max_acceleration: 1.0
     leader_prediction_smoothing: 0.3
