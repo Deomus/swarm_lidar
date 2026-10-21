@@ -18,6 +18,7 @@ formation_controller:
     leader_prediction_max_correction: 0.6
     leader_prediction_max_acceleration: 1.0
     leader_prediction_smoothing: 0.3
+    predict_slot_motion: false
     leader_status_topic: /mission/execution_status
     poses_topic: /mesh/relative_poses
     states_topic: /mesh/states

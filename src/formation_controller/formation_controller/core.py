@@ -118,6 +118,14 @@ def clip_norm(vector, limit):
     return vector * (limit / norm) if norm > limit else vector.copy()
 
 
+def slot_feedforward(offset, offset_velocity, leader_velocity, yaw, yaw_rate):
+    """Скорость места в ENU: перенос ведущего, перестроение и вращение строя."""
+    c, s = math.cos(yaw), math.sin(yaw)
+    rotation = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+    turn_velocity = yaw_rate * np.array([-offset[1], offset[0], 0])
+    return leader_velocity + rotation @ (offset_velocity + turn_velocity)
+
+
 class VelocityLimiter:
     """Два полюса с доказуемыми дискретными bounds при постоянном period."""
 
@@ -199,8 +207,8 @@ class RelativeVelocityController:
             r, offset, offset_velocity, leader_velocity = vectors
             c, s = math.cos(leader_yaw), math.sin(leader_yaw)
             rotation = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
-            turn_velocity = leader_yaw_rate * np.array([-offset[1], offset[0], 0])
-            desired = leader_velocity + rotation @ (self.kp * (offset - r)
-                                                    + offset_velocity + turn_velocity)
+            desired = slot_feedforward(offset, offset_velocity, leader_velocity,
+                                       leader_yaw, leader_yaw_rate)
+            desired += rotation @ (self.kp * (offset - r))
         velocity = self.limiter.step(desired)
         return ControlResult(velocity, error, 'FOLLOWING' if good else 'BRAKING')

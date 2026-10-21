@@ -8,7 +8,7 @@ from scipy.spatial.transform import Rotation
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from swarm_interfaces.msg import FormationCommand, RelativePose, SwarmCommand, SwarmState
-from .core import FormationPlan, RelativeVelocityController
+from .core import FormationPlan, RelativeVelocityController, slot_feedforward
 from .prediction import LeaderVelocityPredictor
 
 class FormationController(Node):
@@ -21,7 +21,7 @@ class FormationController(Node):
                         marker_offset_z=0., poses_topic='/mesh/relative_poses',
                         leader_prediction_horizon=1.9, leader_prediction_max_correction=.6,
                         leader_prediction_max_acceleration=1., leader_prediction_smoothing=.3,
-                        leader_status_topic='/mission/execution_status',
+                        predict_slot_motion=False, leader_status_topic='/mission/execution_status',
                         states_topic='/mesh/states', commands_topic='/swarm/commands',
                         formation_topic='/swarm/formation_command',
                         status_topic='/swarm/formation_status', target_topic='/swarm/target_offsets')
@@ -30,12 +30,12 @@ class FormationController(Node):
         self.p = {key: self.get_parameter(key).value for key in defaults}
         self.plan = FormationPlan(self.p['min_separation'], self.p['gap'])
         self.controllers = self.new_controllers()
-        self.predictor = LeaderVelocityPredictor(
+        self.predictors = [LeaderVelocityPredictor(
             horizon=self.p['leader_prediction_horizon'],
             max_correction=self.p['leader_prediction_max_correction'],
             max_acceleration=self.p['leader_prediction_max_acceleration'],
             smoothing_time=self.p['leader_prediction_smoothing'],
-            stale_timeout=self.p['stale_timeout'])
+            stale_timeout=self.p['stale_timeout']) for _ in range(3)]
         self.poses, self.states = {}, {}
         self.enabled = False
         self.formation, self.scale = 'line', 1.
@@ -90,15 +90,26 @@ class FormationController(Node):
         except (ValueError, TypeError, KeyError):
             pass
 
-    def forward_velocity(self, leader, now):
+    def reset_prediction(self):
+        for predictor in self.predictors:
+            predictor.reset()
+
+    def forward_velocity(self, leader, now, index=0, offset=None, offset_velocity=None):
         v = leader.velocity.linear
         velocity = np.array([v.x, v.y, v.z])
         intent = self.leader_intent
         if (intent is not None and intent['valid'] and intent['status'] in ('MANUAL', 'MISSION')
                 and 0 <= now-intent['stamp'] <= self.p['stale_timeout']):
-            return self.predictor.update(velocity, self.seconds(leader.timestamp), now)
+            predictor = self.predictors[index]
+            slot = velocity
+            if self.p['predict_slot_motion'] and offset is not None:
+                slot = slot_feedforward(offset, offset_velocity, velocity,
+                                        leader.yaw, leader.yaw_rate)
+            predicted = predictor.update(slot, self.seconds(leader.timestamp), now)
+            # Ядро ниже само добавляет вращение и перестроение: здесь только поправка.
+            return velocity + (predicted - slot)
         # Шум оценки ускорения в HOLD не должен подталкивать ведомых.
-        self.predictor.reset()
+        self.reset_prediction()
         return velocity
 
     def data_ready(self):
@@ -122,7 +133,7 @@ class FormationController(Node):
             return response
         self.enabled = True
         self.controllers = self.new_controllers()
-        self.predictor.reset()
+        self.reset_prediction()
         response.success = True
         response.message = 'LiDAR-relative контур включён'
         return response
@@ -130,7 +141,7 @@ class FormationController(Node):
     def hold(self, req, response):
         self.enabled = False
         self.reason = 'HOLD'
-        self.predictor.reset()
+        self.reset_prediction()
         response.success = True
         response.message = 'Контур отключён; ведомым выдаётся нулевая скорость'
         return response
@@ -198,8 +209,9 @@ class FormationController(Node):
                     self.enabled = False
                     if previous is not None and now >= previous:
                         self.plan.pause(now - previous)
-                forward = self.forward_velocity(leader, now)
                 for index, controller in enumerate(self.controllers):
+                    forward = self.forward_velocity(leader, now, index, sample.offsets[index],
+                                                    sample.velocities[index])
                     offset = sample.offsets[index].copy()
                     for j, other in enumerate(all_points):
                         if j == index + 1:
@@ -219,7 +231,7 @@ class FormationController(Node):
                 ready, state = False, 'INVALID_GEOMETRY'
         if not ready:
             self.controllers = self.new_controllers()
-            self.predictor.reset()
+            self.reset_prediction()
         for i in [1, 2, 3]:
             command = SwarmCommand(uav_id=i, frame_id='map', valid=bool(ready), safety_state=state)
             command.source_stamp = self.get_clock().now().to_msg()

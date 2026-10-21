@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from formation_controller.core import VelocityLimiter
+from formation_controller.core import VelocityLimiter, slot_feedforward
 from formation_controller.prediction import LeaderVelocityPredictor
 
 
@@ -142,3 +142,51 @@ def test_original_final_speed_acceleration_and_jerk_bounds_remain():
     assert np.linalg.norm(velocities, axis=1).max() <= 2. + 1e-9
     assert np.linalg.norm(accelerations, axis=1).max() <= 4. + 1e-9
     assert np.linalg.norm(jerks, axis=1).max() <= 8. + 1e-9
+
+
+def test_slot_velocity_matches_derivative_of_rotating_and_changing_offset():
+    offset = np.array([-4., -3., .2])
+    change = np.array([.2, -.1, .05])
+    velocity = np.array([.7, -.2, .1])
+    yaw, rate, dt = .4, .08, 1e-6
+
+    def rotate(value, angle):
+        c, s = np.cos(angle), np.sin(angle)
+        return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]]) @ value
+
+    numerical = velocity + (rotate(offset + change*dt, yaw + rate*dt)
+                            - rotate(offset - change*dt, yaw - rate*dt)) / (2*dt)
+    np.testing.assert_allclose(slot_feedforward(offset, change, velocity, yaw, rate),
+                               numerical, atol=1e-8)
+
+
+def test_slot_prediction_reduces_error_when_leader_rotates_in_place():
+    # Лидер стоит, строй поворачивается. Прогноз только переноса всегда нулевой.
+    # Идеальная модель проверяет алгоритм; физика PX4 проверяется полётом отдельно.
+    period, rate = .05, .08
+    offset = np.array([-4., -4., 0.])
+    positions = np.tile(offset, (2, 1))
+    limiters = [VelocityLimiter(2., 4., 8., period) for _ in range(2)]
+    predictor = LeaderVelocityPredictor()
+    errors = []
+    commands = [np.zeros((2, 3))]
+    for index in range(1600):
+        now = index * period
+        c, s = np.cos(rate*now), np.sin(rate*now)
+        target = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]]) @ offset
+        velocity = slot_feedforward(offset, np.zeros(3), np.zeros(3), rate*now, rate)
+        predicted = predictor.update(velocity, now, now)
+        output = np.array([limiters[i].step(forward + .3*(target-positions[i]))
+                           for i, forward in enumerate((velocity, predicted))])
+        commands.append(output)
+        positions += output * period
+        if now > 20.:
+            errors.append(np.linalg.norm(target-positions, axis=1))
+    rms = np.sqrt(np.mean(np.square(errors), axis=0))
+    assert rms[1] < .4*rms[0], rms
+    commands = np.asarray(commands)
+    acceleration = np.diff(commands, axis=0)/period
+    jerk = np.diff(np.concatenate((np.zeros((1, 2, 3)), acceleration)), axis=0)/period
+    assert np.linalg.norm(commands, axis=2).max() <= 2.+1e-9
+    assert np.linalg.norm(acceleration, axis=2).max() <= 4.+1e-9
+    assert np.linalg.norm(jerk, axis=2).max() <= 8.+1e-9
