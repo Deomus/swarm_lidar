@@ -47,6 +47,33 @@ def test_prediction_requires_fresh_active_leader_intent_and_resets_in_hold():
     np.testing.assert_array_equal(FormationController.forward_velocity(probe, leader, 11.), [1., 0, 0])
 
 
+def test_old_scan_uses_old_orientation_before_current_heading_transform():
+    from lidar_tracker.timing import OrientationHistory
+    history = OrientationHistory()
+    old = Rotation.from_euler('z', .2)
+    current = Rotation.from_euler('z', .29)
+    history.add(10., old.as_quat())
+    history.add(10.3, current.as_quat())
+    leader = SwarmState(yaw=.29)
+    leader.timestamp.sec, leader.timestamp.nanosec = 10, 300000000
+    q = leader.pose.orientation
+    q.x, q.y, q.z, q.w = current.as_quat()
+    world_relative = np.array([-12., 0., 0.])
+    raw = old.inv().apply(world_relative) - [0., 0., 1.9]
+    poses = {}
+    for i in [1, 2, 3]:
+        msg = RelativePose()
+        msg.measurement_stamp.sec = 10
+        msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = raw
+        poses[i] = msg
+    probe = SimpleNamespace(poses=poses, states={i: SwarmState() for i in [1, 2, 3]},
+        orientation_history=history, seconds=FormationController.seconds,
+        p=dict(surface_bias=0., sensor_offset=[0., 0., 1.9], marker_offset_z=0.))
+    expected = current.inv().apply(world_relative)
+    np.testing.assert_allclose(FormationController.measured(probe, leader),
+                               np.tile(expected, (3, 1)), atol=1e-8)
+
+
 def test_slot_prediction_has_separate_history_and_does_not_double_turn_velocity():
     probe = SimpleNamespace(p=dict(stale_timeout=.5, predict_slot_motion=True),
                             predictors=[LeaderVelocityPredictor() for _ in range(3)],

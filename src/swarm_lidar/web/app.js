@@ -98,11 +98,27 @@ function draw() {
   ctx.font='10px system-ui';ctx.textAlign='left';ctx.fillStyle='#ef8a7d';ctx.fillText('X',Math.min(w-14,px(100)-8),Math.max(12,py(0)-6));
   ctx.fillStyle='#82aaf4';ctx.fillText('Y',Math.min(w-14,px(0)+6),Math.max(12,py(100)+12));
   groundMarks.forEach(mark=>{const x=px(mark.x),y=py(mark.y);ctx.fillStyle=mark.color;ctx.strokeStyle='#10151b';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,5.5,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.font='10px system-ui';ctx.textAlign='center';ctx.fillText(mark.label,x,y-9);});
+  const occupied=valid.map(drone=>({x:px(drone.position[0])-8,y:py(drone.position[1])-8,w:16,h:16}));
   valid.forEach(drone=>{
+    ctx.lineWidth=1.5;
     const x=px(drone.position[0]),y=py(drone.position[1]);ctx.fillStyle=drone.id===0?'#f09588':'#cde8dc';ctx.beginPath();ctx.arc(x,y,drone.id===0?6:4.5,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle=ctx.fillStyle;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+14*Math.cos(drone.yaw),y-14*Math.sin(drone.yaw));ctx.stroke();
-    ctx.font='11px system-ui';ctx.textAlign=drone.id===0?'left':'center';
-    ctx.fillText(names[drone.id],drone.id===0?x+11:x,drone.id===0?y+4:y-13);
+    ctx.font='11px system-ui';ctx.textAlign='left';
+    const label=names[drone.id],width=ctx.measureText(label).width;
+    let chosen=null;
+    for(let ring=0;ring<5&&!chosen;ring++){
+      const distance=12+ring*16;
+      for(const [lx,ly] of [[x+distance,y-distance],[x+distance,y+distance+8],[x-width-distance,y-distance],[x-width-distance,y+distance+8]]){
+        const candidate={x:lx-3,y:ly-12,w:width+6,h:17};
+        if(candidate.x<2||candidate.y<2||candidate.x+candidate.w>w-2||candidate.y+candidate.h>h-2)continue;
+        if(!occupied.some(other=>candidate.x<other.x+other.w&&candidate.x+candidate.w>other.x&&candidate.y<other.y+other.h&&candidate.y+candidate.h>other.y)){chosen={...candidate,lx,ly};break;}
+      }
+    }
+    if(chosen){
+      occupied.push(chosen);ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=.7;
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(Math.max(chosen.x,Math.min(x,chosen.x+chosen.w)),Math.max(chosen.y,Math.min(y,chosen.y+chosen.h)));ctx.stroke();
+      ctx.strokeStyle='#121a22';ctx.lineWidth=3;ctx.strokeText(label,chosen.lx,chosen.ly);ctx.fillText(label,chosen.lx,chosen.ly);
+    }
   });
   if(target){const x=px(target.x),y=py(target.y);ctx.strokeStyle='#e9bf77';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(x-12,y);ctx.lineTo(x+12,y);ctx.moveTo(x,y-12);ctx.lineTo(x,y+12);ctx.stroke();}
 }

@@ -222,7 +222,7 @@ class FormationController(Node):
                 all_points = np.vstack([np.zeros(3), relative])
                 minimum = min(float(np.linalg.norm(all_points[i]-all_points[j]))
                               for i in range(4) for j in range(i))
-                ready = minimum > self.p['min_separation'] + .2
+                ready = minimum >= self.p['min_separation'] + .2
                 state = 'FORMATION_CHANGE' if sample.transitioning else 'FOLLOWING'
                 if not ready:
                     state = 'COLLISION_STOP'
