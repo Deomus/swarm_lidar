@@ -11,6 +11,9 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import PointCloud2, PointField
+from swarm_interfaces.msg import SwarmState
+from lidar_tracker.timing import OrientationHistory
+from lidar_tracker.tracking import level_heights
 import yaml
 
 
@@ -31,10 +34,14 @@ def load_filter_config(path):
         if not isinstance(config[key], str) or not config[key]:
             raise ValueError(f'Не задан {key}')
         limits[key] = config[key]
+    limits['level_filter'] = config.get('level_filter', False)
+    limits['sensor_offset'] = config.get('sensor_offset', [0., 0., 1.9])
+    if not isinstance(limits['level_filter'], bool) or len(limits['sensor_offset']) != 3 or not all(math.isfinite(v) for v in limits['sensor_offset']):
+        raise ValueError('Некорректные параметры компенсации наклона')
     return limits
 
 
-def compact_cloud(message, config):
+def compact_cloud(message, config, rotation=None):
     """Сохраняет измеренные конечные XYZ внутри тех же четырёх границ."""
     frame_values = [value for item in message.header.data if item.key == 'frame_id' for value in item.value]
     if frame_values != [config['expected_frame']]:
@@ -68,7 +75,11 @@ def compact_cloud(message, config):
     points = points[np.isfinite(points).all(axis=1)]
     distances = np.linalg.norm(points, axis=1)
     points = points[(distances >= config['min_range']) & (distances <= config['max_range'])]
-    points = points[(points[:, 2] >= config['min_z']) & (points[:, 2] <= config['max_z'])]
+    if config.get('level_filter', False) and rotation is None:
+        raise ValueError('Нет ориентации на время LiDAR-кадра')
+    heights = (level_heights(points, rotation, config['sensor_offset'])
+               if config.get('level_filter', False) else points[:, 2])
+    points = points[(heights >= config['min_z']) & (heights <= config['max_z'])]
     points = np.asarray(points, dtype='<f4')
     output = PointCloud2()
     output.header.frame_id = frame_values[0]
@@ -92,6 +103,9 @@ class CloudSource(Node):
             raise ValueError('Нужен filter_config с действующим tracker.yaml')
         self.config = load_filter_config(path)
         self.topic = self.get_parameter('gz_topic').value
+        self.orientation_history = OrientationHistory()
+        self.previous_clock = None
+        self.create_subscription(SwarmState, '/swarm/states', self.on_orientation, 10)
         qos = QoSProfile(depth=1, history=HistoryPolicy.KEEP_LAST,
                          reliability=ReliabilityPolicy.BEST_EFFORT,
                          durability=DurabilityPolicy.VOLATILE)
@@ -107,7 +121,9 @@ class CloudSource(Node):
             if self._closing:
                 return
         try:
-            converted = compact_cloud(message, self.config)
+            stamp = message.header.stamp.sec + message.header.stamp.nsec * 1e-9
+            rotation = self.orientation_history.at(stamp) if self.config['level_filter'] else None
+            converted = compact_cloud(message, self.config, rotation)
         except (ValueError, TypeError, OverflowError) as error:
             with self._lock:
                 if not self._closing and str(error) != self._last_error:
@@ -117,6 +133,19 @@ class CloudSource(Node):
         with self._lock:
             if not self._closing:
                 self.publisher.publish(converted)
+
+    def on_orientation(self, msg):
+        now = self.get_clock().now().nanoseconds * 1e-9
+        if self.previous_clock is not None and now < self.previous_clock:
+            self.orientation_history.clear()
+        self.previous_clock = now
+        stamp = msg.timestamp.sec + msg.timestamp.nanosec * 1e-9
+        if msg.uav_id == 0 and msg.valid and 0 <= now-stamp <= .5:
+            q = msg.pose.orientation
+            try:
+                self.orientation_history.add(stamp, [q.x, q.y, q.z, q.w])
+            except ValueError:
+                pass
 
     def destroy_node(self):
         with self._lock:

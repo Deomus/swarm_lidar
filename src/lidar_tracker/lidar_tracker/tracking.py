@@ -3,6 +3,12 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 
+def level_heights(points, rotation, sensor_offset):
+    """Высота для отбора с компенсацией наклона; исходные XYZ не меняются."""
+    offset = np.asarray(sensor_offset, dtype=float)
+    return np.asarray(points) @ rotation.as_matrix()[2] + rotation.apply(offset)[2] - offset[2]
+
+
 def remove_ground(points, distance=.04, min_points=1000, fraction=.7):
     """Удаляет только доминирующую плоскость под датчиком по RANSAC.
 
@@ -58,6 +64,11 @@ def cluster_points(points, tolerance=0.8, min_size=3, max_size=5000):
         while queue:
             current = queue.pop()
             indices.append(current)
+            # Плотный фон не должен занимать весь период обработки. При
+            # превышении бюджета отклоняем кадр целиком, не создавая ложные
+            # маленькие кластеры из остатка большой компоненты.
+            if len(indices) > max_size or tree.query_ball_point(data[current], tolerance, return_length=True) > max_size:
+                return []
             for neighbour in tree.query_ball_point(data[current], tolerance):
                 if not visited[neighbour]:
                     visited[neighbour] = True

@@ -10,6 +10,8 @@ lidar_tracker:
     min_z: -2.9
     max_z: -1.0
     ground_filter: true
+    level_filter: true
+    sensor_offset: [0.0, 0.0, 1.9]
     ground_distance: 0.04
     ground_min_points: 1000
     ground_fraction: 0.7

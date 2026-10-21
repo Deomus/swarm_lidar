@@ -9,6 +9,7 @@
   <depend>python3-scipy</depend>
   <depend>rclpy</depend>
   <depend>swarm_interfaces</depend>
+  <depend>lidar_tracker</depend>
   <depend>geometry_msgs</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>

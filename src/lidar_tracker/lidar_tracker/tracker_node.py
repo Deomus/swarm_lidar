@@ -5,9 +5,10 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2
 from std_srvs.srv import Trigger
-from swarm_interfaces.msg import RelativePose
+from swarm_interfaces.msg import RelativePose, SwarmState
 
-from .tracking import TargetTracker, cluster_points, remove_ground
+from .tracking import TargetTracker, cluster_points, remove_ground, level_heights
+from .timing import OrientationHistory
 
 
 class LidarTracker(Node):
@@ -19,6 +20,8 @@ class LidarTracker(Node):
             min_range=0.5, max_range=80., min_z=-10., max_z=10.,
             ground_filter=False, ground_distance=.04, ground_min_points=1000,
             ground_fraction=.7,
+            level_filter=False, sensor_offset=[0., 0., 1.9], orientation_topic='/mesh/states',
+            max_processing_points=10000,
             cluster_tolerance=0.5, min_cluster_size=3, max_cluster_size=500,
             max_cluster_extent=1.5, confidence_threshold=0.25,
             association_gate=2., ambiguity_margin=0.2, filter_alpha=0.7,
@@ -43,6 +46,8 @@ class LidarTracker(Node):
                                      p['reacquire_timeout'])
         self.last_stamp = None
         self.previous_clock = None
+        self.orientation_history = OrientationHistory()
+        self.create_subscription(SwarmState, p['orientation_topic'], self.on_orientation, 10)
         self.publisher = self.create_publisher(RelativePose, p['output_topic'], p['qos_depth'])
         self.subscription = self.create_subscription(
             PointCloud2, p['input_topic'], self.pointcloud_callback,
@@ -111,7 +116,16 @@ class LidarTracker(Node):
         if p['ground_filter']:
             points = remove_ground(points, distance=p['ground_distance'],
                                    min_points=p['ground_min_points'], fraction=p['ground_fraction'])
-        points = points[(points[:, 2] >= p['min_z']) & (points[:, 2] <= p['max_z'])]
+        try:
+            heights = (level_heights(points, self.orientation_history.at(stamp), p['sensor_offset'])
+                       if p['level_filter'] else points[:, 2])
+        except ValueError:
+            self.publish(cloud.header.stamp)
+            return
+        points = points[(heights >= p['min_z']) & (heights <= p['max_z'])]
+        if len(points) > p['max_processing_points']:
+            self.publish(cloud.header.stamp)
+            return
         centers, confidences = [], []
         for cluster in cluster_points(points, p['cluster_tolerance'],
                                       p['min_cluster_size'], p['max_cluster_size']):
@@ -130,7 +144,19 @@ class LidarTracker(Node):
         if self.previous_clock is not None and now < self.previous_clock:
             self.last_stamp = None
             self.tracker.reset(now)
+            self.orientation_history.clear()
         self.previous_clock = now
+
+    def on_orientation(self, msg):
+        self.observe_clock()
+        stamp = msg.timestamp.sec + msg.timestamp.nanosec * 1e-9
+        now = self.get_clock().now().nanoseconds * 1e-9
+        if msg.uav_id == 0 and msg.valid and 0 <= now-stamp <= self.params['stale_timeout']:
+            q = msg.pose.orientation
+            try:
+                self.orientation_history.add(stamp, [q.x, q.y, q.z, q.w])
+            except ValueError:
+                pass
 
 
 def main(args=None):

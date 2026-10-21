@@ -10,7 +10,7 @@ from std_srvs.srv import Trigger
 from swarm_interfaces.msg import FormationCommand, RelativePose, SwarmCommand, SwarmState
 from .core import FormationPlan, RelativeVelocityController, slot_feedforward
 from .prediction import LeaderVelocityPredictor
-from .timing import OrientationHistory
+from lidar_tracker.timing import OrientationHistory
 
 class FormationController(Node):
     def __init__(self):

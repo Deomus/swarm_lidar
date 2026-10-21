@@ -2,6 +2,11 @@ import numpy as np
 from lidar_tracker.tracking import TargetTracker, cluster_points
 
 
+def test_dense_oversize_component_rejects_whole_frame_without_false_fragments():
+    dense = np.random.default_rng(7).normal(0., .001, (3000, 3))
+    assert cluster_points(dense, .5, 3, 500) == []
+
+
 def test_noise_and_nonfinite():
     rng = np.random.default_rng(4)
     a = rng.normal([2, 0, 0], .02, (20, 3))

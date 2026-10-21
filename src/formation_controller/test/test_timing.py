@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from scipy.spatial.transform import Rotation
 
-from formation_controller.timing import OrientationHistory
+from lidar_tracker.timing import OrientationHistory
 
 
 def test_orientation_is_interpolated_at_measurement_time():

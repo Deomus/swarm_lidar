@@ -104,3 +104,15 @@ def test_distance_and_height_boundaries_are_inclusive_like_tracker():
     output = compact_cloud(cloud(points), config)
     np.testing.assert_array_equal(point_cloud2.read_points_numpy(output),
                                   np.array([points[0], points[1], points[4]], np.float32))
+
+
+@pytest.mark.parametrize('pitch', [-.0872664626, .0872664626])
+def test_tilt_compensated_filter_keeps_far_column_body(pitch):
+    from scipy.spatial.transform import Rotation
+    rotation = Rotation.from_euler('y', pitch)
+    raw = rotation.inv().apply([-12., 0., 0.]) - [0., 0., 1.9]
+    assert not CONFIG['min_z'] <= raw[2] <= CONFIG['max_z']
+    config = dict(CONFIG, level_filter=True, sensor_offset=[0., 0., 1.9])
+    output = compact_cloud(cloud([raw, raw]), config, rotation)
+    assert output.width == 2
+    np.testing.assert_allclose(point_cloud2.read_points_numpy(output), [raw, raw], atol=1e-6)
