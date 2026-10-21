@@ -204,11 +204,18 @@ class ControlResult:
 
 
 class RelativeVelocityController:
-    """P + feedforward. Никаких абсолютных поз ведомого в API."""
+    """Горизонтальный P, вертикальный PD и упреждение без абсолютных поз ведомого."""
 
     def __init__(self, kp=0.6, stale_timeout=0.3, min_confidence=0.5,
-                 max_speed=3.0, max_acceleration=2.0, max_jerk=4.0, period=0.05):
+                 max_speed=3.0, max_acceleration=2.0, max_jerk=4.0, period=0.05,
+                 vertical_kp=None, vertical_kd=0., vertical_derivative_time=.2):
         self.kp = _positive(kp, 'kp')
+        self.vertical_kp = self.kp if vertical_kp is None else _positive(vertical_kp, 'vertical_kp')
+        if not math.isfinite(vertical_kd) or vertical_kd < 0:
+            raise ValueError('vertical_kd must be finite and nonnegative')
+        self.vertical_kd = vertical_kd
+        self.vertical_derivative_time = _positive(vertical_derivative_time, 'vertical_derivative_time')
+        self._z_stamp, self._z_value, self._z_rate = -math.inf, None, 0.
         self.stale_timeout = _positive(stale_timeout, 'stale_timeout')
         if not math.isfinite(min_confidence) or not 0 <= min_confidence <= 1:
             raise ValueError('min_confidence must be in [0, 1]')
@@ -238,6 +245,19 @@ class RelativeVelocityController:
             rotation = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
             desired = slot_feedforward(offset, offset_velocity, leader_velocity,
                                        leader_yaw, leader_yaw_rate)
-            desired += rotation @ (self.kp * (offset - r))
+            if measurement_stamp > self._z_stamp:
+                dt = measurement_stamp-self._z_stamp
+                if self._z_value is not None and dt <= self.stale_timeout:
+                    measured_rate = (r[2]-self._z_value)/dt
+                    alpha = dt/(self.vertical_derivative_time+dt)
+                    self._z_rate += alpha*(measured_rate-self._z_rate)
+                else:
+                    self._z_rate = 0.
+                self._z_stamp, self._z_value = measurement_stamp, r[2]
+            correction = self.kp * (offset-r)
+            correction[2] = self.vertical_kp * (offset[2]-r[2]) - self.vertical_kd * (self._z_rate-offset_velocity[2])
+            desired += rotation @ correction
+        else:
+            self._z_stamp, self._z_value, self._z_rate = -math.inf, None, 0.
         velocity = self.limiter.step(desired)
         return ControlResult(velocity, error, 'FOLLOWING' if good else 'BRAKING')

@@ -276,3 +276,15 @@ def test_error_of_finished_flight_still_requires_landing_confirmation(tmp_path):
     session.phase = 'error'
     session.landing_confirmed = False
     assert not session.close()
+
+
+def test_hold_waits_for_actual_leader_mode_confirmation(backend):
+    from std_srvs.srv import Trigger
+    future = SimpleNamespace(done=lambda: True, result=lambda: Trigger.Response(success=True))
+    backend.pending = ('hold', future, time.monotonic()+5., None, 10.)
+    backend.action['state'] = 'pending'
+    backend.tick()
+    assert backend.pending is not None
+    backend.execution = dict(mode='HOLD', stamp=10.)
+    backend.tick()
+    assert backend.pending is None and backend.action['state'] == 'ok'

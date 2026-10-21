@@ -197,6 +197,11 @@ class Scenario:
         self.wait_sim(stable, timeout, 'Формация не установилась')
 
     def formation(self, name, scale=1., duration=20.):
+        start = self.now()
+        self.call('/leader/hold')
+        self.wait(lambda: self.execution.get('mode') == 'HOLD'
+            and start <= self.execution.get('stamp', -1) <= self.now(),
+            5., 'Нет подтверждённого удержания перед перестроением')
         self.formation_pub.publish(FormationCommand(formation=name, scale=float(scale), transition_time=float(duration), source='scenario'))
         self.event(f'Перестроение: {name}, scale={scale}')
         self.settle(name, scale, duration + 45.)

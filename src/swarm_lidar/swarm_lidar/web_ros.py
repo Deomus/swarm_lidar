@@ -224,6 +224,8 @@ class PanelBackend(Node):
             if action == 'hold':
                 self.cancel_goal()
             values = formation_request(body) if action == 'formation' else None
+            if action == 'formation' and (self.execution or {}).get('mode') in ('MISSION', 'MANUAL'):
+                raise ValueError('Перед перестроением нажмите «Удерживать»')
             if action == 'formation' and not snapshot['formation_settled']:
                 raise ValueError('Дождитесь установления текущего строя')
             self.commands.put_nowait((action, values))
@@ -278,6 +280,9 @@ class PanelBackend(Node):
                                     pass  # Продолжаем запросы остальным; подтверждение — свежая телеметрия.
                     elif name == 'formation':
                         status = self.formation or {}
+                        if (status.get('request_error') and sent_at <= status.get('request_stamp', -1) <= now
+                                and 0 <= now-status.get('time', -1) <= .5):
+                            raise ValueError(status['request_error'])
                         matched = (status.get('formation') == target[0]
                                    and abs(status.get('scale', 0)-target[1]) < .01
                                    and sent_at <= status.get('time', -1) <= now
@@ -290,10 +295,15 @@ class PanelBackend(Node):
                         response = future.result()
                         if response is None or not response.success:
                             raise ValueError('Команда отклонена: '+str(getattr(response, 'message', 'нет ответа')))
-                        self.action = dict(state='ok', message='Режим миссии включён.' if name == 'mission'
-                                           else ('Посадка запрошена.' if name == 'finish'
-                                           else 'Ведущий удерживает положение.'))
-                        self.pending = None
+                        execution = self.execution or {}
+                        hold_confirmed = (execution.get('mode') == 'HOLD'
+                            and sent_at <= execution.get('stamp', -1) <= now
+                            and now-execution['stamp'] <= .5)
+                        if name != 'hold' or hold_confirmed:
+                            self.action = dict(state='ok', message='Режим миссии включён.' if name == 'mission'
+                                               else ('Посадка запрошена.' if name == 'finish'
+                                               else 'Ведущий удерживает положение.'))
+                            self.pending = None
                     if self.pending is not None and wall >= deadline:
                         raise ValueError('Не получено подтверждение команды')
                 except Exception as error:

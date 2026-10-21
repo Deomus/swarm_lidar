@@ -2,6 +2,9 @@ formation_controller:
   ros__parameters:
     period: 0.05
     kp: 0.3
+    vertical_kp: 1.0
+    vertical_kd: 1.2
+    vertical_derivative_time: 0.2
     stale_timeout: 0.5
     min_confidence: 0.4
     max_speed: 2.0
@@ -19,6 +22,8 @@ formation_controller:
     leader_prediction_max_acceleration: 1.0
     leader_prediction_smoothing: 0.3
     predict_slot_motion: true
+    require_transition_map: true
+    transition_map_margin: 0.75
     leader_status_topic: /mission/execution_status
     poses_topic: /mesh/relative_poses
     states_topic: /mesh/states

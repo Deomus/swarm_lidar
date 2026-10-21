@@ -251,3 +251,26 @@ def test_short_transition_is_lengthened_to_feasible_speed():
     plan.request('column', 2., 2., 1.)
     for time in np.linspace(1., 40., 200):
         assert np.linalg.norm(plan.sample(time).velocities, axis=1).max() <= 1.5 + 1e-8
+
+
+def test_vertical_damping_keeps_target_visible_under_unobserved_vertical_drift():
+    peaks = []
+    for gain, damping in [(.3, 0.), (1., 1.2)]:
+        controller = RelativeVelocityController(kp=.3, vertical_kp=gain,
+            vertical_kd=damping, stale_timeout=.5, max_speed=2.,
+            max_acceleration=4., max_jerk=8.)
+        relative_z = velocity = measured_z = peak = 0.
+        for i in range(1600):
+            now = i*.05
+            if i % 2 == 0:
+                measured_z = relative_z
+            leader_velocity = .35 if 5 < now < 15 else -.35 if 15 < now < 25 else 0.
+            result = controller.step([-4., 0., measured_z], [-4., 0., 0.],
+                [0., 0., 0.], [0., 0., 0.], 0., 0., (i//2)*.1, now)
+            velocity += .05/.25*(result.velocity_enu[2]-velocity)
+            relative_z += .05*(velocity-leader_velocity)
+            peak = max(peak, abs(relative_z))
+        peaks.append(peak)
+        assert abs(relative_z) < .01
+    assert peaks[0] > 1.
+    assert peaks[1] < .8

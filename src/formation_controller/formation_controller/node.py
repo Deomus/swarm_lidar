@@ -4,11 +4,14 @@ import numpy as np
 import rclpy
 from geometry_msgs.msg import Pose, PoseArray
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSProfile
+from nav_msgs.msg import OccupancyGrid
 from scipy.spatial.transform import Rotation
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from swarm_interfaces.msg import FormationCommand, RelativePose, SwarmCommand, SwarmState
-from .core import FormationPlan, RelativeVelocityController, slot_feedforward
+from .core import FormationPlan, RelativeVelocityController, slot_feedforward, formation_offsets
+from .obstacles import check_transition_map
 from .prediction import LeaderVelocityPredictor
 from lidar_tracker.timing import OrientationHistory
 
@@ -26,6 +29,8 @@ class FormationController(Node):
                         states_topic='/mesh/states', commands_topic='/swarm/commands',
                         formation_topic='/swarm/formation_command',
                         status_topic='/swarm/formation_status', target_topic='/swarm/target_offsets')
+        defaults.update(require_transition_map=False, transition_map_margin=.75)
+        defaults.update(vertical_kp=1., vertical_kd=1.2, vertical_derivative_time=.2)
         for key, value in defaults.items():
             self.declare_parameter(key, value)
         self.p = {key: self.get_parameter(key).value for key in defaults}
@@ -44,8 +49,13 @@ class FormationController(Node):
         self.previous_time = None
         self.last_status = None
         self.leader_intent = None
+        self.map = None
+        self.create_subscription(OccupancyGrid, '/map', self.on_map,
+            QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.orientation_history = OrientationHistory()
         self.reason = 'DISABLED'
+        self.request_error = None
+        self.request_stamp = -1.
         self.command_pub = self.create_publisher(SwarmCommand, self.p['commands_topic'], 10)
         self.status_pub = self.create_publisher(String, self.p['status_topic'], 10)
         self.targets_pub = self.create_publisher(PoseArray, self.p['target_topic'], 10)
@@ -62,6 +72,8 @@ class FormationController(Node):
             kp=self.p['kp'], stale_timeout=self.p['stale_timeout'],
             min_confidence=self.p['min_confidence'], max_speed=self.p['max_speed'],
             max_acceleration=self.p['max_acceleration'], max_jerk=self.p['max_jerk'],
+            vertical_kp=self.p['vertical_kp'], vertical_kd=self.p['vertical_kd'],
+            vertical_derivative_time=self.p['vertical_derivative_time'],
             period=self.p['period']) for _ in range(3)]
 
     def now(self):
@@ -156,12 +168,28 @@ class FormationController(Node):
         return response
 
     def on_formation(self, msg):
+        self.request_stamp, self.request_error = self.now(), None
         try:
+            if self.p['require_transition_map']:
+                now = self.now()
+                intent = self.leader_intent or {}
+                if not 0 <= now-intent.get('stamp', -1) <= self.p['stale_timeout'] or intent.get('mode') != 'HOLD':
+                    raise ValueError('Перед перестроением остановите ведущего через удержание')
+                leader = self.states.get(0)
+                if leader is None or not leader.valid or leader.frame_id != 'map' or not 0 <= now-self.seconds(leader.timestamp) <= self.p['stale_timeout']:
+                    raise ValueError('Нет свежего положения ведущего для проверки карты')
+                target = formation_offsets(msg.formation, msg.scale, self.p['gap'], self.p['min_separation']+.2)
+                check_transition_map(self.map, [leader.pose.position.x, leader.pose.position.y],
+                    self.plan.sample(now).offsets, target, self.p['transition_map_margin'])
             self.plan.request(msg.formation, msg.scale, msg.transition_time, self.now())
             self.formation, self.scale = msg.formation, msg.scale
             self.get_logger().info(f'Принято: {self.formation}, scale={self.scale}')
         except ValueError as error:
+            self.request_error = str(error)
             self.get_logger().warning(f'Формация отклонена: {error}')
+
+    def on_map(self, message):
+        self.map = message
 
     def measured(self, leader):
         q = leader.pose.orientation
@@ -261,7 +289,8 @@ class FormationController(Node):
             self.command_pub.publish(command)
         self.status_pub.publish(String(data=json.dumps(
             dict(mode=state, formation=self.formation, scale=self.scale,
-                 min_distance=minimum, errors=errors, time=now))))
+                 min_distance=minimum, errors=errors, time=now,
+                 request_error=self.request_error, request_stamp=self.request_stamp))))
         if state != self.last_status:
             self.get_logger().info(f'{state}, min_distance={minimum}, t={now:.3f}')
             self.last_status = state
