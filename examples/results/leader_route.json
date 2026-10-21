@@ -31,6 +31,21 @@
        "formation_rms": 0.492465, "formation_max": 0.903627, "min_pair_distance": 3.958688}
     ]
   },
+  "validation": {
+    "python_tests_passed": 365,
+    "ros_pipeline_smoke_passed": true,
+    "s3": {
+      "source": "log/s3_leader_route",
+      "passed_run": true, "passed_landing": true, "bag_recorded": true,
+      "final_leader_error_px4": 0.384,
+      "active_formation_rms_gt": 0.119318,
+      "active_formation_max_gt": 0.241355,
+      "active_min_pair_gt": 3.796883,
+      "mission_route_rms_gt": 0.331871,
+      "mission_route_max_gt": 0.748946
+    },
+    "additional_checks": "Дополнительный S1 прерван для завершения работы; S2 на этой версии не повторялся"
+  },
   "limitations": [
     "По одному свежему миру для исходного и нового вариантов; это не статистическая серия",
     "Исходные оценки PX4 и положение в первой клетке могут отличаться между мирами",
