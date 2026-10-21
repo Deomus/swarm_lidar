@@ -5,6 +5,7 @@ import argparse
 import json
 import math
 from pathlib import Path
+import signal
 import time
 
 import rclpy
@@ -19,6 +20,9 @@ def main():
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+    def interrupt(signum, frame):
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM, interrupt)
     scenario = Scenario('operator', args.output)
     result = dict(passed=False, landed=False, routes=[])
     try:
@@ -69,6 +73,8 @@ def main():
             scenario.wait(lambda: scenario.now()-rest >= 8., 35., 'Нет времени удержания')
         result['passed'] = True
     finally:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
         try:
             scenario.land()
             result['landed'] = True
