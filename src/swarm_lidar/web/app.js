@@ -81,7 +81,8 @@ function draw() {
   valid.forEach(drone=>{
     const x=px(drone.position[0]),y=py(drone.position[1]);ctx.fillStyle=drone.id===0?'#f09588':'#cde8dc';ctx.beginPath();ctx.arc(x,y,drone.id===0?6:4.5,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle=ctx.fillStyle;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+14*Math.cos(drone.yaw),y-14*Math.sin(drone.yaw));ctx.stroke();
-    ctx.font='11px system-ui';ctx.textAlign='center';ctx.fillText(names[drone.id],x,y-13);
+    ctx.font='11px system-ui';ctx.textAlign=drone.id===0?'left':'center';
+    ctx.fillText(names[drone.id],drone.id===0?x+11:x,drone.id===0?y+4:y-13);
   });
 }
 new ResizeObserver(draw).observe($('map'));

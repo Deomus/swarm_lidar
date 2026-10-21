@@ -17,6 +17,7 @@ from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rclpy.parameter_client import AsyncParameterClient
 from rclpy.qos import QoSProfile, DurabilityPolicy
+from rclpy.signals import SignalHandlerOptions
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from swarm_interfaces.msg import FormationCommand, RelativePose, SwarmState, SwarmCommand
@@ -514,7 +515,12 @@ def main():
     args = parser.parse_args()
     output = Path(args.output or ('log/' + args.scenario + '_' + time.strftime('%Y%m%d_%H%M%S')))
     output.mkdir(parents=True, exist_ok=False)
-    rclpy.init()
+    # ROS должен оставаться доступным в finally после запроса остановки.
+    # Штатный обработчик rclpy закрывает контекст до выполнения посадки.
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+    def terminate(signum, frame):
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM, terminate)
     scenario = Scenario(args.scenario, output)
     config = Path(get_package_share_directory('evaluation')) / 'config/evaluation.yaml'
     handle = open(output / 'evaluation.log', 'w')
@@ -547,6 +553,7 @@ def main():
     finally:
         # Повторный сигнал остановки не должен прерывать уже начавшуюся посадку.
         signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
         try:
             scenario.land()
             landed = True

@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import secrets
 import signal
+import sys
 import threading
 from urllib.parse import urlsplit
 
@@ -85,7 +86,8 @@ def make_server(backend, assets, port):
                 self.send(202, dict(accepted=True))
             except (ValueError, TypeError) as error:
                 self.send(400, dict(error=str(error)))
-            except Exception:
+            except Exception as error:
+                print(f'Ошибка команды панели: {error}', file=sys.stderr, flush=True)
                 self.send(500, dict(error='Команда не выполнена; проверьте терминал панели'))
 
     server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
