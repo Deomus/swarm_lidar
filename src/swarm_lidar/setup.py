@@ -15,5 +15,6 @@ setup(name='swarm_lidar', version='0.1.0', packages=['swarm_lidar'],
                     for path in model_files]],
       install_requires=['setuptools', 'numpy', 'PyYAML'], zip_safe=True,
       entry_points={'console_scripts': ['sitl = swarm_lidar.sitl:main',
+                                       'scenario_runner = swarm_lidar.scenario:main',
                                        'cloud_source = swarm_lidar.cloud_source:main']})
 

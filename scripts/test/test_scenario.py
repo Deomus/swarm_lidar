@@ -1,6 +1,5 @@
 """Проверки посадки без запуска ROS-узлов и полётного контроллера."""
-import importlib.util
-from pathlib import Path
+import importlib
 from types import SimpleNamespace
 
 import pytest
@@ -8,10 +7,7 @@ import pytest
 
 @pytest.fixture
 def scenario_module():
-    spec = importlib.util.spec_from_file_location('scenario_under_test', Path(__file__).parents[1] / 'run_scenario.py')
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return importlib.import_module('swarm_lidar.scenario')
 
 
 def make_scenario(module, monkeypatch, fresh=True):
