@@ -51,6 +51,8 @@ class PanelBackend(Node):
         self.settled_since = None
         self.settled_target = None
         self.execution = None
+        self.mission_status = None
+        self.goal_waiting = False
         self.clock_previous = None
         self.clock_progress = 0.
         self.action = dict(state='idle', message='Запустите симуляцию и дождитесь подключения четырёх аппаратов.')
@@ -62,6 +64,7 @@ class PanelBackend(Node):
         self.create_subscription(SwarmState, '/mesh/states', self.on_state, 10)
         self.create_subscription(String, '/swarm/formation_status', self.on_formation, 10)
         self.create_subscription(String, '/mission/execution_status', self.on_execution, 10)
+        self.create_subscription(String, '/mission/status', self.on_mission_status, 10)
         self.publisher = self.create_publisher(FormationCommand, '/swarm/formation_command', 10)
         self.goal_publisher = self.create_publisher(PoseStamped, '/mission/goal', 10)
         self.create_timer(.05, self.tick)
@@ -105,6 +108,10 @@ class PanelBackend(Node):
 
     def on_execution(self, msg):
         self.status_message(msg, 'execution', 'stamp')
+
+    def on_mission_status(self, msg):
+        with self.lock:
+            self.mission_status = msg.data
 
     def fresh(self, row, now, wall):
         return (row['valid'] and 0 <= now-row['stamp'] <= .5
@@ -177,8 +184,10 @@ class PanelBackend(Node):
                 goal.header.stamp = self.get_clock().now().to_msg()
                 goal.pose.position.x, goal.pose.position.y, goal.pose.position.z = x, y, z
                 goal.pose.orientation.w = 1.
+                self.mission_status = None
                 self.goal_publisher.publish(goal)
-                self.action = dict(state='ok', message=f'Маршрут задан: X={x:.1f}, Y={y:.1f}, высота={z:.1f} м')
+                self.goal_waiting = True
+                self.action = dict(state='pending', message=f'Маршрут строится: X={x:.1f}, Y={y:.1f}, высота={z:.1f} м')
                 return
             if action not in ('formation', 'hold'):
                 raise ValueError('Неизвестная команда')
@@ -252,8 +261,9 @@ class PanelBackend(Node):
                         response = future.result()
                         if response is None or not response.success:
                             raise ValueError('Команда отклонена: '+str(getattr(response, 'message', 'нет ответа')))
-                        self.action = dict(state='ok', message='Посадка запрошена.' if name == 'finish'
-                                           else 'Ведущий удерживает положение.')
+                        self.action = dict(state='ok', message='Режим миссии включён.' if name == 'mission'
+                                           else ('Посадка запрошена.' if name == 'finish'
+                                           else 'Ведущий удерживает положение.'))
                         self.pending = None
                     if self.pending is not None and wall >= deadline:
                         raise ValueError('Не получено подтверждение команды')
@@ -262,11 +272,21 @@ class PanelBackend(Node):
                         self.flight.stop()
                     self.action = dict(state='error', message=str(error))
                     self.pending = None
+            if self.goal_waiting and isinstance(self.mission_status, str):
+                if self.mission_status.startswith('PLANNED:'):
+                    self.commands.put_nowait(('mission', None))
+                    self.goal_waiting = False
+                    self.action = dict(state='pending', message='Маршрут построен; ведущий начинает полёт.')
+                elif self.mission_status.startswith('REJECTED:'):
+                    self.goal_waiting = False
+                    self.action = dict(state='error', message='Маршрут отклонён: '+self.mission_status[9:])
             # Посадка не ждёт завершения запроса перестроения или HOLD.
             if not self.commands.empty():
                 name, values = self.commands.get_nowait()
                 try:
-                    if name == 'land':
+                    if name == 'mission':
+                        future = self.call('/leader/mission')
+                    elif name == 'land':
                         self.last_landing_request = 0.
                         future = None
                     elif name == 'formation':
