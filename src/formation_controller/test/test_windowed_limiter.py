@@ -3,7 +3,9 @@
 import numpy as np
 import pytest
 
-from formation_controller.core import VelocityLimiter, WindowedVelocityLimiter, slot_feedforward
+from formation_controller.core import (
+    RelativeVelocityController, VelocityLimiter, WindowedVelocityLimiter, slot_feedforward,
+)
 from formation_controller.prediction import LeaderVelocityPredictor
 
 
@@ -77,3 +79,16 @@ def test_following_translation_turns_and_stops_on_ideal_model():
     rms = np.sqrt(np.mean(errors**2, axis=0))
     assert rms[1] < .7*rms[0]
     assert errors[:, 1].max() < .8*errors[:, 0].max()
+
+
+def test_new_smoothing_preserves_stale_and_confidence_gates():
+    controller = RelativeVelocityController(velocity_smoothing='windowed')
+    args = dict(relative_flu=[-4., 0., 0.], offset_flu=[-4., 0., 0.],
+                offset_velocity_flu=[0., 0., 0.], leader_velocity_enu=[1., 0., 0.],
+                leader_yaw=0., leader_yaw_rate=0., measurement_stamp=1., now=1.)
+    assert controller.step(**args).safety_state == 'FOLLOWING'
+    assert controller.step(**dict(args, now=2.)).safety_state == 'BRAKING'
+    assert controller.step(**dict(args, measurement_stamp=2., now=2., confidence=.1)).safety_state == 'BRAKING'
+    for tick in range(200):
+        output = controller.step(**dict(args, measurement_stamp=2., now=3.+tick*.05))
+    np.testing.assert_allclose(output.velocity_enu, 0., atol=1e-12)
