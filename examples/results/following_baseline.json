@@ -1,0 +1,191 @@
+{
+  "runs": [
+    {
+      "source": "log/following_baseline_1_20261022",
+      "scenario": "s2",
+      "passed": true,
+      "passed_landing": true,
+      "runtime_revision": "1a485dd79ae0a9262169c26359380c64521d5252",
+      "configuration_sha256": "0a39ea15d0ec890ad5c9791f3e97565182cde0ba4627925f9e925657787c17ab",
+      "formation": {
+        "count": 2409,
+        "mean": 0.5621471372984262,
+        "rms": 0.7109753584728865,
+        "max": 2.258763597684025,
+        "min": 0.023010433710555975
+      },
+      "localization": {
+        "count": 2409,
+        "mean": 0.03652698685195342,
+        "rms": 0.03788126763748126,
+        "max": 0.07273473577768133,
+        "min": 0.002984212463093283
+      },
+      "min_pair_distance_m": 3.3772521726877334,
+      "formation_missing_share": 0,
+      "localization_missing_share": 0,
+      "manual_windows": {
+        "0.5": {
+          "count": 723,
+          "mean": 0.3896579356624866,
+          "rms": 0.5894106554961949,
+          "max": 1.8144476296269278,
+          "min": 0.023010433710555975
+        },
+        "1.0": {
+          "count": 723,
+          "mean": 0.5983836240754141,
+          "rms": 0.7205599779989132,
+          "max": 2.078382940528961,
+          "min": 0.07065180763925592
+        },
+        "1.5": {
+          "count": 891,
+          "mean": 0.7073877995782745,
+          "rms": 0.8133381722634043,
+          "max": 2.258763597684025,
+          "min": 0.08109860634313583
+        }
+      },
+      "confirmed_zero_delay_s": 0.356,
+      "transitions": null
+    },
+    {
+      "source": "log/following_baseline_series_20261022/s2_2/flight",
+      "scenario": "s2",
+      "passed": true,
+      "passed_landing": true,
+      "runtime_revision": "1a485dd79ae0a9262169c26359380c64521d5252",
+      "configuration_sha256": "0a39ea15d0ec890ad5c9791f3e97565182cde0ba4627925f9e925657787c17ab",
+      "formation": {
+        "count": 2409,
+        "mean": 0.5642107753964691,
+        "rms": 0.7133736881809756,
+        "max": 2.28140200088674,
+        "min": 0.01679563026882519
+      },
+      "localization": {
+        "count": 2409,
+        "mean": 0.036878461029249535,
+        "rms": 0.038174317138303444,
+        "max": 0.07255814527528602,
+        "min": 0.0034743731571731523
+      },
+      "min_pair_distance_m": 3.413184097100779,
+      "formation_missing_share": 0,
+      "localization_missing_share": 0,
+      "manual_windows": {
+        "0.5": {
+          "count": 723,
+          "mean": 0.3890479403997358,
+          "rms": 0.5795754902130059,
+          "max": 1.8478600397336746,
+          "min": 0.01679563026882519
+        },
+        "1.0": {
+          "count": 723,
+          "mean": 0.5990380692649762,
+          "rms": 0.7248339675793158,
+          "max": 2.03722986031835,
+          "min": 0.0432117356043337
+        },
+        "1.5": {
+          "count": 888,
+          "mean": 0.7145118497758614,
+          "rms": 0.8229277520220505,
+          "max": 2.28140200088674,
+          "min": 0.10004523836057115
+        }
+      },
+      "confirmed_zero_delay_s": 0.356,
+      "transitions": null
+    },
+    {
+      "source": "log/following_baseline_series_20261022/s2_3/flight",
+      "scenario": "s2",
+      "passed": true,
+      "passed_landing": true,
+      "runtime_revision": "1a485dd79ae0a9262169c26359380c64521d5252",
+      "configuration_sha256": "0a39ea15d0ec890ad5c9791f3e97565182cde0ba4627925f9e925657787c17ab",
+      "formation": {
+        "count": 2412,
+        "mean": 0.5757894431860857,
+        "rms": 0.7248551989880988,
+        "max": 2.2715133258647504,
+        "min": 0.009936674200769878
+      },
+      "localization": {
+        "count": 2412,
+        "mean": 0.036925537478410285,
+        "rms": 0.03821102467450833,
+        "max": 0.07096915330272881,
+        "min": 0.0048559553733161405
+      },
+      "min_pair_distance_m": 3.3882558224935684,
+      "formation_missing_share": 0,
+      "localization_missing_share": 0,
+      "manual_windows": {
+        "0.5": {
+          "count": 726,
+          "mean": 0.40174777684669477,
+          "rms": 0.6028937273548781,
+          "max": 1.8926496060469271,
+          "min": 0.009936674200769878
+        },
+        "1.0": {
+          "count": 726,
+          "mean": 0.6069222390132565,
+          "rms": 0.7311091864253054,
+          "max": 2.1255091443082734,
+          "min": 0.023806679938652854
+        },
+        "1.5": {
+          "count": 885,
+          "mean": 0.7291805830874724,
+          "rms": 0.8323340774209523,
+          "max": 2.2715133258647504,
+          "min": 0.0913343583637775
+        }
+      },
+      "confirmed_zero_delay_s": 0.404,
+      "transitions": null
+    }
+  ],
+  "all_passed": true,
+  "formation_rms_m": {
+    "count": 3,
+    "mean": 0.7164014152139869,
+    "sample_std": 0.007418749316546094,
+    "min": 0.7109753584728865,
+    "max": 0.7248551989880988
+  },
+  "formation_max_m": {
+    "count": 3,
+    "mean": 2.270559641478505,
+    "sample_std": 0.01134929338433012,
+    "min": 2.258763597684025,
+    "max": 2.28140200088674
+  },
+  "min_pair_distance_m": {
+    "count": 3,
+    "mean": 3.392897364094027,
+    "sample_std": 0.01841015288713813,
+    "min": 3.3772521726877334,
+    "max": 3.413184097100779
+  },
+  "localization_rms_m": {
+    "count": 3,
+    "mean": 0.03808886981676434,
+    "sample_std": 0.0001807231568888525,
+    "min": 0.03788126763748126,
+    "max": 0.03821102467450833
+  },
+  "confirmed_zero_delay_s": {
+    "count": 3,
+    "mean": 0.372,
+    "sample_std": 0.027712812921102063,
+    "min": 0.356,
+    "max": 0.404
+  },
+  "note": "Три S2 исходной версии1a485dd, каждый в новом мире. Неудачные опыты не исключались. Разброс метрик отдельных полётов, не доверительный интервал."
+}
