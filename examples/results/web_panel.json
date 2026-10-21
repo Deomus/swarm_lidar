@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-21",
+  "passed": true,
+  "browser": "Chromium",
+  "python_tests_passed": 348,
+  "browser_report": "log/web_browser_flights_2/browser_result.json",
+  "javascript_errors": [],
+  "runs": [
+    {
+      "scenario": "operator",
+      "source": "log/web/operator__pq1sixv/flight",
+      "passed_run": true,
+      "passed_landing": true,
+      "bag_recorded": true,
+      "checked": "Взлёт, клин, линия, удержание и посадка"
+    },
+    {
+      "scenario": "s1",
+      "source": "log/web/s1_ypoydc2m/flight",
+      "expected_interruption": true,
+      "passed_run": false,
+      "passed_landing": true,
+      "bag_recorded": true,
+      "checked": "Прерывание подготовки после вооружения и посадка"
+    },
+    {
+      "scenario": "s1",
+      "source": "log/web/s1_cax66vj2/flight",
+      "passed_run": true,
+      "passed_landing": true,
+      "bag_recorded": true
+    },
+    {
+      "scenario": "s3",
+      "source": "log/web/s3_dvtyvbqc/flight",
+      "passed_run": true,
+      "passed_landing": true,
+      "bag_recorded": true
+    },
+    {
+      "scenario": "s2",
+      "source": "log/web/s2_0axgovet/flight",
+      "passed_run": true,
+      "passed_landing": true,
+      "bag_recorded": true
+    }
+  ],
+  "server_shutdown": {
+    "passed": true,
+    "source": "log/web_shutdown_check_2/shutdown_result.json",
+    "flight": "log/web_shutdown_check_2/sessions/operator__4eb_miy/flight",
+    "server_exit_code": 0,
+    "passed_landing": true,
+    "bag_recorded": true,
+    "javascript_errors": [],
+    "checked": "Закрытие вкладки сохранило полёт; остановка сервера выполнила посадку"
+  },
+  "notes": [
+    "Проверки выполнены по мере разработки панели и не являются статистической серией контроллера.",
+    "Симуляция запускается отдельно; ручное движение и произвольная цель пока не входят в панель.",
+    "Вид сверху использует оценки PX4; эталонные координаты в панель не поступают."
+  ]
+}
