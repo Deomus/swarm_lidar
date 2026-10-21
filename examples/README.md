@@ -2,6 +2,9 @@
 
 После исправлений архитектуры (исполняемый код `0c1d314`):
 
+[audit_fixes.json](results/audit_fixes.json) объединяет метрики трёх
+сценариев, две проверки повторной обработки облаков и оставшиеся ограничения.
+
 - [audit_s1_vertical.json](results/audit_s1_vertical.json) — изменение
   высоты и перестроения; RMS строя 0,220 м, максимум 0,761 м.
 - [audit_s2_vertical.json](results/audit_s2_vertical.json) — сопровождение
