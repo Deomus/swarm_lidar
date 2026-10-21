@@ -18,5 +18,6 @@ setup(name='swarm_lidar', version='0.1.0', packages=['swarm_lidar'],
       entry_points={'console_scripts': ['sitl = swarm_lidar.sitl:main',
                                        'scenario_runner = swarm_lidar.scenario:main',
                                        'web_panel = swarm_lidar.web_panel:main',
+                                       'training_map = swarm_lidar.training_map:main',
                                        'cloud_source = swarm_lidar.cloud_source:main']})
 
