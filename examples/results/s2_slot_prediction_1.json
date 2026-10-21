@@ -1,0 +1,2269 @@
+{
+  "windows": [
+    {
+      "kind": "manual_input",
+      "requested_speed_mps": 0.5,
+      "start": 72.304,
+      "end": 96.44800000000001,
+      "duration_s": 24.144000000000005,
+      "metrics": {
+        "localization_error_m": {
+          "count": 723,
+          "mean": 0.0360768803682352,
+          "rms": 0.03720474162765885,
+          "max": 0.0664736080209915,
+          "min": 0.010974115236296503
+        },
+        "formation_error_m": {
+          "count": 723,
+          "mean": 0.4215694778776073,
+          "rms": 0.6142448858677068,
+          "max": 1.9526831176958956,
+          "min": 0.025428170245112482
+        },
+        "min_pair_distance_m": {
+          "count": 723,
+          "mean": 3.9298315538327104,
+          "rms": 3.9304891717119657,
+          "max": 4.032725733621723,
+          "min": 3.7716651406037935
+        },
+        "route_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "goal_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "rows": 723,
+        "relative_stale_share": 0.0,
+        "leader_state_stale_share": 0.0,
+        "gt_missing_share": 0.0,
+        "formation_missing_share": 0.0,
+        "localization_missing_share": 0.0,
+        "per_target": {
+          "1": {
+            "localization_error_m": {
+              "count": 241,
+              "mean": 0.03971171449306072,
+              "rms": 0.04057000767896383,
+              "max": 0.0664736080209915,
+              "min": 0.01680277703395458
+            },
+            "formation_error_m": {
+              "count": 241,
+              "mean": 0.49339150414686,
+              "rms": 0.7398641689400648,
+              "max": 1.9526831176958956,
+              "min": 0.03559483232756835
+            }
+          },
+          "2": {
+            "localization_error_m": {
+              "count": 241,
+              "mean": 0.03143557060327242,
+              "rms": 0.032470054318244394,
+              "max": 0.052047530841221316,
+              "min": 0.010974115236296503
+            },
+            "formation_error_m": {
+              "count": 241,
+              "mean": 0.345318767799879,
+              "rms": 0.48026034038575544,
+              "max": 1.2401739266470417,
+              "min": 0.025428170245112482
+            }
+          },
+          "3": {
+            "localization_error_m": {
+              "count": 241,
+              "mean": 0.03708335600837243,
+              "rms": 0.03810968968965279,
+              "max": 0.06002045257737263,
+              "min": 0.016044390849293197
+            },
+            "formation_error_m": {
+              "count": 241,
+              "mean": 0.425998161686083,
+              "rms": 0.5948456576416119,
+              "max": 1.496908422921619,
+              "min": 0.03157915511896448
+            }
+          }
+        },
+        "active_control": {
+          "localization_error_m": {
+            "count": 723,
+            "mean": 0.0360768803682352,
+            "rms": 0.03720474162765885,
+            "max": 0.0664736080209915,
+            "min": 0.010974115236296503
+          },
+          "formation_error_m": {
+            "count": 723,
+            "mean": 0.4215694778776073,
+            "rms": 0.6142448858677068,
+            "max": 1.9526831176958956,
+            "min": 0.025428170245112482
+          },
+          "min_pair_distance_m": {
+            "count": 723,
+            "mean": 3.9298315538327104,
+            "rms": 3.9304891717119657,
+            "max": 4.032725733621723,
+            "min": 3.7716651406037935
+          },
+          "route_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "goal_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "rows": 723,
+          "relative_stale_share": 0.0,
+          "leader_state_stale_share": 0.0,
+          "gt_missing_share": 0.0,
+          "formation_missing_share": 0.0,
+          "localization_missing_share": 0.0,
+          "per_target": {
+            "1": {
+              "localization_error_m": {
+                "count": 241,
+                "mean": 0.03971171449306072,
+                "rms": 0.04057000767896383,
+                "max": 0.0664736080209915,
+                "min": 0.01680277703395458
+              },
+              "formation_error_m": {
+                "count": 241,
+                "mean": 0.49339150414686,
+                "rms": 0.7398641689400648,
+                "max": 1.9526831176958956,
+                "min": 0.03559483232756835
+              }
+            },
+            "2": {
+              "localization_error_m": {
+                "count": 241,
+                "mean": 0.03143557060327242,
+                "rms": 0.032470054318244394,
+                "max": 0.052047530841221316,
+                "min": 0.010974115236296503
+              },
+              "formation_error_m": {
+                "count": 241,
+                "mean": 0.345318767799879,
+                "rms": 0.48026034038575544,
+                "max": 1.2401739266470417,
+                "min": 0.025428170245112482
+              }
+            },
+            "3": {
+              "localization_error_m": {
+                "count": 241,
+                "mean": 0.03708335600837243,
+                "rms": 0.03810968968965279,
+                "max": 0.06002045257737263,
+                "min": 0.016044390849293197
+              },
+              "formation_error_m": {
+                "count": 241,
+                "mean": 0.425998161686083,
+                "rms": 0.5948456576416119,
+                "max": 1.496908422921619,
+                "min": 0.03157915511896448
+              }
+            }
+          }
+        },
+        "following_by_formation": {
+          "line": {
+            "localization_error_m": {
+              "count": 723,
+              "mean": 0.0360768803682352,
+              "rms": 0.03720474162765885,
+              "max": 0.0664736080209915,
+              "min": 0.010974115236296503
+            },
+            "formation_error_m": {
+              "count": 723,
+              "mean": 0.4215694778776073,
+              "rms": 0.6142448858677068,
+              "max": 1.9526831176958956,
+              "min": 0.025428170245112482
+            },
+            "min_pair_distance_m": {
+              "count": 723,
+              "mean": 3.9298315538327104,
+              "rms": 3.9304891717119657,
+              "max": 4.032725733621723,
+              "min": 3.7716651406037935
+            },
+            "route_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "goal_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "rows": 723,
+            "relative_stale_share": 0.0,
+            "leader_state_stale_share": 0.0,
+            "gt_missing_share": 0.0,
+            "formation_missing_share": 0.0,
+            "localization_missing_share": 0.0,
+            "per_target": {
+              "1": {
+                "localization_error_m": {
+                  "count": 241,
+                  "mean": 0.03971171449306072,
+                  "rms": 0.04057000767896383,
+                  "max": 0.0664736080209915,
+                  "min": 0.01680277703395458
+                },
+                "formation_error_m": {
+                  "count": 241,
+                  "mean": 0.49339150414686,
+                  "rms": 0.7398641689400648,
+                  "max": 1.9526831176958956,
+                  "min": 0.03559483232756835
+                }
+              },
+              "2": {
+                "localization_error_m": {
+                  "count": 241,
+                  "mean": 0.03143557060327242,
+                  "rms": 0.032470054318244394,
+                  "max": 0.052047530841221316,
+                  "min": 0.010974115236296503
+                },
+                "formation_error_m": {
+                  "count": 241,
+                  "mean": 0.345318767799879,
+                  "rms": 0.48026034038575544,
+                  "max": 1.2401739266470417,
+                  "min": 0.025428170245112482
+                }
+              },
+              "3": {
+                "localization_error_m": {
+                  "count": 241,
+                  "mean": 0.03708335600837243,
+                  "rms": 0.03810968968965279,
+                  "max": 0.06002045257737263,
+                  "min": 0.016044390849293197
+                },
+                "formation_error_m": {
+                  "count": 241,
+                  "mean": 0.425998161686083,
+                  "rms": 0.5948456576416119,
+                  "max": 1.496908422921619,
+                  "min": 0.03157915511896448
+                }
+              }
+            }
+          },
+          "column": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "min_pair_distance_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "route_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "goal_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "rows": 0,
+            "relative_stale_share": null,
+            "leader_state_stale_share": null,
+            "gt_missing_share": null,
+            "formation_missing_share": null,
+            "localization_missing_share": null,
+            "per_target": {
+              "1": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "2": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "3": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              }
+            }
+          },
+          "wedge": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "min_pair_distance_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "route_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "goal_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "rows": 0,
+            "relative_stale_share": null,
+            "leader_state_stale_share": null,
+            "gt_missing_share": null,
+            "formation_missing_share": null,
+            "localization_missing_share": null,
+            "per_target": {
+              "1": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "2": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "3": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              }
+            }
+          }
+        },
+        "mission": {
+          "localization_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "formation_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "min_pair_distance_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "route_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "goal_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "rows": 0,
+          "relative_stale_share": null,
+          "leader_state_stale_share": null,
+          "gt_missing_share": null,
+          "formation_missing_share": null,
+          "localization_missing_share": null,
+          "per_target": {
+            "1": {
+              "localization_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              },
+              "formation_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              }
+            },
+            "2": {
+              "localization_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              },
+              "formation_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              }
+            },
+            "3": {
+              "localization_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              },
+              "formation_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "manual_input",
+      "requested_speed_mps": 1.0,
+      "start": 96.44800000000001,
+      "end": 120.56400000000001,
+      "duration_s": 24.116,
+      "metrics": {
+        "localization_error_m": {
+          "count": 723,
+          "mean": 0.036137571559898995,
+          "rms": 0.03764290217547183,
+          "max": 0.07122685153258025,
+          "min": 0.008657816869772524
+        },
+        "formation_error_m": {
+          "count": 723,
+          "mean": 0.6281796771053261,
+          "rms": 0.7447774186183224,
+          "max": 2.13002251165331,
+          "min": 0.06507537746583751
+        },
+        "min_pair_distance_m": {
+          "count": 723,
+          "mean": 3.866419554214184,
+          "rms": 3.869803347179376,
+          "max": 4.071718312792385,
+          "min": 3.597027976624715
+        },
+        "route_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "goal_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "rows": 723,
+        "relative_stale_share": 0.0,
+        "leader_state_stale_share": 0.0,
+        "gt_missing_share": 0.0,
+        "formation_missing_share": 0.0,
+        "localization_missing_share": 0.0,
+        "per_target": {
+          "1": {
+            "localization_error_m": {
+              "count": 241,
+              "mean": 0.039165692817261864,
+              "rms": 0.04028280545280223,
+              "max": 0.06674846911981136,
+              "min": 0.01537552126145774
+            },
+            "formation_error_m": {
+              "count": 241,
+              "mean": 0.7413796047560048,
+              "rms": 0.9099739255689583,
+              "max": 2.13002251165331,
+              "min": 0.1455158115570904
+            }
+          },
+          "2": {
+            "localization_error_m": {
+              "count": 241,
+              "mean": 0.03013575781044473,
+              "rms": 0.0314499486900696,
+              "max": 0.05439818360403501,
+              "min": 0.008657816869772524
+            },
+            "formation_error_m": {
+              "count": 241,
+              "mean": 0.5341539413311049,
+              "rms": 0.6055193579049714,
+              "max": 1.31935378352212,
+              "min": 0.12140400539840629
+            }
+          },
+          "3": {
+            "localization_error_m": {
+              "count": 241,
+              "mean": 0.039111264051990384,
+              "rms": 0.040486547948918795,
+              "max": 0.07122685153258025,
+              "min": 0.014464586200156579
+            },
+            "formation_error_m": {
+              "count": 241,
+              "mean": 0.6090054852288683,
+              "rms": 0.6851087299387498,
+              "max": 1.4039983065371027,
+              "min": 0.06507537746583751
+            }
+          }
+        },
+        "active_control": {
+          "localization_error_m": {
+            "count": 723,
+            "mean": 0.036137571559898995,
+            "rms": 0.03764290217547183,
+            "max": 0.07122685153258025,
+            "min": 0.008657816869772524
+          },
+          "formation_error_m": {
+            "count": 723,
+            "mean": 0.6281796771053261,
+            "rms": 0.7447774186183224,
+            "max": 2.13002251165331,
+            "min": 0.06507537746583751
+          },
+          "min_pair_distance_m": {
+            "count": 723,
+            "mean": 3.866419554214184,
+            "rms": 3.869803347179376,
+            "max": 4.071718312792385,
+            "min": 3.597027976624715
+          },
+          "route_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "goal_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "rows": 723,
+          "relative_stale_share": 0.0,
+          "leader_state_stale_share": 0.0,
+          "gt_missing_share": 0.0,
+          "formation_missing_share": 0.0,
+          "localization_missing_share": 0.0,
+          "per_target": {
+            "1": {
+              "localization_error_m": {
+                "count": 241,
+                "mean": 0.039165692817261864,
+                "rms": 0.04028280545280223,
+                "max": 0.06674846911981136,
+                "min": 0.01537552126145774
+              },
+              "formation_error_m": {
+                "count": 241,
+                "mean": 0.7413796047560048,
+                "rms": 0.9099739255689583,
+                "max": 2.13002251165331,
+                "min": 0.1455158115570904
+              }
+            },
+            "2": {
+              "localization_error_m": {
+                "count": 241,
+                "mean": 0.03013575781044473,
+                "rms": 0.0314499486900696,
+                "max": 0.05439818360403501,
+                "min": 0.008657816869772524
+              },
+              "formation_error_m": {
+                "count": 241,
+                "mean": 0.5341539413311049,
+                "rms": 0.6055193579049714,
+                "max": 1.31935378352212,
+                "min": 0.12140400539840629
+              }
+            },
+            "3": {
+              "localization_error_m": {
+                "count": 241,
+                "mean": 0.039111264051990384,
+                "rms": 0.040486547948918795,
+                "max": 0.07122685153258025,
+                "min": 0.014464586200156579
+              },
+              "formation_error_m": {
+                "count": 241,
+                "mean": 0.6090054852288683,
+                "rms": 0.6851087299387498,
+                "max": 1.4039983065371027,
+                "min": 0.06507537746583751
+              }
+            }
+          }
+        },
+        "following_by_formation": {
+          "line": {
+            "localization_error_m": {
+              "count": 723,
+              "mean": 0.036137571559898995,
+              "rms": 0.03764290217547183,
+              "max": 0.07122685153258025,
+              "min": 0.008657816869772524
+            },
+            "formation_error_m": {
+              "count": 723,
+              "mean": 0.6281796771053261,
+              "rms": 0.7447774186183224,
+              "max": 2.13002251165331,
+              "min": 0.06507537746583751
+            },
+            "min_pair_distance_m": {
+              "count": 723,
+              "mean": 3.866419554214184,
+              "rms": 3.869803347179376,
+              "max": 4.071718312792385,
+              "min": 3.597027976624715
+            },
+            "route_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "goal_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "rows": 723,
+            "relative_stale_share": 0.0,
+            "leader_state_stale_share": 0.0,
+            "gt_missing_share": 0.0,
+            "formation_missing_share": 0.0,
+            "localization_missing_share": 0.0,
+            "per_target": {
+              "1": {
+                "localization_error_m": {
+                  "count": 241,
+                  "mean": 0.039165692817261864,
+                  "rms": 0.04028280545280223,
+                  "max": 0.06674846911981136,
+                  "min": 0.01537552126145774
+                },
+                "formation_error_m": {
+                  "count": 241,
+                  "mean": 0.7413796047560048,
+                  "rms": 0.9099739255689583,
+                  "max": 2.13002251165331,
+                  "min": 0.1455158115570904
+                }
+              },
+              "2": {
+                "localization_error_m": {
+                  "count": 241,
+                  "mean": 0.03013575781044473,
+                  "rms": 0.0314499486900696,
+                  "max": 0.05439818360403501,
+                  "min": 0.008657816869772524
+                },
+                "formation_error_m": {
+                  "count": 241,
+                  "mean": 0.5341539413311049,
+                  "rms": 0.6055193579049714,
+                  "max": 1.31935378352212,
+                  "min": 0.12140400539840629
+                }
+              },
+              "3": {
+                "localization_error_m": {
+                  "count": 241,
+                  "mean": 0.039111264051990384,
+                  "rms": 0.040486547948918795,
+                  "max": 0.07122685153258025,
+                  "min": 0.014464586200156579
+                },
+                "formation_error_m": {
+                  "count": 241,
+                  "mean": 0.6090054852288683,
+                  "rms": 0.6851087299387498,
+                  "max": 1.4039983065371027,
+                  "min": 0.06507537746583751
+                }
+              }
+            }
+          },
+          "column": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "min_pair_distance_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "route_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "goal_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "rows": 0,
+            "relative_stale_share": null,
+            "leader_state_stale_share": null,
+            "gt_missing_share": null,
+            "formation_missing_share": null,
+            "localization_missing_share": null,
+            "per_target": {
+              "1": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "2": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "3": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              }
+            }
+          },
+          "wedge": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "min_pair_distance_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "route_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "goal_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "rows": 0,
+            "relative_stale_share": null,
+            "leader_state_stale_share": null,
+            "gt_missing_share": null,
+            "formation_missing_share": null,
+            "localization_missing_share": null,
+            "per_target": {
+              "1": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "2": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "3": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              }
+            }
+          }
+        },
+        "mission": {
+          "localization_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "formation_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "min_pair_distance_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "route_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "goal_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "rows": 0,
+          "relative_stale_share": null,
+          "leader_state_stale_share": null,
+          "gt_missing_share": null,
+          "formation_missing_share": null,
+          "localization_missing_share": null,
+          "per_target": {
+            "1": {
+              "localization_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              },
+              "formation_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              }
+            },
+            "2": {
+              "localization_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              },
+              "formation_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              }
+            },
+            "3": {
+              "localization_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              },
+              "formation_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "kind": "manual_input",
+      "requested_speed_mps": 1.5,
+      "start": 120.56400000000001,
+      "end": 150.556,
+      "duration_s": 29.992000000000004,
+      "metrics": {
+        "localization_error_m": {
+          "count": 900,
+          "mean": 0.036868593555180136,
+          "rms": 0.038409869306077656,
+          "max": 0.07659647307810896,
+          "min": 0.005082944973905504
+        },
+        "formation_error_m": {
+          "count": 900,
+          "mean": 0.7358521210861138,
+          "rms": 0.8403271643990461,
+          "max": 2.295121660446179,
+          "min": 0.11279944386745876
+        },
+        "min_pair_distance_m": {
+          "count": 900,
+          "mean": 3.8313477818836787,
+          "rms": 3.8394459032814137,
+          "max": 4.051722528664363,
+          "min": 3.356714875002728
+        },
+        "route_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "goal_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "rows": 900,
+        "relative_stale_share": 0.0,
+        "leader_state_stale_share": 0.0,
+        "gt_missing_share": 0.0,
+        "formation_missing_share": 0.0,
+        "localization_missing_share": 0.0,
+        "per_target": {
+          "1": {
+            "localization_error_m": {
+              "count": 300,
+              "mean": 0.03921029787440906,
+              "rms": 0.040490995277046235,
+              "max": 0.07659647307810896,
+              "min": 0.011131260323002625
+            },
+            "formation_error_m": {
+              "count": 300,
+              "mean": 0.8086095905300151,
+              "rms": 0.9646692032232971,
+              "max": 2.295121660446179,
+              "min": 0.19232957313112137
+            }
+          },
+          "2": {
+            "localization_error_m": {
+              "count": 300,
+              "mean": 0.03290620199599032,
+              "rms": 0.03458596240762862,
+              "max": 0.07471430882625257,
+              "min": 0.005082944973905504
+            },
+            "formation_error_m": {
+              "count": 300,
+              "mean": 0.6968029964816426,
+              "rms": 0.7777334173305938,
+              "max": 1.6643496341116604,
+              "min": 0.1540729512928454
+            }
+          },
+          "3": {
+            "localization_error_m": {
+              "count": 300,
+              "mean": 0.038489280795141016,
+              "rms": 0.039877872136589956,
+              "max": 0.07523262180440814,
+              "min": 0.008570270900007929
+            },
+            "formation_error_m": {
+              "count": 300,
+              "mean": 0.7021437762466832,
+              "rms": 0.7635399724969415,
+              "max": 1.4427576725039393,
+              "min": 0.11279944386745876
+            }
+          }
+        },
+        "active_control": {
+          "localization_error_m": {
+            "count": 900,
+            "mean": 0.036868593555180136,
+            "rms": 0.038409869306077656,
+            "max": 0.07659647307810896,
+            "min": 0.005082944973905504
+          },
+          "formation_error_m": {
+            "count": 900,
+            "mean": 0.7358521210861138,
+            "rms": 0.8403271643990461,
+            "max": 2.295121660446179,
+            "min": 0.11279944386745876
+          },
+          "min_pair_distance_m": {
+            "count": 900,
+            "mean": 3.8313477818836787,
+            "rms": 3.8394459032814137,
+            "max": 4.051722528664363,
+            "min": 3.356714875002728
+          },
+          "route_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "goal_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "rows": 900,
+          "relative_stale_share": 0.0,
+          "leader_state_stale_share": 0.0,
+          "gt_missing_share": 0.0,
+          "formation_missing_share": 0.0,
+          "localization_missing_share": 0.0,
+          "per_target": {
+            "1": {
+              "localization_error_m": {
+                "count": 300,
+                "mean": 0.03921029787440906,
+                "rms": 0.040490995277046235,
+                "max": 0.07659647307810896,
+                "min": 0.011131260323002625
+              },
+              "formation_error_m": {
+                "count": 300,
+                "mean": 0.8086095905300151,
+                "rms": 0.9646692032232971,
+                "max": 2.295121660446179,
+                "min": 0.19232957313112137
+              }
+            },
+            "2": {
+              "localization_error_m": {
+                "count": 300,
+                "mean": 0.03290620199599032,
+                "rms": 0.03458596240762862,
+                "max": 0.07471430882625257,
+                "min": 0.005082944973905504
+              },
+              "formation_error_m": {
+                "count": 300,
+                "mean": 0.6968029964816426,
+                "rms": 0.7777334173305938,
+                "max": 1.6643496341116604,
+                "min": 0.1540729512928454
+              }
+            },
+            "3": {
+              "localization_error_m": {
+                "count": 300,
+                "mean": 0.038489280795141016,
+                "rms": 0.039877872136589956,
+                "max": 0.07523262180440814,
+                "min": 0.008570270900007929
+              },
+              "formation_error_m": {
+                "count": 300,
+                "mean": 0.7021437762466832,
+                "rms": 0.7635399724969415,
+                "max": 1.4427576725039393,
+                "min": 0.11279944386745876
+              }
+            }
+          }
+        },
+        "following_by_formation": {
+          "line": {
+            "localization_error_m": {
+              "count": 900,
+              "mean": 0.036868593555180136,
+              "rms": 0.038409869306077656,
+              "max": 0.07659647307810896,
+              "min": 0.005082944973905504
+            },
+            "formation_error_m": {
+              "count": 900,
+              "mean": 0.7358521210861138,
+              "rms": 0.8403271643990461,
+              "max": 2.295121660446179,
+              "min": 0.11279944386745876
+            },
+            "min_pair_distance_m": {
+              "count": 900,
+              "mean": 3.8313477818836787,
+              "rms": 3.8394459032814137,
+              "max": 4.051722528664363,
+              "min": 3.356714875002728
+            },
+            "route_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "goal_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "rows": 900,
+            "relative_stale_share": 0.0,
+            "leader_state_stale_share": 0.0,
+            "gt_missing_share": 0.0,
+            "formation_missing_share": 0.0,
+            "localization_missing_share": 0.0,
+            "per_target": {
+              "1": {
+                "localization_error_m": {
+                  "count": 300,
+                  "mean": 0.03921029787440906,
+                  "rms": 0.040490995277046235,
+                  "max": 0.07659647307810896,
+                  "min": 0.011131260323002625
+                },
+                "formation_error_m": {
+                  "count": 300,
+                  "mean": 0.8086095905300151,
+                  "rms": 0.9646692032232971,
+                  "max": 2.295121660446179,
+                  "min": 0.19232957313112137
+                }
+              },
+              "2": {
+                "localization_error_m": {
+                  "count": 300,
+                  "mean": 0.03290620199599032,
+                  "rms": 0.03458596240762862,
+                  "max": 0.07471430882625257,
+                  "min": 0.005082944973905504
+                },
+                "formation_error_m": {
+                  "count": 300,
+                  "mean": 0.6968029964816426,
+                  "rms": 0.7777334173305938,
+                  "max": 1.6643496341116604,
+                  "min": 0.1540729512928454
+                }
+              },
+              "3": {
+                "localization_error_m": {
+                  "count": 300,
+                  "mean": 0.038489280795141016,
+                  "rms": 0.039877872136589956,
+                  "max": 0.07523262180440814,
+                  "min": 0.008570270900007929
+                },
+                "formation_error_m": {
+                  "count": 300,
+                  "mean": 0.7021437762466832,
+                  "rms": 0.7635399724969415,
+                  "max": 1.4427576725039393,
+                  "min": 0.11279944386745876
+                }
+              }
+            }
+          },
+          "column": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "min_pair_distance_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "route_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "goal_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "rows": 0,
+            "relative_stale_share": null,
+            "leader_state_stale_share": null,
+            "gt_missing_share": null,
+            "formation_missing_share": null,
+            "localization_missing_share": null,
+            "per_target": {
+              "1": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "2": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "3": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              }
+            }
+          },
+          "wedge": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "min_pair_distance_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "route_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "goal_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "rows": 0,
+            "relative_stale_share": null,
+            "leader_state_stale_share": null,
+            "gt_missing_share": null,
+            "formation_missing_share": null,
+            "localization_missing_share": null,
+            "per_target": {
+              "1": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "2": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              },
+              "3": {
+                "localization_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                },
+                "formation_error_m": {
+                  "count": 0,
+                  "mean": null,
+                  "rms": null,
+                  "max": null,
+                  "min": null
+                }
+              }
+            }
+          }
+        },
+        "mission": {
+          "localization_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "formation_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "min_pair_distance_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "route_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "goal_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "rows": 0,
+          "relative_stale_share": null,
+          "leader_state_stale_share": null,
+          "gt_missing_share": null,
+          "formation_missing_share": null,
+          "localization_missing_share": null,
+          "per_target": {
+            "1": {
+              "localization_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              },
+              "formation_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              }
+            },
+            "2": {
+              "localization_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              },
+              "formation_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              }
+            },
+            "3": {
+              "localization_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              },
+              "formation_error_m": {
+                "count": 0,
+                "mean": null,
+                "rms": null,
+                "max": null,
+                "min": null
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "overall_metrics": {
+    "localization_error_m": {
+      "count": 3447,
+      "mean": 0.03429856445848317,
+      "rms": 0.036474667025050006,
+      "max": 0.09309323339654806,
+      "min": 0.0038892367418072488
+    },
+    "formation_error_m": {
+      "count": 4488,
+      "mean": 0.6163011612744507,
+      "rms": 0.9592053184823632,
+      "max": 2.513343630147863,
+      "min": 3.412815993697471e-08
+    },
+    "min_pair_distance_m": {
+      "count": 4503,
+      "mean": 3.9301789372094453,
+      "rms": 3.9330246356917007,
+      "max": 4.174787230763204,
+      "min": 3.356714875002728
+    },
+    "route_error_m": {
+      "count": 0,
+      "mean": null,
+      "rms": null,
+      "max": null,
+      "min": null
+    },
+    "goal_error_m": {
+      "count": 0,
+      "mean": null,
+      "rms": null,
+      "max": null,
+      "min": null
+    },
+    "rows": 4509,
+    "relative_stale_share": 0.23552894211576847,
+    "leader_state_stale_share": 0.007984031936127744,
+    "gt_missing_share": 0.0013306719893546241,
+    "formation_missing_share": 0.004657351962741184,
+    "localization_missing_share": 0.23552894211576847,
+    "per_target": {
+      "1": {
+        "localization_error_m": {
+          "count": 1150,
+          "mean": 0.03862897184266683,
+          "rms": 0.039546180196131306,
+          "max": 0.07659647307810896,
+          "min": 0.011131260323002625
+        },
+        "formation_error_m": {
+          "count": 1496,
+          "mean": 0.5219514530220529,
+          "rms": 0.8215346119964186,
+          "max": 2.40832528583324,
+          "min": 3.412815993697471e-08
+        }
+      },
+      "2": {
+        "localization_error_m": {
+          "count": 1145,
+          "mean": 0.026596546910719315,
+          "rms": 0.030417113033003648,
+          "max": 0.09309323339654806,
+          "min": 0.0038892367418072488
+        },
+        "formation_error_m": {
+          "count": 1496,
+          "mean": 0.5793020193124271,
+          "rms": 0.9210363287920629,
+          "max": 2.5091558971400048,
+          "min": 3.412815993697471e-08
+        }
+      },
+      "3": {
+        "localization_error_m": {
+          "count": 1152,
+          "mean": 0.03763089223658943,
+          "rms": 0.03873042853399252,
+          "max": 0.07523262180440814,
+          "min": 0.008570270900007929
+        },
+        "formation_error_m": {
+          "count": 1496,
+          "mean": 0.7476500114888718,
+          "rms": 1.112203889289949,
+          "max": 2.513343630147863,
+          "min": 3.412815993697471e-08
+        }
+      }
+    },
+    "active_control": {
+      "localization_error_m": {
+        "count": 2421,
+        "mean": 0.03640279524807074,
+        "rms": 0.037796150881646146,
+        "max": 0.07659647307810896,
+        "min": 0.005082944973905504
+      },
+      "formation_error_m": {
+        "count": 2421,
+        "mean": 0.5903736792900655,
+        "rms": 0.7357303171507028,
+        "max": 2.295121660446179,
+        "min": 0.025428170245112482
+      },
+      "min_pair_distance_m": {
+        "count": 2421,
+        "mean": 3.8757102735123,
+        "rms": 3.8801474296586016,
+        "max": 4.071718312792385,
+        "min": 3.356714875002728
+      },
+      "route_error_m": {
+        "count": 0,
+        "mean": null,
+        "rms": null,
+        "max": null,
+        "min": null
+      },
+      "goal_error_m": {
+        "count": 0,
+        "mean": null,
+        "rms": null,
+        "max": null,
+        "min": null
+      },
+      "rows": 2421,
+      "relative_stale_share": 0.0,
+      "leader_state_stale_share": 0.0,
+      "gt_missing_share": 0.0,
+      "formation_missing_share": 0.0,
+      "localization_missing_share": 0.0,
+      "per_target": {
+        "1": {
+          "localization_error_m": {
+            "count": 807,
+            "mean": 0.039339279510832534,
+            "rms": 0.04042618277634847,
+            "max": 0.07659647307810896,
+            "min": 0.011131260323002625
+          },
+          "formation_error_m": {
+            "count": 807,
+            "mean": 0.6727764521820923,
+            "rms": 0.8701778544568546,
+            "max": 2.295121660446179,
+            "min": 0.03559483232756835
+          }
+        },
+        "2": {
+          "localization_error_m": {
+            "count": 807,
+            "mean": 0.031787349965745726,
+            "rms": 0.033182224828035636,
+            "max": 0.07471430882625257,
+            "min": 0.005082944973905504
+          },
+          "formation_error_m": {
+            "count": 807,
+            "mean": 0.5245873109012573,
+            "rms": 0.6352800852349315,
+            "max": 1.6643496341116604,
+            "min": 0.025428170245112482
+          }
+        },
+        "3": {
+          "localization_error_m": {
+            "count": 807,
+            "mean": 0.03808175626763396,
+            "rms": 0.03937398590439433,
+            "max": 0.07523262180440814,
+            "min": 0.008570270900007929
+          },
+          "formation_error_m": {
+            "count": 807,
+            "mean": 0.5737572747868469,
+            "rms": 0.6805196644041848,
+            "max": 1.496908422921619,
+            "min": 0.03157915511896448
+          }
+        }
+      }
+    },
+    "following_by_formation": {
+      "line": {
+        "localization_error_m": {
+          "count": 2421,
+          "mean": 0.03640279524807074,
+          "rms": 0.037796150881646146,
+          "max": 0.07659647307810896,
+          "min": 0.005082944973905504
+        },
+        "formation_error_m": {
+          "count": 2421,
+          "mean": 0.5903736792900655,
+          "rms": 0.7357303171507028,
+          "max": 2.295121660446179,
+          "min": 0.025428170245112482
+        },
+        "min_pair_distance_m": {
+          "count": 2421,
+          "mean": 3.8757102735123,
+          "rms": 3.8801474296586016,
+          "max": 4.071718312792385,
+          "min": 3.356714875002728
+        },
+        "route_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "goal_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "rows": 2421,
+        "relative_stale_share": 0.0,
+        "leader_state_stale_share": 0.0,
+        "gt_missing_share": 0.0,
+        "formation_missing_share": 0.0,
+        "localization_missing_share": 0.0,
+        "per_target": {
+          "1": {
+            "localization_error_m": {
+              "count": 807,
+              "mean": 0.039339279510832534,
+              "rms": 0.04042618277634847,
+              "max": 0.07659647307810896,
+              "min": 0.011131260323002625
+            },
+            "formation_error_m": {
+              "count": 807,
+              "mean": 0.6727764521820923,
+              "rms": 0.8701778544568546,
+              "max": 2.295121660446179,
+              "min": 0.03559483232756835
+            }
+          },
+          "2": {
+            "localization_error_m": {
+              "count": 807,
+              "mean": 0.031787349965745726,
+              "rms": 0.033182224828035636,
+              "max": 0.07471430882625257,
+              "min": 0.005082944973905504
+            },
+            "formation_error_m": {
+              "count": 807,
+              "mean": 0.5245873109012573,
+              "rms": 0.6352800852349315,
+              "max": 1.6643496341116604,
+              "min": 0.025428170245112482
+            }
+          },
+          "3": {
+            "localization_error_m": {
+              "count": 807,
+              "mean": 0.03808175626763396,
+              "rms": 0.03937398590439433,
+              "max": 0.07523262180440814,
+              "min": 0.008570270900007929
+            },
+            "formation_error_m": {
+              "count": 807,
+              "mean": 0.5737572747868469,
+              "rms": 0.6805196644041848,
+              "max": 1.496908422921619,
+              "min": 0.03157915511896448
+            }
+          }
+        }
+      },
+      "column": {
+        "localization_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "formation_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "min_pair_distance_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "route_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "goal_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "rows": 0,
+        "relative_stale_share": null,
+        "leader_state_stale_share": null,
+        "gt_missing_share": null,
+        "formation_missing_share": null,
+        "localization_missing_share": null,
+        "per_target": {
+          "1": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            }
+          },
+          "2": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            }
+          },
+          "3": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            }
+          }
+        }
+      },
+      "wedge": {
+        "localization_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "formation_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "min_pair_distance_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "route_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "goal_error_m": {
+          "count": 0,
+          "mean": null,
+          "rms": null,
+          "max": null,
+          "min": null
+        },
+        "rows": 0,
+        "relative_stale_share": null,
+        "leader_state_stale_share": null,
+        "gt_missing_share": null,
+        "formation_missing_share": null,
+        "localization_missing_share": null,
+        "per_target": {
+          "1": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            }
+          },
+          "2": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            }
+          },
+          "3": {
+            "localization_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            },
+            "formation_error_m": {
+              "count": 0,
+              "mean": null,
+              "rms": null,
+              "max": null,
+              "min": null
+            }
+          }
+        }
+      }
+    },
+    "mission": {
+      "localization_error_m": {
+        "count": 0,
+        "mean": null,
+        "rms": null,
+        "max": null,
+        "min": null
+      },
+      "formation_error_m": {
+        "count": 0,
+        "mean": null,
+        "rms": null,
+        "max": null,
+        "min": null
+      },
+      "min_pair_distance_m": {
+        "count": 0,
+        "mean": null,
+        "rms": null,
+        "max": null,
+        "min": null
+      },
+      "route_error_m": {
+        "count": 0,
+        "mean": null,
+        "rms": null,
+        "max": null,
+        "min": null
+      },
+      "goal_error_m": {
+        "count": 0,
+        "mean": null,
+        "rms": null,
+        "max": null,
+        "min": null
+      },
+      "rows": 0,
+      "relative_stale_share": null,
+      "leader_state_stale_share": null,
+      "gt_missing_share": null,
+      "formation_missing_share": null,
+      "localization_missing_share": null,
+      "per_target": {
+        "1": {
+          "localization_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "formation_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          }
+        },
+        "2": {
+          "localization_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "formation_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          }
+        },
+        "3": {
+          "localization_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          },
+          "formation_error_m": {
+            "count": 0,
+            "mean": null,
+            "rms": null,
+            "max": null,
+            "min": null
+          }
+        }
+      }
+    }
+  },
+  "note": "Окна ручного входа включают разгон, повороты и торможение; это заданные скорости команд, не измеренные постоянные скорости аппарата.",
+  "scenario": "s2",
+  "passed": true,
+  "source": "log/s2_slot_prediction_1"
+}
