@@ -3,7 +3,6 @@
 from collections import deque
 from threading import RLock
 
-import numpy as np
 from scipy.spatial.transform import Rotation, Slerp
 
 

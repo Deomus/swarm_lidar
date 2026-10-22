@@ -194,8 +194,6 @@ class FormationController(Node):
         self.map = message
 
     def measured(self, leader):
-        q = leader.pose.orientation
-        rotation = Rotation.from_quat([q.x, q.y, q.z, q.w])
         heading = Rotation.from_euler('z', leader.yaw)
         relative = []
         for i in [1, 2, 3]:
@@ -203,17 +201,15 @@ class FormationController(Node):
             raw = np.array([p.x, p.y, p.z])
             # Модель видимой поверхности сферы, без ground truth.
             raw *= 1 + self.p['surface_bias'] / max(1e-9, np.linalg.norm(raw))
-            measured_rotation = (self.orientation_history.at(self.seconds(self.poses[i].measurement_stamp))
-                                 if hasattr(self, 'orientation_history') else rotation)
+            measured_rotation = self.orientation_history.at(self.seconds(self.poses[i].measurement_stamp))
             target_enu = measured_rotation.apply(raw + self.p['sensor_offset']) - [0., 0., self.p['marker_offset_z']]
-            if hasattr(self, 'orientation_history'):
-                # Короткое предсказание относительного движения только по
-                # собственным скоростям PX4; абсолютные позиции не используются.
-                age = max(0., self.seconds(leader.timestamp) - self.seconds(self.poses[i].measurement_stamp))
-                follower_velocity = self.states[i].velocity.linear
-                leader_velocity = leader.velocity.linear
-                target_enu += age * np.array([follower_velocity.x-leader_velocity.x,
-                    follower_velocity.y-leader_velocity.y, follower_velocity.z-leader_velocity.z])
+            # Короткое предсказание относительного движения только по
+            # собственным скоростям PX4; абсолютные позиции не используются.
+            age = max(0., self.seconds(leader.timestamp) - self.seconds(self.poses[i].measurement_stamp))
+            follower_velocity = self.states[i].velocity.linear
+            leader_velocity = leader.velocity.linear
+            target_enu += age * np.array([follower_velocity.x-leader_velocity.x,
+                follower_velocity.y-leader_velocity.y, follower_velocity.z-leader_velocity.z])
             relative.append(heading.inv().apply(target_enu))
         return np.asarray(relative)
 

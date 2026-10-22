@@ -21,8 +21,10 @@ class MeshNode(Node):
         self.drop_duration = p['drop_duration']
         self.channels, self.subs = [], []
         self.previous_time = None
-        for msg_type, name in [(RelativePose, 'poses'), (SwarmState, 'states'), (SwarmCommand, 'commands')]:
-            channel = DelayChannel(p['delay'], p['jitter'], p['loss'], p['capacity'], p['seed'])
+        for index, (msg_type, name) in enumerate(
+                [(RelativePose, 'poses'), (SwarmState, 'states'), (SwarmCommand, 'commands')]):
+            # Свой seed канала: потери поз, состояний и команд не совпадают по номеру пакета.
+            channel = DelayChannel(p['delay'], p['jitter'], p['loss'], p['capacity'], p['seed'] + index)
             pub = self.create_publisher(msg_type, p[name + '_out'], p['qos_depth'])
             self.channels.append((channel, pub))
             self.subs.append(self.create_subscription(

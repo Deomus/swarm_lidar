@@ -18,8 +18,8 @@ def main():
         poses[msg.target_id] = msg
         if msg.valid:
             seen[msg.target_id] += 1
-    subs = [node.create_subscription(PointCloud2, '/uav_0/lidar/points', clouds.append, qos_profile_sensor_data),
-            node.create_subscription(RelativePose, '/mesh/relative_poses', pose, 10)]
+    node.create_subscription(PointCloud2, '/uav_0/lidar/points', clouds.append, qos_profile_sensor_data)
+    node.create_subscription(RelativePose, '/mesh/relative_poses', pose, 10)
     deadline = time.monotonic() + 60.
     try:
         while time.monotonic() < deadline:

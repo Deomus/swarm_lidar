@@ -10,8 +10,8 @@ def main(args=None):
     node.declare_parameter('timeout', 5.)
     node.declare_parameter('health_topic', '/swarm/health')
     received = []
-    sub = node.create_subscription(DiagnosticArray, node.get_parameter('health_topic').value,
-                                   received.append, 10)
+    node.create_subscription(DiagnosticArray, node.get_parameter('health_topic').value,
+                             received.append, 10)
     deadline = time.monotonic() + node.get_parameter('timeout').value
     ok = False
     while time.monotonic() < deadline:

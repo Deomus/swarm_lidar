@@ -35,3 +35,15 @@ def test_invalid_dynamic_duration_does_not_start_loss(duration):
     response = node.drop_poses(None, SimpleNamespace())
     assert not response.success
     assert node.channels[0][0].blocked_until is None
+
+
+def test_channels_have_independent_loss_sequences():
+    import rclpy
+    rclpy.init()
+    try:
+        node = MeshNode()
+        draws = [tuple(channel.random.random() for _ in range(5)) for channel, _ in node.channels]
+        assert len(set(draws)) == 3
+        node.destroy_node()
+    finally:
+        rclpy.shutdown()

@@ -26,9 +26,9 @@ def main():
     pub = probe.create_publisher(PointCloud2, '/uav_0/lidar/points', qos_profile_sensor_data)
     states = probe.create_publisher(SwarmState, '/swarm/states', 10)
     poses, health = {}, []
-    subs = [probe.create_subscription(RelativePose, '/mesh/relative_poses',
-                                     lambda m: poses.update({m.target_id: m}), 10),
-            probe.create_subscription(DiagnosticArray, '/swarm/health', health.append, 10)]
+    probe.create_subscription(RelativePose, '/mesh/relative_poses',
+                              lambda m: poses.update({m.target_id: m}), 10)
+    probe.create_subscription(DiagnosticArray, '/swarm/health', health.append, 10)
     rng = np.random.default_rng(8)
     points = np.vstack([rng.normal(center, .02, (20, 3)) for center in
                         [(-4., -4., 0.), (-4., 0., 0.), (-4., 4., 0.)]])

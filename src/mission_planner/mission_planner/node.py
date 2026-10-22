@@ -117,7 +117,10 @@ class MissionPlanner(Node):
         formation_radius = max(self.get_parameter('formation_radius').value,
                                self.geometry[1] if geometry_valid else 0.)
         radius = formation_radius + self.get_parameter('safety_margin').value
-        altitude = goal.pose.position.z or self.get_parameter('working_altitude').value
+        # Нулевая высота цели означает рабочую высоту по умолчанию.
+        altitude = goal.pose.position.z
+        if altitude == 0.:
+            altitude = self.get_parameter('working_altitude').value
         if not self.get_parameter('min_altitude').value <= altitude <= self.get_parameter('max_altitude').value:
             raise PlanningError('Высота цели вне разрешённого диапазона')
         blocked = inflated_grid(info.width, info.height, info.resolution, grid.data,

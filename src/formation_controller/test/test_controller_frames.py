@@ -20,7 +20,12 @@ def test_sensor_offset_and_tilt_are_removed_before_heading_control():
         msg = RelativePose()
         msg.pose.position.x, msg.pose.position.y, msg.pose.position.z = raw
         poses[i] = msg
-    probe = SimpleNamespace(poses=poses, p=dict(surface_bias=0., sensor_offset=[0., 0., 1.9], marker_offset_z=.45))
+    from lidar_tracker.timing import OrientationHistory
+    history = OrientationHistory()
+    history.add(0., q)
+    probe = SimpleNamespace(poses=poses, states={i: SwarmState() for i in [1, 2, 3]},
+                            orientation_history=history, seconds=FormationController.seconds,
+                            p=dict(surface_bias=0., sensor_offset=[0., 0., 1.9], marker_offset_z=.45))
     result = FormationController.measured(probe, leader)
     expected = Rotation.from_euler('z', .4).inv().apply(world_relative)
     np.testing.assert_allclose(result, np.tile(expected, (3, 1)), atol=1e-7)

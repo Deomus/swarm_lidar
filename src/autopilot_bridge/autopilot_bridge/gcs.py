@@ -1,5 +1,4 @@
 """Heartbeat программной станции управления SITL, без отключения preflight."""
-import time
 import rclpy
 from rclpy.node import Node
 from pymavlink import mavutil
@@ -17,7 +16,7 @@ def main(args=None):
             link.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_GCS,
                                     mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0,
                                     mavutil.mavlink.MAV_STATE_ACTIVE)
-    timer = node.create_timer(1., beat)
+    node.create_timer(1., beat)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
