@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from formation_controller.core import VelocityLimiter, clip_norm
+from formation_controller.core import VelocityLimiter, clip_norm, wrap_angle
 
 
 def vector3(value):
@@ -50,12 +50,19 @@ class LeaderCore:
     def __init__(self, period=.05, max_speed=1.5, max_acceleration=1., max_jerk=2.,
                  manual_timeout=.25, state_timeout=.5, waypoint_tolerance=.4,
                  waypoint_gain=.6, waypoint_timeout=90., max_yaw_rate=.3,
-                 arrival_speed=.15):
+                 arrival_speed=.15, face_waypoint=True, heading_gain=1.,
+                 heading_align_angle=.35, heading_min_distance=1.):
         parameters = [period, max_speed, max_acceleration, max_jerk, manual_timeout,
                       state_timeout, waypoint_tolerance, waypoint_gain, waypoint_timeout,
-                      max_yaw_rate, arrival_speed]
+                      max_yaw_rate, arrival_speed, heading_gain, heading_align_angle,
+                      heading_min_distance]
         if not all(math.isfinite(v) and v > 0 for v in parameters):
             raise ValueError('Parameters must be positive and finite')
+        self.face_waypoint = bool(face_waypoint)
+        self.heading_gain = heading_gain
+        self.heading_align_angle = heading_align_angle
+        self.heading_min_distance = heading_min_distance
+        self.yaw = None
         self.period = period
         self.max_speed = max_speed
         self.max_yaw_rate = max_yaw_rate
@@ -86,7 +93,7 @@ class LeaderCore:
         self.progress_distance = math.inf
         self.last_tick = None
 
-    def state(self, position, stamp, valid, now, velocity=None):
+    def state(self, position, stamp, valid, now, velocity=None, yaw=None):
         if not fresh(stamp, now, self.state_timeout) or stamp < self.state_stamp:
             return False
         try:
@@ -98,6 +105,8 @@ class LeaderCore:
             velocity = np.zeros(3)
         self.position, self.state_stamp, self.state_valid = position, stamp, bool(valid)
         self.measured_velocity = velocity
+        # Без известного курса миссия летит с прежним курсом, как раньше.
+        self.yaw = float(yaw) if valid and yaw is not None and math.isfinite(yaw) else None
         return True
 
     def manual(self, velocity, stamp, now, yaw_rate=0.):
@@ -154,6 +163,16 @@ class LeaderCore:
         distance = float(np.linalg.norm(self.path[self.index] - self.position))
         return self.waypoint_timeout + 2. * distance / self.max_speed
 
+    def face(self, waypoint):
+        """Скорость рыскания на точку маршрута и признак допустимого курса для движения."""
+        horizontal = waypoint[:2] - self.position[:2]
+        if (not self.face_waypoint or self.yaw is None
+                or np.linalg.norm(horizontal) <= self.heading_min_distance):
+            return 0., True
+        error = wrap_angle(math.atan2(horizontal[1], horizontal[0]) - self.yaw)
+        rate = float(np.clip(self.heading_gain * error, -self.max_yaw_rate, self.max_yaw_rate))
+        return rate, abs(error) <= self.heading_align_angle
+
     def tick(self, now):
         if not math.isfinite(now):
             raise ValueError('Nonfinite clock')
@@ -197,6 +216,11 @@ class LeaderCore:
                 # точки, а не после пролёта мимо неё. Геометрия пути прежняя.
                 error = self.path[self.index] - self.position - self.limiter.stopping_displacement()
                 desired = clip_norm(self.gain * error, self.max_speed)
+                yaw_rate, aligned = self.face(self.path[self.index])
+                if not aligned:
+                    # Сначала разворот на месте: путь остаётся прямым, строй
+                    # поворачивается вокруг ведущего без одновременного переноса.
+                    desired = np.zeros(3)
                 self.status, valid, stamp = 'MISSION', True, self.state_stamp
         velocity = self.limiter.step(desired)
         # HOLD/deadman — явное запрещение дальнейшего движения, не скрытое следование.

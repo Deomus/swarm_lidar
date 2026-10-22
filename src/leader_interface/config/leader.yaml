@@ -18,6 +18,12 @@
     waypoint_gain: 0.6
     arrival_speed: 0.15
     waypoint_timeout: 90.0
+    # В миссии ведущий смотрит на текущую точку: при ошибке курса больше
+    # heading_align_angle (рад) сначала разворот на месте, затем движение.
+    face_waypoint: true
+    heading_gain: 1.0
+    heading_align_angle: 0.35
+    heading_min_distance: 1.0
     require_formation_ready: true
     formation_status_topic: /swarm/formation_status
     formation_status_timeout: 0.5

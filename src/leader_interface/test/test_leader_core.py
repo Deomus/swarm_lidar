@@ -245,3 +245,57 @@ def test_mission_converges_through_close_waypoints_with_delayed_velocity_respons
         position += velocity * .05
     assert np.linalg.norm(position - [6, 3, 3]) < .5
     assert np.linalg.norm(velocity) < .15
+
+
+def facing(yaw, waypoint, position=(0., 0., 3.)):
+    core = LeaderCore()
+    core.state(list(position), 10, True, 10, yaw=yaw)
+    core.set_path([waypoint])
+    core.select_mode('MISSION', 10)
+    return core.tick(10.)
+
+
+def test_mission_turns_in_place_before_moving_to_waypoint():
+    output = facing(0., [0., 5., 3.])
+    assert output.yaw_rate == .3 and output.valid
+    np.testing.assert_array_equal(output.velocity, 0.)
+
+
+def test_mission_moves_and_corrects_small_heading_error():
+    output = facing(np.pi/2 - .2, [0., 5., 3.])
+    assert output.yaw_rate == pytest.approx(.2)
+    assert output.velocity[1] > 0.
+
+
+def test_heading_error_uses_short_side_across_pi():
+    output = facing(3., [-5., -.5, 3.])
+    assert output.yaw_rate == pytest.approx(np.arctan2(-.5, -5.) + 2*np.pi - 3.)
+    assert output.velocity[0] < 0.
+
+
+def test_close_waypoint_or_unknown_yaw_keeps_heading():
+    assert facing(0., [0., .8, 3.]).yaw_rate == 0.
+    output = facing(None, [0., 5., 3.])
+    assert output.yaw_rate == 0. and output.velocity[1] > 0.
+
+
+def test_mission_faces_each_segment_and_completes_route():
+    core = ready()
+    position, velocity, yaw = np.array([0., 0., 3.]), np.zeros(3), 0.
+    core.set_path([[0., 0., 3.], [0., 6., 3.], [-6., 6., 3.]])
+    core.select_mode('MISSION', 10)
+    headings = []
+    for step in range(4000):
+        now = 10 + step * .05
+        core.state(position, now, True, now, velocity=velocity, yaw=yaw)
+        output = core.tick(now)
+        velocity += (output.velocity - velocity) * .05 / .35
+        position += velocity * .05
+        yaw += output.yaw_rate * .05
+        if np.linalg.norm(velocity[:2]) > .5:
+            headings.append(np.angle(np.exp(1j*(np.arctan2(velocity[1], velocity[0]) - yaw))))
+        if output.status == 'COMPLETE':
+            break
+    assert output.status == 'COMPLETE'
+    assert np.max(np.abs(headings)) < .35
+    assert yaw == pytest.approx(np.pi, abs=.1)
