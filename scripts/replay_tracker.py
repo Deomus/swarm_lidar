@@ -198,6 +198,13 @@ def run(args):
     for value in contents.values():
         if not isinstance(yaml.safe_load(value), dict):
             raise ValueError('Файл параметров должен содержать YAML-словарь ROS')
+    # Начальные треки из той же стартовой расстановки, что и в штатном запуске.
+    from swarm_lidar.start_geometry import load_origins, tracker_seeds
+    tracker_config = yaml.safe_load(contents['tracker.yaml'])
+    tracker_parameters = tracker_config['lidar_tracker']['ros__parameters']
+    tracker_parameters['initial_positions'] = tracker_seeds(
+        load_origins(args.start_geometry.expanduser().resolve()), tracker_parameters['sensor_offset'])
+    contents['tracker.yaml'] = yaml.safe_dump(tracker_config, allow_unicode=True)
     executables = {package: Path(get_package_prefix(package)) / 'lib' / package / executable
                    for package, executable in (('lidar_tracker', 'tracker_node'),
                                                 ('evaluation', 'recorder_node'))}
@@ -351,6 +358,9 @@ def main(argv=None):
                         default=root / 'src/lidar_tracker/config/tracker.yaml')
     parser.add_argument('--evaluation-params-file', '--evaluation-params', type=Path,
                         default=root / 'src/evaluation/config/evaluation.yaml')
+    parser.add_argument('--start-geometry', type=Path,
+                        default=root / 'src/swarm_lidar/config/swarm.yaml',
+                        help='Стартовая расстановка для начальных треков')
     args = parser.parse_args(argv)
     args.output = args.output.expanduser().resolve()
 

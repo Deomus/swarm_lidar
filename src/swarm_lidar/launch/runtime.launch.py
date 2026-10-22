@@ -7,6 +7,9 @@ from launch.event_handlers import OnProcessExit
 from launch.events import Shutdown
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+import yaml
+
+from swarm_lidar.start_geometry import load_origins, tracker_seeds
 
 
 def runtime(context):
@@ -16,7 +19,7 @@ def runtime(context):
     nodes = [Node(package='ros_gz_bridge', executable='parameter_bridge',
                   parameters=[{'config_file': str(config)}], output='screen')]
     bridge_config = str(Path(get_package_share_directory('autopilot_bridge')) / 'config/bridge.yaml')
-    origins = [[0., 0., 0.], [-4., -4., 0.], [-4., 0., 0.], [-4., 4., 0.]]
+    origins = load_origins(share / 'config' / 'swarm.yaml')
     for i, origin in enumerate(origins):
         nodes.append(Node(package='autopilot_bridge', executable='bridge_node', namespace=f'uav_{i}',
                           parameters=[bridge_config, {'uav_id': i, 'origin_enu': origin,
@@ -39,8 +42,11 @@ def runtime(context):
         evaluation_node = Node(package='evaluation', executable='ground_truth_node',
                                parameters=[{'use_sim_time': True}], output='screen')
         path = Path(get_package_share_directory('lidar_tracker')) / 'config/tracker.yaml'
+        tracker = yaml.safe_load(path.read_text())['lidar_tracker']['ros__parameters']
+        seeds = tracker_seeds(origins, tracker['sensor_offset'])
         nodes.append(Node(package='lidar_tracker', executable='tracker_node',
-                          parameters=[str(path), {'use_sim_time': True}], output='screen'))
+                          parameters=[str(path), {'initial_positions': seeds, 'use_sim_time': True}],
+                          output='screen'))
         for package, executable, config_name in [('formation_controller', 'controller_node', 'controller.yaml'),
                                                   ('leader_interface', 'leader_node', 'leader.yaml'),
                                                   ('mission_planner', 'planner_node', 'mission.yaml')]:
