@@ -71,8 +71,12 @@ class SwarmManager(Node):
         mode, reason = system_mode(drones, self.fresh_status(self.formation, 'time', now),
                                    self.fresh_status(self.leader, 'stamp', now), self.p['forming_error'])
         if mode != self.mode:
-            log = self.get_logger().warning if mode in ('FAILSAFE', 'DEGRADED') else self.get_logger().info
-            log(f'Режим группы: {self.mode} → {mode}; причина: {reason}; t={now:.3f}')
+            message = f'Режим группы: {self.mode} → {mode}; причина: {reason}; t={now:.3f}'
+            # rclpy запрещает менять уровень в одном месте вызова: два вызова.
+            if mode in ('FAILSAFE', 'DEGRADED'):
+                self.get_logger().warning(message)
+            else:
+                self.get_logger().info(message)
             self.mode = mode
         self.mode_pub.publish(String(data=json.dumps(dict(mode=mode, reason=reason, time=now),
                                                      ensure_ascii=False)))

@@ -71,3 +71,29 @@ def test_manager_publishes_mode_and_logs_transition_with_reason():
         node.destroy_node()
     finally:
         rclpy.shutdown()
+
+
+def test_real_logger_accepts_alternating_severities():
+    """В полёте режимы чередуют warning и info; rclpy не должен падать."""
+    import rclpy
+
+    from swarm_manager.node import SwarmManager
+    rclpy.init()
+    try:
+        node = SwarmManager()
+        for now in (1., 2., 3.):
+            node.states.clear()
+            node.supervise(now)  # DEGRADED: нет телеметрии — warning
+            node.mode = 'DEGRADED' if now < 3. else None
+            node.states.update({i: _state(i, now) for i in range(4)})
+            node.supervise(now)  # DISARMED — info
+        node.destroy_node()
+    finally:
+        rclpy.shutdown()
+
+
+def _state(i, now):
+    from swarm_interfaces.msg import SwarmState
+    state = SwarmState(uav_id=i, valid=True, armed=False, health='OK')
+    state.timestamp.sec = int(now)
+    return state
