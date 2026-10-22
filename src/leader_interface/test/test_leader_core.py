@@ -102,7 +102,7 @@ def test_default_hold_never_controls_followers_and_rejects_missing_state():
 
 @pytest.mark.parametrize('yaw_rate,expected', [(2, .3), (-2, -.3), (.1, .1)])
 def test_manual_yaw_sign_rate_bound_and_deadman(yaw_rate, expected):
-    core = ready()
+    core = ready(max_yaw_acceleration=1e3)  # закон без разгона; разгон — отдельный тест
     assert core.manual([1, 0, 0], 10, 10, yaw_rate=yaw_rate)
     core.select_mode('MANUAL', 10)
     output = core.tick(10)
@@ -248,7 +248,7 @@ def test_mission_converges_through_close_waypoints_with_delayed_velocity_respons
 
 
 def facing(yaw, waypoint, position=(0., 0., 3.)):
-    core = LeaderCore()
+    core = LeaderCore(max_yaw_acceleration=1e3)
     core.state(list(position), 10, True, 10, yaw=yaw)
     core.set_path([waypoint])
     core.select_mode('MISSION', 10)
@@ -299,3 +299,16 @@ def test_mission_faces_each_segment_and_completes_route():
     assert output.status == 'COMPLETE'
     assert np.max(np.abs(headings)) < .35
     assert yaw == pytest.approx(np.pi, abs=.1)
+
+
+def test_yaw_rate_ramps_with_limited_angular_acceleration():
+    core = ready(max_yaw_acceleration=.3)
+    core.select_mode('MANUAL', 10)
+    rates = []
+    for tick in range(30):
+        now = 10 + tick * .05
+        core.state([0, 0, 3], now, True, now)
+        core.manual([0, 0, 0], now, now, yaw_rate=.3)
+        rates.append(core.tick(now).yaw_rate)
+    assert rates[0] == pytest.approx(.015) and rates[-1] == pytest.approx(.3)
+    assert max(abs(b - a) for a, b in zip(rates, rates[1:])) <= .015 + 1e-12

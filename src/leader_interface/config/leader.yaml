@@ -12,6 +12,8 @@
     max_acceleration: 1.0
     max_jerk: 2.0
     max_yaw_rate: 0.3
+    # Разгон рыскания, рад/с²: ведомые берут команду как упреждение.
+    max_yaw_acceleration: 0.3
     manual_timeout: 0.25
     state_timeout: 0.5
     waypoint_tolerance: 0.4

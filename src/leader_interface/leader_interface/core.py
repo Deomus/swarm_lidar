@@ -51,11 +51,11 @@ class LeaderCore:
                  manual_timeout=.25, state_timeout=.5, waypoint_tolerance=.4,
                  waypoint_gain=.6, waypoint_timeout=90., max_yaw_rate=.3,
                  arrival_speed=.15, face_waypoint=True, heading_gain=1.,
-                 heading_align_angle=.35, heading_min_distance=1.):
+                 heading_align_angle=.35, heading_min_distance=1., max_yaw_acceleration=.3):
         parameters = [period, max_speed, max_acceleration, max_jerk, manual_timeout,
                       state_timeout, waypoint_tolerance, waypoint_gain, waypoint_timeout,
                       max_yaw_rate, arrival_speed, heading_gain, heading_align_angle,
-                      heading_min_distance]
+                      heading_min_distance, max_yaw_acceleration]
         if not all(math.isfinite(v) and v > 0 for v in parameters):
             raise ValueError('Parameters must be positive and finite')
         self.face_waypoint = bool(face_waypoint)
@@ -66,6 +66,8 @@ class LeaderCore:
         self.period = period
         self.max_speed = max_speed
         self.max_yaw_rate = max_yaw_rate
+        self.max_yaw_acceleration = max_yaw_acceleration
+        self.yaw_rate = 0.
         self.manual_timeout = manual_timeout
         self.state_timeout = state_timeout
         self.tolerance = waypoint_tolerance
@@ -223,8 +225,14 @@ class LeaderCore:
                     desired = np.zeros(3)
                 self.status, valid, stamp = 'MISSION', True, self.state_stamp
         velocity = self.limiter.step(desired)
+        # Скорость рыскания разгоняется с ограниченным угловым ускорением:
+        # PX4 не поворачивает скачком, а ведомые берут команду как упреждение —
+        # скачок выводил крайние места вперёд строя примерно на метр.
+        step = self.max_yaw_acceleration * self.period
+        yaw_rate = self.yaw_rate = float(np.clip(yaw_rate, self.yaw_rate - step, self.yaw_rate + step))
         # HOLD/deadman — явное запрещение дальнейшего движения, не скрытое следование.
         if not valid:
             velocity = np.zeros(3)
             self.limiter = VelocityLimiter(**self.limits)
+            yaw_rate = self.yaw_rate = 0.
         return LeaderOutput(velocity, yaw_rate, valid, stamp, self.status, self.index)

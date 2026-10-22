@@ -32,7 +32,7 @@ class LeaderInterface(Node):
                         manual_timeout=.25, state_timeout=.5, waypoint_tolerance=.4,
                         waypoint_gain=.6, waypoint_timeout=90., arrival_speed=.15,
                         face_waypoint=False, heading_gain=1., heading_align_angle=.35,
-                        heading_min_distance=1.,
+                        heading_min_distance=1., max_yaw_acceleration=.3,
                         require_formation_ready=False,
                         formation_status_topic='/swarm/formation_status',
                         formation_status_timeout=.5, formation_unavailable_grace=1.)
@@ -47,7 +47,7 @@ class LeaderInterface(Node):
             'period', 'max_speed', 'max_acceleration', 'max_jerk', 'manual_timeout',
             'state_timeout', 'waypoint_tolerance', 'waypoint_gain', 'waypoint_timeout',
             'max_yaw_rate', 'arrival_speed', 'face_waypoint', 'heading_gain',
-            'heading_align_angle', 'heading_min_distance')})
+            'heading_align_angle', 'heading_min_distance', 'max_yaw_acceleration')})
         self.formation_guard = FormationGuard(
             required=self.p['require_formation_ready'],
             status_timeout=self.p['formation_status_timeout'],
