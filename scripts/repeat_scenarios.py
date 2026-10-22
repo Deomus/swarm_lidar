@@ -68,7 +68,8 @@ def run_one(root, kind, index, px4):
                 '--output', str(flight), '--record-bag'], stdout=flight_log,
                 stderr=subprocess.STDOUT, start_new_session=True)
             dump(root/'current.json', dict(scenario=kind, index=index, output=str(output),
-                                         simulator_pid=simulator.pid, scenario_pid=scenario.pid))
+                                         simulator_pid=simulator.pid, scenario_pid=scenario.pid,
+                                         runner_pid=os.getpid(), series_state='running'))
             print(f'Начат {kind}, повтор {index}: {output}', flush=True)
             scenario.wait()
         finally:
@@ -110,13 +111,19 @@ def main():
     args.output = args.output.expanduser().resolve()
     args.output.mkdir(parents=True, exist_ok=False)
     reports = []
+    state = 'failed'
     try:
         for kind in args.scenarios:
             for index in range(args.start_index, args.start_index+args.runs):
                 reports.append(run_one(args.output, kind, index, args.px4_dir.expanduser().resolve()))
                 dump(args.output/'summary.json', reports)
+        state = 'complete'
     finally:
         dump(args.output/'summary.json', reports)
+        current_path = args.output/'current.json'
+        current = json.loads(current_path.read_text()) if current_path.exists() else {}
+        current.update(series_state=state, runner_pid=os.getpid())
+        dump(current_path, current)
 
 
 if __name__ == '__main__':

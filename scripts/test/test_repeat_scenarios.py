@@ -62,3 +62,21 @@ def test_missing_or_broken_result_does_not_confirm_landing(tmp_path):
     assert not module.landing_confirmed(path)
     path.write_text(json.dumps(dict(passed=True, passed_landing=False)))
     assert not module.landing_confirmed(path)
+
+
+def test_failed_series_does_not_leave_running_status(tmp_path, monkeypatch):
+    spec = importlib.util.spec_from_file_location('repeat_under_test',
+                                                Path(__file__).parents[1]/'repeat_scenarios.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    root = tmp_path/'series'
+    monkeypatch.setattr(module.sys, 'argv', ['repeat', '--output', str(root), '--runs', '1'])
+
+    def fail(output, kind, index, px4):
+        module.dump(output/'current.json', dict(series_state='running', simulator_pid=123))
+        raise RuntimeError('Сценарий отказал')
+
+    monkeypatch.setattr(module, 'run_one', fail)
+    with pytest.raises(RuntimeError, match='отказал'):
+        module.main()
+    assert json.loads((root/'current.json').read_text())['series_state'] == 'failed'
