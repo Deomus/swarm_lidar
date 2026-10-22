@@ -9,5 +9,7 @@ mission_planner:
     max_map_cells: 40000
     require_formation_geometry: true
     geometry_timeout: 0.5
-    min_altitude: 1.0
+    # Не ниже: при меньшей высоте земля входит в полосу поиска ведомых LiDAR
+    # (датчик на 1,9 м выше корпуса, полоса 1,0–2,9 м ниже датчика) с запасом.
+    min_altitude: 2.0
     max_altitude: 30.0

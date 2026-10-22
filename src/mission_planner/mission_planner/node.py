@@ -20,7 +20,7 @@ class MissionPlanner(Node):
                            'safety_margin': .75, 'pose_timeout': .5,
                            'occupancy_threshold': 50, 'max_map_cells': 40000,
                            'require_formation_geometry': False, 'geometry_timeout': .5,
-                           'min_altitude': 1., 'max_altitude': 30.}.items():
+                           'min_altitude': 2., 'max_altitude': 30.}.items():
             self.declare_parameter(key, value)
         for key in ['working_altitude', 'formation_radius', 'safety_margin', 'pose_timeout']:
             value = self.get_parameter(key).value
@@ -83,10 +83,33 @@ class MissionPlanner(Node):
                 goal_id=[goal.header.stamp.sec, goal.header.stamp.nanosec], reason=str(error)))))
             return
         self.path_pub.publish(path)
-        self.status_pub.publish(String(data=f'PLANNED: {len(path.poses)} точек'))
+        altitude, reason = self.altitude_choice
+        self.status_pub.publish(String(data=f'PLANNED: {len(path.poses)} точек, высота {altitude:.1f} м ({reason})'))
         self.result_pub.publish(String(data=json.dumps(dict(status='PLANNED',
             goal_id=[goal.header.stamp.sec, goal.header.stamp.nanosec],
-            path_stamp=[path.header.stamp.sec, path.header.stamp.nanosec]))))
+            path_stamp=[path.header.stamp.sec, path.header.stamp.nanosec],
+            altitude=altitude, altitude_reason=reason), ensure_ascii=False)))
+
+    def choose_altitude(self, requested):
+        """Высота маршрута: запрошенная или рабочая, не ниже безопасной.
+
+        Нижняя граница min_altitude следует из геометрии LiDAR: датчик на
+        1,9 м выше корпуса ищет ведомых в полосе 1,0–2,9 м ниже себя, поэтому
+        при полёте ниже ~1 м в эту полосу попадает земля. Карта двумерная:
+        её препятствия считаются бесконечно высокими и от высоты не зависят.
+        """
+        minimum = self.get_parameter('min_altitude').value
+        maximum = self.get_parameter('max_altitude').value
+        if requested == 0.:
+            requested, reason = self.get_parameter('working_altitude').value, 'рабочая по умолчанию'
+        else:
+            reason = 'запрошенная'
+        if not isfinite(requested) or requested > maximum:
+            raise PlanningError(f'Высота цели выше разрешённой {maximum:.1f} м')
+        if requested < minimum:
+            requested, reason = minimum, f'поднята до безопасной {minimum:.1f} м'
+        self.altitude_choice = (float(requested), reason)
+        return float(requested)
 
     def plan(self, goal):
         grid, state = self.map, self.state
@@ -118,11 +141,7 @@ class MissionPlanner(Node):
                                self.geometry[1] if geometry_valid else 0.)
         radius = formation_radius + self.get_parameter('safety_margin').value
         # Нулевая высота цели означает рабочую высоту по умолчанию.
-        altitude = goal.pose.position.z
-        if altitude == 0.:
-            altitude = self.get_parameter('working_altitude').value
-        if not self.get_parameter('min_altitude').value <= altitude <= self.get_parameter('max_altitude').value:
-            raise PlanningError('Высота цели вне разрешённого диапазона')
+        altitude = self.choose_altitude(goal.pose.position.z)
         blocked = inflated_grid(info.width, info.height, info.resolution, grid.data,
                                 radius, self.get_parameter('occupancy_threshold').value)
         start, target = [(floor((p.x - origin.x) / info.resolution),

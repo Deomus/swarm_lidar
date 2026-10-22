@@ -111,3 +111,14 @@ def test_open_map_path_starts_at_leader_and_goes_straight_to_goal(planner):
     goal.pose.position.x, goal.pose.position.y = 8.1, 4.6
     path = planner.plan(goal)
     assert [(p.pose.position.x, p.pose.position.y) for p in path.poses] == [(1.2, 1.7), (8.1, 4.6)]
+
+
+def test_low_goal_is_raised_to_safe_altitude_with_reason(planner):
+    goal = inputs(planner)
+    goal.pose.position.z = 1.2
+    path = planner.plan(goal)
+    assert all(p.pose.position.z == 2. for p in path.poses)
+    assert planner.altitude_choice == (2., 'поднята до безопасной 2.0 м')
+    goal.pose.position.z = 0.
+    planner.plan(goal)
+    assert planner.altitude_choice == (3., 'рабочая по умолчанию')
