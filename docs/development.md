@@ -11,6 +11,25 @@ source install/setup.bash
 python3 -m pytest src scripts/test -q
 ```
 
+Единый smoke test ТЗ §12 сам запускает симуляцию без окна
+(`swarm_demo.launch.py gui:=false`), проверяет и останавливает её:
+
+```bash
+ROS_DOMAIN_ID=79 python3 scripts/smoke_test.py
+```
+
+Проверяются четыре namespace с мостами PX4, свежие состояния автопилотов,
+TF `map → uav_i/base_link → uav_i/lidar_link`, облако `/uav_0/lidar/points`,
+относительные позы трёх ведомых (frame, child_frame, свежая отметка),
+команды `/mesh/commands`, объявленные setpoint-топики, режим группы
+DISARMED и `/swarm/health`, отсутствие Traceback/ERROR/FATAL в журналах ROS
+и запуска и завершение всех порождённых процессов после SIGINT. Аппараты
+не вооружаются. Валидность поз на земле не требуется: датчик стоит ~2,1 м
+над грунтом, грунт входит в полосу поиска ведомых и превышает бюджет точек
+трекера; валидные позы подтверждаются полётными сценариями после взлёта.
+Скрипт отказывается запускаться, если уже работают PX4, агент или Gazebo.
+Отчёт — `log/smoke_*/smoke.json` и `launch.log`.
+
 ## Чекпоинты
 
 Каждый проверенный этап сохраняется отдельным коммитом Conventional Commits.
