@@ -18,4 +18,11 @@
     max_velocity: 3.0
     max_yaw_rate: 0.3
     use_offboard: false
+    # Длительный отказ данных при включённом потоке: через hold_after с —
+    # удержание позиции PX4 (Loiter), через land_after с — посадка. Отказ —
+    # нет свежих команд или safety_state из failure_states. Намеренные HOLD
+    # ведущего и DISABLED строя отказом не считаются. Возврат — сервис resume.
+    hold_after: 5.0
+    land_after: 30.0
+    failure_states: [DATA_HOLD, COLLISION_STOP, INVALID_GEOMETRY]
 

@@ -126,7 +126,7 @@ class PanelBackend(Node):
             if old is not None and stamp < old['stamp']:
                 return
             self.states[msg.uav_id] = dict(id=msg.uav_id, position=values[:3], velocity=values[3:6],
-                                         yaw=msg.yaw, armed=msg.armed, mode=msg.mode,
+                                         yaw=msg.yaw, armed=msg.armed, mode=msg.mode, health=msg.health,
                                          valid=msg.valid and msg.frame_id == 'map', stamp=stamp,
                                          received=time.monotonic())
 
@@ -281,6 +281,17 @@ class PanelBackend(Node):
                     f'Высота роя меняется на {z:.1f} м' if action == 'altitude'
                     else f'Маршрут строится: X={x:.1f}, Y={y:.1f}, высота={z:.1f} м'))
                 return
+            if action == 'resume':
+                # После эскалации моста (Loiter PX4) возврат только по решению оператора.
+                targets = [row['id'] for row in snapshot['drones']
+                           if row.get('armed') and row.get('mode') != '14' and row.get('health') != 'FAILSAFE_LAND']
+                if not targets:
+                    raise ValueError('Нет аппаратов в удержании PX4 для возврата в строй')
+                if self.action['state'] == 'pending':
+                    raise ValueError('Дождитесь завершения предыдущей команды')
+                self.commands.put_nowait(('resume', targets))
+                self.action = dict(state='pending', message='Возврат в строй: включается Offboard.')
+                return
             if action not in ('formation', 'hold'):
                 raise ValueError('Неизвестная команда')
             if self.action['state'] == 'pending' and action != 'hold':
@@ -365,6 +376,14 @@ class PanelBackend(Node):
                                     self.call(path)
                                 except ValueError:
                                     pass  # Продолжаем запросы остальным; подтверждение — свежая телеметрия.
+                    elif name == 'resume':
+                        rows = self.snapshot()['drones']
+                        if all(row['fresh'] and row.get('mode') == '14' for row in rows if row.get('armed')):
+                            self.pending = None
+                            if (self.formation or {}).get('mode') in ('DISABLED', 'COLLISION_STOP'):
+                                self.commands.put_nowait(('enable', None))
+                            else:
+                                self.action = dict(state='ok', message='Аппараты вернулись в Offboard и строй.')
                     elif name == 'formation':
                         status = self.formation or {}
                         if (status.get('request_error') and sent_at <= status.get('request_stamp', -1) <= now
@@ -391,7 +410,8 @@ class PanelBackend(Node):
                         if name != 'hold' or hold_confirmed:
                             self.action = dict(state='ok', message={
                                 'mission': 'Режим миссии включён.', 'finish': 'Посадка запрошена.',
-                                'manual': 'Ручное управление ведущим включено.'}.get(
+                                'manual': 'Ручное управление ведущим включено.',
+                                'enable': 'Аппараты вернулись в Offboard, строй снова включён.'}.get(
                                 name, 'Ведущий удерживает положение.'))
                             self.pending = None
                     if self.pending is not None and wall >= deadline:
@@ -425,6 +445,12 @@ class PanelBackend(Node):
                         future = self.call('/leader/mission')
                     elif name == 'manual':
                         future = self.call('/leader/manual')
+                    elif name == 'enable':
+                        future = self.call('/swarm/enable_formation')
+                    elif name == 'resume':
+                        for i in values:
+                            self.call(f'/uav_{i}/resume')
+                        future = None
                     elif name == 'land':
                         self.last_landing_request = 0.
                         future = None
@@ -434,7 +460,7 @@ class PanelBackend(Node):
                         future = None
                     else:
                         future = self.call('/scenario/finish' if name == 'finish' else '/leader/hold')
-                    self.pending = (name, future, wall+(75. if name == 'land' else 5.), values, now)
+                    self.pending = (name, future, wall+{'land': 75., 'resume': 15.}.get(name, 5.), values, now)
                 except Exception as error:
                     if name == 'finish':
                         self.flight.stop()

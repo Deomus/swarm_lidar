@@ -32,6 +32,7 @@ button:disabled{opacity:.38;cursor:not-allowed}
 .primary:hover:enabled{background:linear-gradient(180deg,#86f0c9,#52d6a6);border-color:#86f0c9}
 .danger{border-color:#7b4740;color:#ffb4a8;background:#2e1d1e}.danger:hover:enabled{background:#4a2827;border-color:#a35a50}
 .wide{width:100%}
+.warn{border-color:#7a6230;color:var(--amber);background:#2c2517}.warn:hover:enabled{background:#3d3220;border-color:#a3843f}
 .switch{display:inline-flex;align-items:center;gap:8px;margin:0;font-size:13px;color:var(--muted);cursor:pointer}.switch input{width:16px;height:16px;accent-color:var(--accent);margin:0}
 button:focus-visible,input:focus-visible,label:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .notice{margin:16px 0 20px;padding:12px 16px;border:1px solid var(--line);border-left:3px solid var(--line2);border-radius:12px;color:#c4d2df;background:rgba(19,28,39,.6);min-height:48px}

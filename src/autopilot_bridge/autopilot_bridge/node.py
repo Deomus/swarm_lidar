@@ -26,11 +26,18 @@ class AutopilotBridge(Node):
                         offboard_topic='fmu/in/offboard_control_mode',
                         trajectory_topic='fmu/in/trajectory_setpoint',
                         period=.05, stale_timeout=.5, status_timeout=1.5, command_timeout=.5,
-                        max_velocity=3., max_yaw_rate=.3, use_offboard=False)
+                        max_velocity=3., max_yaw_rate=.3, use_offboard=False,
+                        hold_after=5., land_after=30.,
+                        failure_states=['DATA_HOLD', 'COLLISION_STOP', 'INVALID_GEOMETRY'])
         for key, value in defaults.items():
             self.declare_parameter(key, value)
         self.p = {key: self.get_parameter(key).value for key in defaults}
         self.uid = self.p['uav_id']
+        if not 0 < self.p['hold_after'] < self.p['land_after']:
+            raise ValueError('Нужно 0 < hold_after < land_after')
+        # Эскалация длительного отказа: None → HOLD (Loiter PX4) → LAND.
+        self.failsafe = self.failing_since = None
+        self.resume_pending = False
         self.odom = self.status = self.local = self.command = None
         self.future_telemetry = {key: deque(maxlen=32) for key in ('odom', 'status', 'local')}
         self.ack = None
@@ -57,7 +64,7 @@ class AutopilotBridge(Node):
             self.create_subscription(VehicleCommandAck, self.p['ack_topic'], self.on_ack, qos_profile_sensor_data),
             self.create_subscription(SwarmCommand, self.p['commands_topic'], self.on_command, 10)]
         self.action_services = []
-        for name in ['arm', 'takeoff', 'offboard', 'hold', 'land', 'enable_stream']:
+        for name in ['arm', 'takeoff', 'offboard', 'hold', 'land', 'enable_stream', 'resume']:
             self.action_services.append(self.create_service(Trigger, name,
                                  lambda req, resp, action=name: self.action(action, resp)))
         self.timer = self.create_timer(self.p['period'], self.tick)
@@ -135,7 +142,16 @@ class AutopilotBridge(Node):
         if not self.telemetry_fresh():
             response.message = 'Нет свежей телеметрии PX4'
             return response
-        if action == 'enable_stream':
+        if action == 'resume':
+            # Возврат после эскалации только по решению оператора: поток
+            # setpoint, через 1 с Offboard; данные проверит контроллер строя.
+            if self.failsafe == 'LAND' or not self.status.arming_state == VehicleStatus.ARMING_STATE_ARMED:
+                response.message = 'Аппарат садится или не вооружён: нужна новая подготовка'
+                return response
+            self.failsafe = self.failing_since = None
+            self.stream_enabled, self.stream_started, self.resume_pending = True, self.now(), True
+        elif action == 'enable_stream':
+            self.failsafe = self.failing_since = None
             self.stream_enabled = True
             self.stream_started = self.now()
         elif action == 'arm':
@@ -146,10 +162,11 @@ class AutopilotBridge(Node):
         elif action == 'takeoff':
             self.send_command(VehicleCommand.VEHICLE_CMD_NAV_TAKEOFF, param7=math.nan)
         elif action == 'land':
-            self.stream_enabled = False
+            self.stream_enabled = self.resume_pending = False
             self.send_command(VehicleCommand.VEHICLE_CMD_NAV_LAND)
         elif action == 'hold':
-            self.stream_enabled = False
+            self.stream_enabled = self.resume_pending = False
+            self.failing_since = None
             self.send_command(VehicleCommand.VEHICLE_CMD_DO_SET_MODE, param1=1., param2=4., param3=3.)
         elif action == 'offboard':
             if not self.stream_enabled or self.stream_started is None or self.now() - self.stream_started < 1.:
@@ -159,6 +176,34 @@ class AutopilotBridge(Node):
         response.success = True
         response.message = 'Запрос отправлен; выполнение подтверждается PX4 ack и autopilot/state'
         return response
+
+    def failure_reason(self, now):
+        """Отказ данных, а не намеренное удержание: команд нет или источник
+        явно сообщает о потере (DATA_HOLD, сближение, неверная геометрия)."""
+        if self.command is None or not 0 <= now - stamp_seconds(self.command.source_stamp) <= self.p['command_timeout']:
+            return 'нет свежих команд'
+        if self.command.safety_state in self.p['failure_states']:
+            return self.command.safety_state
+        return None
+
+    def escalate(self, now):
+        watching = self.stream_enabled or self.failsafe == 'HOLD'
+        reason = self.failure_reason(now) if watching else None
+        if reason is None:
+            self.failing_since = None
+            return
+        if self.failing_since is None:
+            self.failing_since = now
+        duration = now - self.failing_since
+        if self.failsafe is None and duration >= self.p['hold_after']:
+            self.failsafe, self.stream_enabled, self.resume_pending = 'HOLD', False, False
+            self.send_command(VehicleCommand.VEHICLE_CMD_DO_SET_MODE, param1=1., param2=4., param3=3.)
+            self.get_logger().warning(f'FAILSAFE HOLD: {reason} {duration:.1f} с, t={now:.3f}; '
+                                      'возврат — сервис resume')
+        elif self.failsafe == 'HOLD' and duration >= self.p['land_after']:
+            self.failsafe = 'LAND'
+            self.send_command(VehicleCommand.VEHICLE_CMD_NAV_LAND)
+            self.get_logger().error(f'FAILSAFE LAND: {reason} {duration:.1f} с, t={now:.3f}')
 
     def tick(self):
         if self.last_time is not None and self.now() < self.last_time:
@@ -199,7 +244,7 @@ class AutopilotBridge(Node):
             msg.valid = False
         msg.armed = bool(self.status and self.status.arming_state == VehicleStatus.ARMING_STATE_ARMED)
         msg.mode = str(self.status.nav_state) if self.status else 'UNKNOWN'
-        msg.health = 'OK' if msg.valid else 'STALE'
+        msg.health = f'FAILSAFE_{self.failsafe}' if self.failsafe else 'OK' if msg.valid else 'STALE'
         self.state_pub.publish(msg)
         self.local_state_pub.publish(msg)
         if msg.valid:
@@ -212,6 +257,12 @@ class AutopilotBridge(Node):
             transform.transform.translation.z = msg.pose.position.z
             transform.transform.rotation = msg.pose.orientation
             self.tf.sendTransform(transform)
+        if msg.valid:
+            self.escalate(self.now())
+        if (self.resume_pending and self.stream_enabled and msg.valid
+                and self.now() - self.stream_started >= 1.):
+            self.resume_pending = False
+            self.send_command(VehicleCommand.VEHICLE_CMD_DO_SET_MODE, param1=1., param2=6.)
         if self.stream_enabled:
             fresh = bool(msg.valid and self.command is not None and
                          command_is_fresh(self.command, self.now(), self.p['command_timeout'], self.p['map_frame']))

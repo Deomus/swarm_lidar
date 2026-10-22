@@ -71,6 +71,7 @@ window.addEventListener('blur',()=>stopManual());
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopManual();});
 $('manual-stop').onclick=()=>{stopManual(false);command('hold');};
 $('prepare').onclick=()=>command('prepare',{record:$('record').checked});
+$('resume').onclick=()=>command('resume');
 $('hold').onclick=()=>{stopManual(false);command('hold');};
 $('land').onclick=()=>{stopManual(false);command('land');};
 $('go-to-target').onclick=()=>target&&command('goal',{x:target.x,y:target.y});
@@ -88,6 +89,9 @@ function render(state) {
   const flying=operator&&leader.fresh&&leader.armed&&leader.mode==='14'&&leader.position[2]>=1;
   $('connection').querySelector('b').textContent=state.connected?'Четыре аппарата на связи':'Ожидание свежих данных';
   $('connection').className='pill'+(state.connected?' connected':'');
+  // Аппарат вне Offboard при готовой сессии — эскалация моста; возврат по решению оператора.
+  const parked=operator&&state.drones.some(d=>d.fresh&&d.armed&&d.mode!=='14'&&d.health!=='FAILSAFE_LAND');
+  $('resume').hidden=!parked;$('resume').disabled=!parked||!ready;
   $('prepare').disabled=!available;$('hold').disabled=!operator||sending;
   $('land').disabled=!(active||state.drones.some(d=>d.armed))||flight.phase==='landing'||sending;
   $('apply').disabled=!ready||!state.formation_settled;
@@ -110,7 +114,7 @@ function render(state) {
   else setNotice(state.action.message,state.action.state==='error'?'error':state.action.state==='pending'?'pending':'');
   state.drones.forEach((drone,i)=>{
     const cells=rows[i].children;
-    cells[1].textContent=!drone.fresh?'Нет свежих данных':!drone.armed?'На земле':drone.mode==='18'?'Посадка':drone.position[2]<.7?'Подготовка':'В полёте';
+    cells[1].textContent=!drone.fresh?'Нет свежих данных':!drone.armed?'На земле':drone.health==='FAILSAFE_LAND'?'Посадка: отказ данных':drone.health==='FAILSAFE_HOLD'?'Удержание PX4: отказ данных':drone.mode==='18'?'Посадка':drone.position[2]<.7?'Подготовка':'В полёте';
     cells[1].className=drone.fresh?'fresh':'stale';
     cells[2].textContent=drone.fresh?`${drone.position[2].toFixed(2)} м`:'—';
     cells[3].textContent=drone.fresh?`${Math.hypot(...drone.velocity).toFixed(2)} м/с`:'—';

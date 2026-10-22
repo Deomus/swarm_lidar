@@ -117,9 +117,9 @@ def backend(tmp_path):
     rclpy.shutdown()
 
 
-def feed(node, armed=False):
+def feed(node, armed=False, mode=''):
     for i in range(4):
-        state = SwarmState(uav_id=i, valid=True, armed=armed, frame_id='map')
+        state = SwarmState(uav_id=i, valid=True, armed=armed, frame_id='map', mode=mode)
         state.timestamp.sec = int(node.now())
         state.timestamp.nanosec = int((node.now()-state.timestamp.sec)*1e9)
         node.on_state(state)
@@ -334,7 +334,7 @@ def test_manual_buttons_follow_leader_heading():
 
 
 def flying_leader(backend, mode='14', z=2.5):
-    feed(backend, armed=True)
+    feed(backend, armed=True, mode='14')
     state = SwarmState(uav_id=0, valid=True, armed=True, frame_id='map', mode=mode, yaw=math.pi/2)
     state.timestamp.sec = 10
     state.pose.position.x, state.pose.position.y, state.pose.position.z = 3., 4., z
@@ -380,3 +380,27 @@ def test_altitude_goal_keeps_leader_position(backend):
     p = goals[0].pose.position
     assert (p.x, p.y, p.z) == (3., 4., 6.)
     assert 'Высота роя' in backend.action['message']
+
+
+def test_resume_returns_parked_drones_then_reenables_formation(backend):
+    flying_leader(backend)
+    state = SwarmState(uav_id=2, valid=True, armed=True, frame_id='map', mode='4', health='FAILSAFE_HOLD')
+    state.timestamp.sec = 10
+    backend.on_state(state)
+    backend.formation = dict(mode='COLLISION_STOP', time=10.)
+    calls = []
+    backend.call = lambda path: calls.append(path) or SimpleNamespace(done=lambda: False)
+    backend.submit('resume', {})
+    backend.tick()
+    assert calls == ['/uav_2/resume'] and backend.action['state'] == 'pending'
+    state.mode = '14'
+    backend.on_state(state)
+    backend.tick()
+    backend.tick()
+    assert calls[-1] == '/swarm/enable_formation'
+
+
+def test_resume_without_parked_drones_is_rejected(backend):
+    flying_leader(backend)
+    with pytest.raises(ValueError, match='удержании PX4'):
+        backend.submit('resume', {})
