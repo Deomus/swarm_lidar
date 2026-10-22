@@ -1,7 +1,10 @@
 """Границы команды и задержка конечного сглаживания, без модели физики PX4."""
 
+from pathlib import Path
+
 import numpy as np
 import pytest
+import yaml
 
 from formation_controller.core import (
     RelativeVelocityController, VelocityLimiter, WindowedVelocityLimiter, slot_feedforward,
@@ -97,27 +100,34 @@ def test_new_smoothing_preserves_stale_and_confidence_gates():
 def test_vertical_loop_damps_delayed_sensor_and_vehicle_response():
     # Прежняя модель не включала задержку измерения и команды. С новым
     # фильтром усиление 1/1.2 возбуждало колебания, найденные в длинном S1.
+    path = Path(__file__).parents[1]/'config/controller.yaml'
+    configured = yaml.safe_load(path.read_text())['formation_controller']['ros__parameters']
+    settings = {key: configured[key] for key in ('kp', 'vertical_kp', 'vertical_kd',
+        'velocity_smoothing', 'stale_timeout', 'max_speed', 'max_acceleration', 'max_jerk',
+        'period', 'vertical_derivative_time')}
+    period = settings['period']
+    lag_steps, sample_steps = max(1, round(.2/period)), max(1, round(.1/period))
     results = []
-    for gain, damping in [(1., 1.2), (.6, .6)]:
-        controller = RelativeVelocityController(kp=.3, vertical_kp=gain, vertical_kd=damping,
-            velocity_smoothing='windowed', stale_timeout=.5, max_speed=2.,
-            max_acceleration=4., max_jerk=8.)
-        history, commands = [.4]*10, [0.]*10
+    for parameters in [dict(settings, velocity_smoothing='windowed', vertical_kp=1., vertical_kd=1.2),
+                       settings]:
+        controller = RelativeVelocityController(**parameters)
+        history, commands = [.4]*(lag_steps+2), [0.]*(lag_steps+2)
         relative_z, velocity, measured, stamp = .4, 0., .4, 0.
         errors = []
-        for tick in range(1600):
-            now = tick*.05
-            if tick % 2 == 0:
-                measured, stamp = history[-5], now-.2
+        for tick in range(round(80/period)):
+            now = tick*period
+            if tick % sample_steps == 0:
+                measured, stamp = history[-1-lag_steps], now-lag_steps*period
             result = controller.step([-4., 0., measured], [-4., 0., 0.],
                 [0., 0., 0.], [0., 0., 0.], 0., 0., stamp, now)
             commands.append(result.velocity_enu[2])
-            velocity += .05/.45*(commands[-5]-velocity)
+            velocity += period/.45*(commands[-1-lag_steps]-velocity)
             unobserved_drift = .35 if 5 < now < 15 else -.35 if 15 < now < 25 else 0.
-            relative_z += .05*(velocity-unobserved_drift)
+            relative_z += period*(velocity-unobserved_drift)
             history.append(relative_z)
             errors.append(relative_z)
         results.append(np.asarray(errors))
-    assert np.sqrt(np.mean(results[0][-400:]**2)) > .5
-    assert np.sqrt(np.mean(results[1][-400:]**2)) < .01
+    tail = round(20/period)
+    assert np.sqrt(np.mean(results[0][-tail:]**2)) > .5
+    assert np.sqrt(np.mean(results[1][-tail:]**2)) < .01
     assert np.max(np.abs(results[1])) < .8
