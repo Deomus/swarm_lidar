@@ -97,36 +97,134 @@
           "max_projected_overshoot_m": 0.27982839111068447
         }
       ]
+    },
+    {
+      "source": "log/following_final_series_20261022/s1_2/flight",
+      "scenario": "s1",
+      "passed": true,
+      "passed_landing": true,
+      "runtime_revision": "b0af77293c9f27a00f54e84ac761e5e6d14ab995",
+      "configuration_sha256": "222b493340f00cb59f04db46fd30c996010e0358d0f5a27d8130f3b35385fcfc",
+      "formation": {
+        "count": 4821,
+        "mean": 0.10486948821651813,
+        "rms": 0.1270116713436408,
+        "max": 0.3526811748210045,
+        "min": 0.001953933693717691
+      },
+      "localization": {
+        "count": 4821,
+        "mean": 0.04127978769346465,
+        "rms": 0.045163678510489434,
+        "max": 0.19250559064356015,
+        "min": 0.002930545626319168
+      },
+      "min_pair_distance_m": 2.7494669564331478,
+      "active_rows": 4821,
+      "relative_stale_share": 0,
+      "leader_state_stale_share": 0,
+      "formation_missing_share": 0,
+      "localization_missing_share": 0,
+      "manual_windows": {},
+      "confirmed_zero_delay_s": null,
+      "fixed_manual_profiles": null,
+      "transitions": [
+        {
+          "number": 1,
+          "formation": "line",
+          "scale": 1.149999976158142,
+          "target_duration_s": 11.947999999999993,
+          "threshold_m": 0.3,
+          "required_tail_s": 1,
+          "samples": 1209,
+          "matched_samples": 1209,
+          "settling_duration_s": 11.951999999999984,
+          "post_target_settling_s": 0.003999999999990678,
+          "max_projected_overshoot_m": 0.2075739344703686
+        },
+        {
+          "number": 2,
+          "formation": "line",
+          "scale": 1,
+          "target_duration_s": 11.948000000000008,
+          "threshold_m": 0.3,
+          "required_tail_s": 1,
+          "samples": 1213,
+          "matched_samples": 1213,
+          "settling_duration_s": 11.951999999999998,
+          "post_target_settling_s": 0.003999999999990678,
+          "max_projected_overshoot_m": 0.16631544663903175
+        },
+        {
+          "number": 3,
+          "formation": "column",
+          "scale": 1,
+          "target_duration_s": 25.147999999999996,
+          "threshold_m": 0.3,
+          "required_tail_s": 1,
+          "samples": 1835,
+          "matched_samples": 1835,
+          "settling_duration_s": 27.087999999999994,
+          "post_target_settling_s": 1.9399999999999977,
+          "max_projected_overshoot_m": 0.35107027561199095
+        },
+        {
+          "number": 4,
+          "formation": "wedge",
+          "scale": 1,
+          "target_duration_s": 24.948000000000008,
+          "threshold_m": 0.3,
+          "required_tail_s": 1,
+          "samples": 1818,
+          "matched_samples": 1818,
+          "settling_duration_s": 24.948000000000008,
+          "post_target_settling_s": 0,
+          "max_projected_overshoot_m": 0.2254293025133114
+        },
+        {
+          "number": 5,
+          "formation": "line",
+          "scale": 1,
+          "target_duration_s": 19.94799999999998,
+          "threshold_m": 0.3,
+          "required_tail_s": 1,
+          "samples": 1595,
+          "matched_samples": 1595,
+          "settling_duration_s": 19.94799999999998,
+          "post_target_settling_s": 0,
+          "max_projected_overshoot_m": 0.2524306371331342
+        }
+      ]
     }
   ],
   "all_passed": true,
   "formation_rms_m": {
-    "count": 1,
-    "mean": 0.1350782100772399,
-    "sample_std": null,
-    "min": 0.1350782100772399,
+    "count": 2,
+    "mean": 0.13104494071044037,
+    "sample_std": 0.005703904239231876,
+    "min": 0.1270116713436408,
     "max": 0.1350782100772399
   },
   "formation_max_m": {
-    "count": 1,
-    "mean": 0.3685472098368823,
-    "sample_std": null,
-    "min": 0.3685472098368823,
+    "count": 2,
+    "mean": 0.3606141923289434,
+    "sample_std": 0.011218980950270404,
+    "min": 0.3526811748210045,
     "max": 0.3685472098368823
   },
   "min_pair_distance_m": {
-    "count": 1,
-    "mean": 2.758386650149379,
-    "sample_std": null,
-    "min": 2.758386650149379,
+    "count": 2,
+    "mean": 2.7539268032912636,
+    "sample_std": 0.006307175912854152,
+    "min": 2.7494669564331478,
     "max": 2.758386650149379
   },
   "localization_rms_m": {
-    "count": 1,
-    "mean": 0.044485105133046245,
-    "sample_std": null,
+    "count": 2,
+    "mean": 0.04482439182176784,
+    "sample_std": 0.00047982383672273796,
     "min": 0.044485105133046245,
-    "max": 0.044485105133046245
+    "max": 0.045163678510489434
   },
   "confirmed_zero_delay_s": {
     "count": 0,
@@ -141,18 +239,18 @@
       "formation": "line",
       "scale": 1.149999976158142,
       "settling_duration_s": {
-        "count": 1,
-        "mean": 11.947999999999993,
-        "sample_std": null,
+        "count": 2,
+        "mean": 11.949999999999989,
+        "sample_std": 0.002828427124739598,
         "min": 11.947999999999993,
-        "max": 11.947999999999993
+        "max": 11.951999999999984
       },
       "max_projected_overshoot_m": {
-        "count": 1,
-        "mean": 0.16067497138558207,
-        "sample_std": null,
+        "count": 2,
+        "mean": 0.18412445292797533,
+        "sample_std": 0.03316257482787012,
         "min": 0.16067497138558207,
-        "max": 0.16067497138558207
+        "max": 0.2075739344703686
       },
       "unsettled_runs": 0
     },
@@ -161,17 +259,17 @@
       "formation": "line",
       "scale": 1,
       "settling_duration_s": {
-        "count": 1,
+        "count": 2,
         "mean": 11.951999999999998,
-        "sample_std": null,
+        "sample_std": 0,
         "min": 11.951999999999998,
         "max": 11.951999999999998
       },
       "max_projected_overshoot_m": {
-        "count": 1,
-        "mean": 0.18395928019788554,
-        "sample_std": null,
-        "min": 0.18395928019788554,
+        "count": 2,
+        "mean": 0.17513736341845865,
+        "sample_std": 0.012476074355592294,
+        "min": 0.16631544663903175,
         "max": 0.18395928019788554
       },
       "unsettled_runs": 0
@@ -181,18 +279,18 @@
       "formation": "column",
       "scale": 1,
       "settling_duration_s": {
-        "count": 1,
-        "mean": 25.055999999999983,
-        "sample_std": null,
+        "count": 2,
+        "mean": 26.07199999999999,
+        "sample_std": 1.4368409793710721,
         "min": 25.055999999999983,
-        "max": 25.055999999999983
+        "max": 27.087999999999994
       },
       "max_projected_overshoot_m": {
-        "count": 1,
-        "mean": 0.24177580196557694,
-        "sample_std": null,
+        "count": 2,
+        "mean": 0.29642303878878395,
+        "sample_std": 0.07728286346159376,
         "min": 0.24177580196557694,
-        "max": 0.24177580196557694
+        "max": 0.35107027561199095
       },
       "unsettled_runs": 0
     },
@@ -201,17 +299,17 @@
       "formation": "wedge",
       "scale": 1,
       "settling_duration_s": {
-        "count": 1,
-        "mean": 25.048000000000002,
-        "sample_std": null,
-        "min": 25.048000000000002,
+        "count": 2,
+        "mean": 24.998000000000005,
+        "sample_std": 0.07071067811865073,
+        "min": 24.948000000000008,
         "max": 25.048000000000002
       },
       "max_projected_overshoot_m": {
-        "count": 1,
-        "mean": 0.23580638267186402,
-        "sample_std": null,
-        "min": 0.23580638267186402,
+        "count": 2,
+        "mean": 0.23061784259258772,
+        "sample_std": 0.007337703749028935,
+        "min": 0.2254293025133114,
         "max": 0.23580638267186402
       },
       "unsettled_runs": 0
@@ -221,24 +319,24 @@
       "formation": "line",
       "scale": 1,
       "settling_duration_s": {
-        "count": 1,
-        "mean": 19.951999999999998,
-        "sample_std": null,
-        "min": 19.951999999999998,
+        "count": 2,
+        "mean": 19.94999999999999,
+        "sample_std": 0.0028284271247596953,
+        "min": 19.94799999999998,
         "max": 19.951999999999998
       },
       "max_projected_overshoot_m": {
-        "count": 1,
-        "mean": 0.27982839111068447,
-        "sample_std": null,
-        "min": 0.27982839111068447,
+        "count": 2,
+        "mean": 0.2661295141219093,
+        "sample_std": 0.019373137626806515,
+        "min": 0.2524306371331342,
         "max": 0.27982839111068447
       },
       "unsettled_runs": 0
     }
   ],
   "planned_runs": 3,
-  "completed_runs": 1,
+  "completed_runs": 2,
   "series_complete": false,
   "note": "Перестроения окончательной настройки b0af772. Пилот исключён; полоса .3м, конечный непрерывный участок не меньше1с."
 }
