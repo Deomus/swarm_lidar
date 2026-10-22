@@ -31,8 +31,13 @@ def formation_request(body):
     return name, float(scale), float(duration)
 
 
-def goal_request(body):
+def goal_request(body, current_altitude=None):
+    """Без z рой летит на текущей высоте ведущего, а не на фиксированной."""
     values = [body.get(key) for key in ('x', 'y', 'z')]
+    if values[2] is None:
+        if current_altitude is None:
+            raise ValueError('Нет свежей высоты ведущего для маршрута')
+        values[2] = current_altitude
     if (any(isinstance(value, bool) or not isinstance(value, (int, float))
             or not math.isfinite(value) for value in values)
             or not all(-100. <= value <= 100. for value in values[:2])
@@ -201,7 +206,7 @@ class PanelBackend(Node):
                     raise ValueError('Сначала выполните «Подготовить и взлететь» и дождитесь готовности')
                 if self.action['state'] == 'pending':
                     raise ValueError('Дождитесь завершения предыдущей команды')
-                x, y, z = goal_request(body)
+                x, y, z = goal_request(body, snapshot['drones'][0].get('position', [None]*3)[2])
                 goal = PoseStamped()
                 goal.header.frame_id = 'map'
                 goal.header.stamp = self.get_clock().now().to_msg()

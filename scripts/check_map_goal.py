@@ -54,6 +54,8 @@ def main():
             assert 'Цель:' in label, label
             result['label'] = label
             if args.flight:
+                state = page.request.get(args.url+'/api/state').json()
+                result['requested_altitude'] = state['drones'][0]['position'][2]
                 page.locator('#go-to-target').click(timeout=15000)
                 saw_mission = False
                 deadline = time.monotonic()+150.
@@ -70,7 +72,7 @@ def main():
                         x, y = map(float, re.findall(r'[XY]=(-?\d+\.\d+)', label))
                         position = state['drones'][0]['position']
                         result['horizontal_error'] = math.hypot(position[0]-x, position[1]-y)
-                        result['altitude_error'] = abs(position[2]-5.)
+                        result['altitude_error'] = abs(position[2]-result['requested_altitude'])
                         assert result['horizontal_error'] < .65
                         assert result['altitude_error'] < .65
                         break

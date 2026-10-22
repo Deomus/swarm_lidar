@@ -34,7 +34,7 @@ async function command(action, values={}) {
 $('prepare').onclick=()=>command('prepare',{record:$('record').checked});
 $('hold').onclick=()=>command('hold');
 $('land').onclick=()=>command('land');
-$('go-to-target').onclick=()=>target&&command('goal',{x:target.x,y:target.y,z:5});
+$('go-to-target').onclick=()=>target&&command('goal',{x:target.x,y:target.y});
 $('clear-target').onclick=()=>{target=null;$('target-label').textContent='Точка не выбрана';$('clear-target').disabled=true;$('go-to-target').disabled=true;draw();};
 document.querySelectorAll('[data-scenario]').forEach(button=>button.onclick=()=>command(button.dataset.scenario,{record:$('record').checked}));
 $('formation-form').onsubmit=event=>{event.preventDefault();if(!$('apply').disabled) command('formation',{formation:$('formation').value,scale:Number($('scale').value),duration:Number($('duration').value)});};

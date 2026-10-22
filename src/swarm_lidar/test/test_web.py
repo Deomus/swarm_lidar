@@ -95,6 +95,14 @@ def test_goal_request_accepts_map_coordinates():
     assert goal_request({'x': 12, 'y': -4.5, 'z': 5}) == (12., -4.5, 5.)
 
 
+def test_goal_without_height_keeps_current_leader_altitude():
+    assert goal_request({'x': 12, 'y': -4.5}, 2.47) == (12., -4.5, 2.47)
+    with pytest.raises(ValueError, match='высоты'):
+        goal_request({'x': 12, 'y': -4.5})
+    with pytest.raises(ValueError):
+        goal_request({'x': 12, 'y': -4.5}, .3)
+
+
 @pytest.fixture
 def backend(tmp_path):
     rclpy.init()
@@ -255,6 +263,20 @@ def test_goal_waits_for_matching_result_and_leader_acceptance(backend):
     backend.call = lambda path: calls.append(path) or SimpleNamespace(done=lambda: False)
     backend.tick()
     assert calls == ['/leader/mission']
+
+
+def test_map_goal_is_sent_at_current_leader_altitude(backend):
+    feed(backend, armed=True)
+    state = SwarmState(uav_id=0, valid=True, armed=True, frame_id='map')
+    state.timestamp.sec = 10
+    state.pose.position.z = 2.5
+    backend.on_state(state)
+    backend.flight.phase, backend.flight.kind = 'ready', 'operator'
+    goals = []
+    backend.goal_publisher = SimpleNamespace(publish=goals.append)
+    backend.submit('goal', dict(x=12., y=-4.5))
+    assert goals[0].pose.position.z == 2.5
+    assert 'высота=2.5' in backend.action['message']
 
 
 def test_missing_plan_expires_and_hold_can_cancel_pending_goal(backend):
