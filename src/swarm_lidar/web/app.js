@@ -189,6 +189,9 @@ function draw() {
   ctx.strokeStyle='#4f86ed';ctx.beginPath();ctx.moveTo(px(0),py(-100));ctx.lineTo(px(0),py(100));ctx.stroke();
   ctx.font='10px system-ui';ctx.textAlign='left';ctx.fillStyle='#ef8a7d';ctx.fillText('X',Math.min(w-14,px(100)-8),Math.max(12,py(0)-6));
   ctx.fillStyle='#82aaf4';ctx.fillText('Y',Math.min(w-14,px(0)+6),Math.max(12,py(100)+12));
+  // Препятствия карты /map: занятые клетки, по которым строит путь A*.
+  const obstacles=current?.obstacles;
+  if(obstacles?.cells?.length){ctx.fillStyle='rgba(255,138,115,.55)';const r=obstacles.resolution*scale;for(const [ox,oy] of obstacles.cells)ctx.fillRect(px(ox)-r/2,py(oy)-r/2,r,r);}
   groundMarks.forEach(mark=>{const x=px(mark.x),y=py(mark.y);ctx.fillStyle=mark.color;ctx.strokeStyle='#0b131b';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,5.5,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.font='10px system-ui';ctx.textAlign='center';ctx.fillText(mark.label,x,y-9);});
   const occupied=valid.map(drone=>({x:px(drone.position[0])-8,y:py(drone.position[1])-8,w:16,h:16}));
   valid.forEach(drone=>{

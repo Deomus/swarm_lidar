@@ -9,6 +9,8 @@ import time
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from geometry_msgs.msg import PoseStamped, TwistStamped
+from nav_msgs.msg import OccupancyGrid
+from rclpy.qos import DurabilityPolicy, QoSProfile
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from swarm_interfaces.msg import FormationCommand, SwarmState
@@ -105,6 +107,10 @@ class PanelBackend(Node):
         self.create_subscription(String, '/mission/execution_status', self.on_execution, 10)
         self.create_subscription(String, '/mission/status', self.on_mission_status, 10)
         self.swarm_mode = None
+        # Занятые клетки карты — для отрисовки препятствий в панели.
+        self.obstacles = []
+        self.create_subscription(OccupancyGrid, '/map', self.on_map,
+                                 QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.create_subscription(String, '/swarm/mode', lambda m: self.status_message(m, 'swarm_mode', 'time'), 10)
         self.publisher = self.create_publisher(FormationCommand, '/swarm/formation_command', 10)
         self.goal_publisher = self.create_publisher(PoseStamped, '/mission/goal', 10)
@@ -155,6 +161,14 @@ class PanelBackend(Node):
     def on_execution(self, msg):
         self.status_message(msg, 'execution', 'stamp')
 
+    def on_map(self, msg):
+        info = msg.info
+        cells = [(info.origin.position.x + (i % info.width + .5) * info.resolution,
+                  info.origin.position.y + (i // info.width + .5) * info.resolution)
+                 for i, value in enumerate(msg.data) if value >= 50][:2000]
+        with self.lock:
+            self.obstacles = dict(resolution=info.resolution, cells=cells)
+
     def on_mission_status(self, msg):
         with self.lock:
             self.mission_status = msg.data
@@ -198,7 +212,7 @@ class PanelBackend(Node):
             manual = self.manual
             moving = bool(manual and wall-manual['wall'] <= MANUAL_REPEAT_TIMEOUT and any(manual['command'][:4]))
             return dict(connected=connected, time=now, drones=rows, formation_settled=settled,
-                        manual=moving,
+                        manual=moving, obstacles=self.obstacles,
                         swarm_mode=self.swarm_mode if (self.swarm_mode is not None
                             and 0 <= now-self.swarm_mode['time'] <= 1.) else None,
                         formation=formation if formation_fresh else None,
