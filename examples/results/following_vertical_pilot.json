@@ -1,0 +1,99 @@
+{
+  "source": "log/following_vertical_pilot_20261022/s1_1/flight",
+  "scenario": "s1",
+  "passed": true,
+  "passed_landing": true,
+  "runtime_revision": "b0af77293c9f27a00f54e84ac761e5e6d14ab995",
+  "configuration_sha256": "222b493340f00cb59f04db46fd30c996010e0358d0f5a27d8130f3b35385fcfc",
+  "formation": {
+    "count": 4815,
+    "mean": 0.10266177600754864,
+    "rms": 0.12547468009551915,
+    "max": 0.3880522049774482,
+    "min": 0.0019899366090604708
+  },
+  "localization": {
+    "count": 4815,
+    "mean": 0.041450993069861754,
+    "rms": 0.044967224193183504,
+    "max": 0.1966775705816045,
+    "min": 0.004622503185936952
+  },
+  "min_pair_distance_m": 2.7407438624971885,
+  "active_rows": 4815,
+  "relative_stale_share": 0,
+  "leader_state_stale_share": 0,
+  "formation_missing_share": 0,
+  "localization_missing_share": 0,
+  "manual_windows": {},
+  "confirmed_zero_delay_s": null,
+  "fixed_manual_profiles": null,
+  "transitions": [
+    {
+      "number": 1,
+      "formation": "line",
+      "scale": 1.149999976158142,
+      "target_duration_s": 11.947999999999993,
+      "threshold_m": 0.3,
+      "required_tail_s": 1,
+      "samples": 1203,
+      "matched_samples": 1203,
+      "settling_duration_s": 11.951999999999984,
+      "post_target_settling_s": 0.003999999999990678,
+      "max_projected_overshoot_m": 0.19733900544519067
+    },
+    {
+      "number": 2,
+      "formation": "line",
+      "scale": 1,
+      "target_duration_s": 11.948000000000008,
+      "threshold_m": 0.3,
+      "required_tail_s": 1,
+      "samples": 1204,
+      "matched_samples": 1204,
+      "settling_duration_s": 11.951999999999998,
+      "post_target_settling_s": 0.003999999999990678,
+      "max_projected_overshoot_m": 0.1318343555177891
+    },
+    {
+      "number": 3,
+      "formation": "column",
+      "scale": 1,
+      "target_duration_s": 25.048000000000002,
+      "threshold_m": 0.3,
+      "required_tail_s": 1,
+      "samples": 1833,
+      "matched_samples": 1833,
+      "settling_duration_s": 26.488,
+      "post_target_settling_s": 1.4399999999999977,
+      "max_projected_overshoot_m": 0.33443069362951466
+    },
+    {
+      "number": 4,
+      "formation": "wedge",
+      "scale": 1,
+      "target_duration_s": 24.948000000000008,
+      "threshold_m": 0.3,
+      "required_tail_s": 1,
+      "samples": 1820,
+      "matched_samples": 1820,
+      "settling_duration_s": 24.964,
+      "post_target_settling_s": 0.015999999999991132,
+      "max_projected_overshoot_m": 0.23044013856775203
+    },
+    {
+      "number": 5,
+      "formation": "line",
+      "scale": 1,
+      "target_duration_s": 19.948000000000008,
+      "threshold_m": 0.3,
+      "required_tail_s": 1,
+      "samples": 1597,
+      "matched_samples": 1597,
+      "settling_duration_s": 19.951999999999998,
+      "post_target_settling_s": 0.003999999999990678,
+      "max_projected_overshoot_m": 0.2638828661173065
+    }
+  ],
+  "note": "Проверка вертикального исправления P=.6/D=.6 после отказа прежней настройки. Пилот не входит в последующую формальную серию."
+}
