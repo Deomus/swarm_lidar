@@ -225,24 +225,6 @@ class VelocityLimiter:
         self.velocity += self.alpha * (self._intermediate - self.velocity)
         return self.velocity.copy()
 
-    def braking_envelope(self, tolerance=0.05):
-        """Верхняя оценка пути команд до нуля и времени до tolerance м/с.
-
-        Не учитывает физику PX4, задержки и исходную ошибку скорости.
-        """
-        _positive(tolerance, 'tolerance')
-        q = 1 - self.alpha
-        v = float(np.linalg.norm(self.velocity))
-        w = float(np.linalg.norm(self._intermediate))
-        distance = self.period * q / self.alpha * (v + w)
-        steps = 0
-        # Нормы ограничены аналитической огибающей двух полюсов.
-        while max(v, w) > tolerance:
-            w *= q
-            v = q * v + self.alpha * w
-            steps += 1
-        return distance, steps * self.period
-
     def stopping_displacement(self):
         """Сумма будущих команд при нулевом входе, без модели физики PX4."""
         return self.period * (1-self.alpha) / self.alpha * (self.velocity + self._intermediate)

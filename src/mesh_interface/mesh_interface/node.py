@@ -18,7 +18,6 @@ class MeshNode(Node):
         p = {key: self.get_parameter(key).value for key in defaults}
         if not math.isfinite(p['drop_duration']) or p['drop_duration'] <= 0:
             raise ValueError('Некорректная длительность потери')
-        self.drop_duration = p['drop_duration']
         self.channels, self.subs = [], []
         self.previous_time = None
         self.target_drop = None

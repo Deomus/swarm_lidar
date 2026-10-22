@@ -69,7 +69,6 @@ class FormationController(Node):
         self.orientation_history = OrientationHistory()
         self.last_world = {}
         self.leader_command = None
-        self.reason = 'DISABLED'
         self.request_error = None
         self.request_stamp = -1.
         self.command_pub = self.create_publisher(SwarmCommand, self.p['commands_topic'], 10)
@@ -231,7 +230,6 @@ class FormationController(Node):
 
     def hold(self, req, response):
         self.enabled = False
-        self.reason = 'HOLD'
         self.reset_prediction()
         response.success = True
         response.message = 'Контур отключён; ведомым выдаётся нулевая скорость'
@@ -320,7 +318,6 @@ class FormationController(Node):
             self.orientation_history.clear()
             self.last_world.clear()
             self.controllers = self.new_controllers()
-            self.reason = 'CLOCK_RESET'
         self.previous_time = now
         leader_ok = self.enabled and self.leader_ready()
         available = [i for i in (1, 2, 3) if leader_ok and self.follower_ready(i)]

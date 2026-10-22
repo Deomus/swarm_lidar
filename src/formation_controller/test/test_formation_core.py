@@ -169,20 +169,6 @@ def test_limiter_speed_acceleration_and_jerk_under_reversals(speed, acceleration
     assert np.linalg.norm(jerk, axis=1).max() <= jerk_limit + 1e-9
 
 
-def test_braking_envelope_bounds_command_distance_and_settling_time():
-    limiter = VelocityLimiter()
-    for _ in range(400):
-        limiter.step([3, 0, 0])
-    distance_bound, time_bound = limiter.braking_envelope()
-    distance = 0
-    for n in range(2000):
-        speed = np.linalg.norm(limiter.step([0, 0, 0]))
-        distance += speed * limiter.period
-        if (n + 1) * limiter.period >= time_bound:
-            assert speed <= 0.05 + 1e-9
-    assert distance <= distance_bound + 1e-9
-
-
 def test_feedforward_flu_rotation_turn_and_error():
     controller = RelativeVelocityController()
     offset = np.array([-4.0, 0, 0])

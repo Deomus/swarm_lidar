@@ -15,7 +15,6 @@ def make_node(duration):
         value=duration[0] if name == 'drop_duration' else duration[1] if len(duration) > 1 else 0)
     node.channels = [(DelayChannel(), None)]
     node.target_drop = None
-    node.drop_duration = .7
     return node
 
 
