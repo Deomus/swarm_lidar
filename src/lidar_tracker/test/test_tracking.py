@@ -7,6 +7,14 @@ def test_dense_oversize_component_rejects_whole_frame_without_false_fragments():
     assert cluster_points(dense, .5, 3, 500) == []
 
 
+def test_large_sparse_component_is_dropped_without_rejecting_frame():
+    wall = np.column_stack([np.arange(1000) * .1, np.zeros(1000), np.zeros(1000)])
+    body = np.random.default_rng(3).normal([0., 5., 0.], .02, (30, 3))
+    clusters = cluster_points(np.vstack([wall, body]), .15, 3, 500)
+    assert len(clusters) == 1
+    np.testing.assert_allclose(clusters[0].mean(axis=0), [0., 5., 0.], atol=.02)
+
+
 def test_noise_and_nonfinite():
     rng = np.random.default_rng(4)
     a = rng.normal([2, 0, 0], .02, (20, 3))

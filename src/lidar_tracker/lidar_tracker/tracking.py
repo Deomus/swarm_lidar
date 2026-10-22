@@ -1,5 +1,7 @@
 """Фильтрация и сопровождение целей без ROS и ground truth."""
 import numpy as np
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
 
@@ -49,33 +51,26 @@ def remove_ground(points, distance=.04, min_points=1000, fraction=.7):
 
 
 def cluster_points(points, tolerance=0.8, min_size=3, max_size=5000):
+    """Связные компоненты графа соседей не дальше tolerance.
+
+    Компонента больше max_size отбрасывается, остальные кластеры кадра
+    сохраняются. Если у точки больше max_size соседей, плотный фон
+    отклоняет кадр целиком: это ограничивает число рёбер графа.
+    """
     data = np.asarray(points, dtype=float).reshape(-1, 3)
     data = data[np.isfinite(data).all(axis=1)]
     if not len(data):
         return []
     tree = cKDTree(data)
-    visited = np.zeros(len(data), dtype=bool)
-    clusters = []
-    for start in range(len(data)):
-        if visited[start]:
-            continue
-        visited[start] = True
-        queue, indices = [start], []
-        while queue:
-            current = queue.pop()
-            indices.append(current)
-            # Плотный фон не должен занимать весь период обработки. При
-            # превышении бюджета отклоняем кадр целиком, не создавая ложные
-            # маленькие кластеры из остатка большой компоненты.
-            if len(indices) > max_size or tree.query_ball_point(data[current], tolerance, return_length=True) > max_size:
-                return []
-            for neighbour in tree.query_ball_point(data[current], tolerance):
-                if not visited[neighbour]:
-                    visited[neighbour] = True
-                    queue.append(neighbour)
-        if min_size <= len(indices) <= max_size:
-            clusters.append(data[indices])
-    return clusters
+    if tree.query_ball_point(data, tolerance, return_length=True).max() > max_size:
+        return []
+    pairs = tree.query_pairs(tolerance, output_type='ndarray')
+    graph = coo_matrix((np.ones(len(pairs), dtype=bool), (pairs[:, 0], pairs[:, 1])),
+                       shape=(len(data), len(data)))
+    _, labels = connected_components(graph, directed=False)
+    sizes = np.bincount(labels)
+    return [data[labels == label]
+            for label in np.flatnonzero((sizes >= min_size) & (sizes <= max_size))]
 
 
 class TargetTracker:
