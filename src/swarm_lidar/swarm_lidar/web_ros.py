@@ -8,7 +8,7 @@ import time
 
 from rclpy.node import Node
 from rclpy.parameter import Parameter
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TwistStamped
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from swarm_interfaces.msg import FormationCommand, SwarmState
@@ -46,6 +46,36 @@ def goal_request(body, current_altitude=None):
     return tuple(float(value) for value in values)
 
 
+MANUAL_SPEEDS = (.5, 1., 1.5)
+MANUAL_VERTICAL_SPEED = .5
+MANUAL_YAW_RATE = .3
+MANUAL_REPEAT_TIMEOUT = .3
+MANUAL_BRAKE_TIME = 3.
+MANUAL_MIN_ALTITUDE = 1.
+
+
+def manual_request(body):
+    """Кнопки пульта: направления −1/0/1 относительно курса ведущего и скорость."""
+    axes = [body.get(key, 0) for key in ('forward', 'left', 'up', 'yaw')]
+    speed = body.get('speed')
+    if (any(isinstance(value, bool) or value not in (-1, 0, 1) for value in axes)
+            or isinstance(speed, bool) or speed not in MANUAL_SPEEDS):
+        raise ValueError('Направления −1/0/1 и скорость 0,5 / 1 / 1,5 м/с')
+    return (*map(int, axes), float(speed))
+
+
+def manual_velocity(command, yaw, altitude):
+    """Скорость ведущего в map ENU и yaw_rate; ниже 1 м снижение не выдаётся."""
+    forward, left, up, turn, speed = command
+    c, s = math.cos(yaw), math.sin(yaw)
+    vx, vy = forward*c - left*s, forward*s + left*c
+    norm = math.hypot(vx, vy)
+    if norm:
+        vx, vy = vx*speed/norm, vy*speed/norm
+    vz = up*MANUAL_VERTICAL_SPEED if up > 0 or altitude > MANUAL_MIN_ALTITUDE else 0.
+    return vx, vy, vz, turn*MANUAL_YAW_RATE
+
+
 class PanelBackend(Node):
     def __init__(self, log_dir):
         super().__init__('swarm_web_panel', parameter_overrides=[Parameter('use_sim_time', value=True)])
@@ -76,6 +106,9 @@ class PanelBackend(Node):
         self.create_subscription(String, '/mission/status', self.on_mission_status, 10)
         self.publisher = self.create_publisher(FormationCommand, '/swarm/formation_command', 10)
         self.goal_publisher = self.create_publisher(PoseStamped, '/mission/goal', 10)
+        self.manual_publisher = self.create_publisher(TwistStamped, '/leader/cmd_vel', 10)
+        self.manual = None
+        self.manual_requested_until = 0.
         self.create_timer(.05, self.tick)
 
     def now(self):
@@ -158,7 +191,10 @@ class PanelBackend(Node):
                                and wall-self.clock_progress <= 1.)
             settled = (formation_fresh and connected and self.settled_since is not None
                        and now-self.settled_since >= 1.)
+            manual = self.manual
+            moving = bool(manual and wall-manual['wall'] <= MANUAL_REPEAT_TIMEOUT and any(manual['command'][:4]))
             return dict(connected=connected, time=now, drones=rows, formation_settled=settled,
+                        manual=moving,
                         formation=formation if formation_fresh else None,
                         execution=self.execution if (self.execution is not None
                             and 0 <= now-self.execution['stamp'] <= .5) else None,
@@ -170,17 +206,18 @@ class PanelBackend(Node):
                 raise ValueError('Панель завершает работу и ожидает посадки')
             snapshot = self.snapshot()
             session = snapshot['flight']
-            if action in ('prepare', 's1', 's2', 's3'):
+            if action == 'prepare':
                 if self.action['state'] == 'pending' or self.flight.active():
                     raise ValueError('Дождитесь завершения текущей операции')
                 if not snapshot['connected'] or any(row.get('armed') for row in snapshot['drones']):
                     raise ValueError('Нужны свежие состояния четырёх аппаратов на земле')
-                self.flight.start('operator' if action == 'prepare' else action, body.get('record', True))
+                self.flight.start('operator', body.get('record', True))
                 self.action = dict(state='ok', message='Подготовка началась. Ожидайте подтверждённого взлёта.')
                 return
             if action == 'land':
                 if session['phase'] == 'landing':
                     return
+                self.manual = None
                 self.cancel_goal()
                 if self.flight.active():
                     while not self.commands.empty():
@@ -201,12 +238,34 @@ class PanelBackend(Node):
                 self.commands.put_nowait(('land', None))
                 self.action = dict(state='pending', message='Запрошена посадка всех аппаратов; ожидайте подтверждения.')
                 return
-            if action == 'goal':
-                if session['phase'] != 'ready' or session['kind'] != 'operator' or not snapshot['connected']:
-                    raise ValueError('Сначала выполните «Подготовить и взлететь» и дождитесь готовности')
+            if action in ('goal', 'altitude', 'manual', 'formation', 'hold') and (
+                    session['phase'] != 'ready' or session['kind'] != 'operator' or not snapshot['connected']):
+                raise ValueError('Сначала выполните «Подготовить и взлететь» и дождитесь готовности')
+            leader = snapshot['drones'][0]
+            if action == 'manual':
+                command = manual_request(body)
+                if (not leader.get('armed') or leader.get('mode') != '14'
+                        or leader['position'][2] < MANUAL_MIN_ALTITUDE):
+                    raise ValueError('Ручное управление — только ведущим в полёте: Offboard и выше 1 м')
+                wall = time.monotonic()
+                self.manual = dict(command=command, wall=wall)
+                if (any(command[:4]) and (self.execution or {}).get('mode') != 'MANUAL'
+                        and wall >= self.manual_requested_until):
+                    self.cancel_goal()
+                    self.commands.put_nowait(('manual', None))
+                    self.manual_requested_until = wall + 2.
+                    self.action = dict(state='pending', message='Включается ручное управление ведущим.')
+                return
+            if action in ('goal', 'altitude'):
                 if self.action['state'] == 'pending':
                     raise ValueError('Дождитесь завершения предыдущей команды')
-                x, y, z = goal_request(body, snapshot['drones'][0].get('position', [None]*3)[2])
+                if action == 'altitude':
+                    # Цель в текущих X/Y: ведущий меняет только высоту, ведомые следуют.
+                    x, y, z = goal_request(dict(x=leader['position'][0], y=leader['position'][1],
+                                                z=body.get('z')))
+                else:
+                    x, y, z = goal_request(body, leader.get('position', [None]*3)[2])
+                self.manual = None
                 goal = PoseStamped()
                 goal.header.frame_id = 'map'
                 goal.header.stamp = self.get_clock().now().to_msg()
@@ -218,15 +277,16 @@ class PanelBackend(Node):
                 self.goal_id = [goal.header.stamp.sec, goal.header.stamp.nanosec]
                 self.goal_deadline = time.monotonic() + 10.
                 self.goal_result = None
-                self.action = dict(state='pending', message=f'Маршрут строится: X={x:.1f}, Y={y:.1f}, высота={z:.1f} м')
+                self.action = dict(state='pending', message=(
+                    f'Высота роя меняется на {z:.1f} м' if action == 'altitude'
+                    else f'Маршрут строится: X={x:.1f}, Y={y:.1f}, высота={z:.1f} м'))
                 return
             if action not in ('formation', 'hold'):
                 raise ValueError('Неизвестная команда')
-            if session['phase'] != 'ready' or session['kind'] != 'operator' or not snapshot['connected']:
-                raise ValueError('Сначала выполните «Подготовить и взлететь» и дождитесь готовности')
             if self.action['state'] == 'pending' and action != 'hold':
                 raise ValueError('Дождитесь подтверждения предыдущей команды')
             if action == 'hold':
+                self.manual = None
                 self.cancel_goal()
             values = formation_request(body) if action == 'formation' else None
             if action == 'formation' and (self.execution or {}).get('mode') in ('MISSION', 'MANUAL'):
@@ -245,6 +305,27 @@ class PanelBackend(Node):
             raise ValueError('Команда сейчас недоступна: '+path)
         return client.call_async(Trigger.Request())
 
+    def publish_manual(self, now, wall):
+        """Пока кнопка удерживается, браузер повторяет команду; без повторов —
+        нули для плавного торможения, затем публикация прекращается и
+        ведущий сам переходит в DEADMAN."""
+        manual, leader = self.manual, self.states.get(0)
+        if manual is None:
+            return
+        age = wall - manual['wall']
+        if (age > MANUAL_BRAKE_TIME or self.flight.snapshot()['phase'] != 'ready'
+                or leader is None or not self.fresh(leader, now, wall)):
+            self.manual = None
+            return
+        command = manual['command'] if age <= MANUAL_REPEAT_TIMEOUT else (0, 0, 0, 0, manual['command'][4])
+        vx, vy, vz, yaw_rate = manual_velocity(command, leader['yaw'], leader['position'][2])
+        message = TwistStamped()
+        message.header.frame_id = 'map'
+        message.header.stamp = self.get_clock().now().to_msg()
+        message.twist.linear.x, message.twist.linear.y, message.twist.linear.z = vx, vy, vz
+        message.twist.angular.z = yaw_rate
+        self.manual_publisher.publish(message)
+
     def tick(self):
         with self.lock:
             now, wall = self.now(), time.monotonic()
@@ -256,6 +337,7 @@ class PanelBackend(Node):
             if now != self.clock_previous:
                 self.clock_progress = wall
                 self.clock_previous = now
+            self.publish_manual(now, wall)
             status = self.formation or {}
             errors = status.get('errors', [])
             close = (status.get('mode') == 'FOLLOWING' and 0 <= now-status.get('time', -1) <= .5
@@ -307,9 +389,10 @@ class PanelBackend(Node):
                             and (self.formation or {}).get('leader_mode') == 'HOLD'
                             and sent_at <= (self.formation or {}).get('leader_intent_stamp', -1) <= now)
                         if name != 'hold' or hold_confirmed:
-                            self.action = dict(state='ok', message='Режим миссии включён.' if name == 'mission'
-                                               else ('Посадка запрошена.' if name == 'finish'
-                                               else 'Ведущий удерживает положение.'))
+                            self.action = dict(state='ok', message={
+                                'mission': 'Режим миссии включён.', 'finish': 'Посадка запрошена.',
+                                'manual': 'Ручное управление ведущим включено.'}.get(
+                                name, 'Ведущий удерживает положение.'))
                             self.pending = None
                     if self.pending is not None and wall >= deadline:
                         raise ValueError('Не получено подтверждение команды')
@@ -340,6 +423,8 @@ class PanelBackend(Node):
                         if self.flight.snapshot()['phase'] != 'ready' or self.closing:
                             raise ValueError('Запуск миссии отменён')
                         future = self.call('/leader/mission')
+                    elif name == 'manual':
+                        future = self.call('/leader/manual')
                     elif name == 'land':
                         self.last_landing_request = 0.
                         future = None

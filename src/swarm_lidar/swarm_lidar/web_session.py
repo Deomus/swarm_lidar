@@ -32,7 +32,7 @@ class FlightSession:
                         output=str(self.output) if self.output else None, logs=list(self.logs))
 
     def start(self, kind, record=True):
-        if kind not in ('operator', 's1', 's2', 's3') or not isinstance(record, bool):
+        if kind != 'operator' or not isinstance(record, bool):
             raise ValueError('Неизвестный сценарий или параметр записи')
         with self.lock:
             if self.active():

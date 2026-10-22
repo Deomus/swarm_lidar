@@ -11,51 +11,114 @@
 <body>
   <main>
     <header>
-      <div><p class="eyebrow">РОЙ · ЛИДАР</p><h1>Управление группой</h1><p class="subtitle">Четыре аппарата · локальная симуляция</p></div>
-      <span id="connection" class="badge">Ожидание подключения</span>
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="11" r="5"/><circle cx="9" cy="28" r="4"/><circle cx="20" cy="30" r="4"/><circle cx="31" cy="28" r="4"/><path d="M20 16v10M17 15l-6 10M23 15l6 10"/></svg>
+        <div><p class="eyebrow">РОЙ · ЛИДАР</p><h1>Управление группой</h1></div>
+      </div>
+      <span id="connection" class="pill"><i></i><b>Ожидание подключения</b></span>
     </header>
-    <div id="notice" class="notice" role="status" aria-live="polite">Подключение к панели…</div>
+
     <section class="card flight-bar" aria-label="Управление полётом">
-      <div><h2>Полёт</h2><p id="flight-status">Ожидание симуляции</p></div>
+      <div class="flight-state"><span id="flight-dot" class="dot"></span><div><h2>Полёт</h2><p id="flight-status">Ожидание симуляции</p></div></div>
+      <label class="switch"><input id="record" type="checkbox" checked>Сохранять измерения</label>
       <div class="buttons">
         <button id="prepare" class="primary" disabled>Подготовить и взлететь</button>
         <button id="hold" disabled>Удерживать</button>
         <button id="land" class="danger" disabled>Посадить всех</button>
       </div>
     </section>
-    <div class="columns">
+    <div id="notice" class="notice" role="status" aria-live="polite">Подключение к панели…</div>
+
+    <section class="card scenario" aria-labelledby="s1-title">
+      <div class="scenario-head">
+        <span class="step">1</span>
+        <div><p class="kicker">Сценарий 1</p><h2 id="s1-title">Строй и высота</h2></div>
+        <span id="formation-status" class="tag">Нет данных</span>
+      </div>
+      <div class="s1-grid">
+        <form id="formation-form" class="s1-form">
+          <fieldset class="shapes">
+            <legend>Фигура</legend>
+            <input type="radio" name="formation" id="formation-line" value="line" checked>
+            <label for="formation-line"><svg viewBox="0 0 48 36" aria-hidden="true"><circle class="lead" cx="34" cy="18" r="4"/><circle cx="16" cy="6" r="3.2"/><circle cx="16" cy="18" r="3.2"/><circle cx="16" cy="30" r="3.2"/></svg>Линия</label>
+            <input type="radio" name="formation" id="formation-column" value="column">
+            <label for="formation-column"><svg viewBox="0 0 48 36" aria-hidden="true"><circle class="lead" cx="42" cy="18" r="4"/><circle cx="31" cy="18" r="3.2"/><circle cx="19" cy="18" r="3.2"/><circle cx="7" cy="18" r="3.2"/></svg>Колонна</label>
+            <input type="radio" name="formation" id="formation-wedge" value="wedge">
+            <label for="formation-wedge"><svg viewBox="0 0 48 36" aria-hidden="true"><circle class="lead" cx="38" cy="18" r="4"/><circle cx="12" cy="6" r="3.2"/><circle cx="24" cy="18" r="3.2"/><circle cx="12" cy="30" r="3.2"/></svg>Клин</label>
+          </fieldset>
+          <div class="fields">
+            <div><label for="scale">Масштаб</label><input id="scale" type="number" min="0.75" max="2" step="0.05" value="1" required></div>
+            <div><label for="duration">Перестроение, с</label><input id="duration" type="number" min="2" max="120" step="1" value="25" required></div>
+          </div>
+          <button id="apply" class="primary wide" type="submit" disabled>Применить строй</button>
+        </form>
+        <form id="altitude-form" class="s1-altitude">
+          <p class="legend">Высота роя</p>
+          <p class="readout"><span id="altitude-now">—</span><small>сейчас, м</small></p>
+          <div class="altitude-row">
+            <input id="altitude" type="number" min="2" max="20" step="0.5" value="3" required aria-label="Новая высота, м">
+            <button id="set-altitude" type="submit" disabled>Изменить</button>
+          </div>
+          <p class="hint">Ведущий меняет высоту на месте, ведомые следуют за ним.</p>
+        </form>
+      </div>
+      <div class="errors"><span class="muted">Ошибка мест по LiDAR</span><span id="errors" class="chips"><span class="chip">—</span></span></div>
+    </section>
+
+    <div class="pair">
+      <section class="card scenario" aria-labelledby="s2-title">
+        <div class="scenario-head">
+          <span class="step">2</span>
+          <div><p class="kicker">Сценарий 2</p><h2 id="s2-title">Ручное управление</h2></div>
+          <span id="leader-mode" class="tag">—</span>
+        </div>
+        <div class="leader-stats">
+          <div><small>Курс</small><b id="leader-heading">—</b></div>
+          <div><small>Скорость</small><b id="leader-speed">—</b></div>
+          <div><small>Высота</small><b id="leader-altitude">—</b></div>
+        </div>
+        <div class="pad" role="group" aria-label="Движение ведущего">
+          <button class="key" data-move="turn-left" title="Поворот влево" aria-label="Поворот влево" disabled>↺</button>
+          <button class="key" id="move-forward" data-move="forward" title="Вперёд" aria-label="Вперёд" disabled>↑</button>
+          <button class="key" data-move="turn-right" title="Поворот вправо" aria-label="Поворот вправо" disabled>↻</button>
+          <button class="key" data-move="left" title="Влево" aria-label="Влево" disabled>←</button>
+          <button class="key stop" id="manual-stop" title="Стоп: удержание" aria-label="Стоп" disabled>■</button>
+          <button class="key" data-move="right" title="Вправо" aria-label="Вправо" disabled>→</button>
+          <button class="key small" data-move="up" title="Выше" disabled>Выше</button>
+          <button class="key" data-move="back" title="Назад" aria-label="Назад" disabled>↓</button>
+          <button class="key small" data-move="down" title="Ниже" disabled>Ниже</button>
+        </div>
+        <fieldset class="segmented" aria-label="Скорость">
+          <legend>Скорость, м/с</legend>
+          <input type="radio" name="speed" id="speed-05" value="0.5" checked><label for="speed-05">0,5</label>
+          <input type="radio" name="speed" id="speed-10" value="1"><label for="speed-10">1,0</label>
+          <input type="radio" name="speed" id="speed-15" value="1.5"><label for="speed-15">1,5</label>
+        </fieldset>
+        <p class="hint">Удерживайте кнопку — ведущий движется относительно своего курса; отпустите — плавно тормозит.</p>
+      </section>
+
+      <section class="card scenario" aria-labelledby="s3-title">
+        <div class="scenario-head">
+          <span class="step">3</span>
+          <div><p class="kicker">Сценарий 3</p><h2 id="s3-title">Маршрут к точке</h2></div>
+          <span id="mission-status" class="tag">—</span>
+        </div>
+        <canvas id="map" aria-label="Положение аппаратов на площадке"></canvas>
+        <div class="map-target"><span id="target-label">Щёлкните по карте, чтобы выбрать точку</span><button id="clear-target" disabled>Сбросить</button><button id="go-to-target" class="primary" disabled>Полететь всем роем</button></div>
+        <p class="map-note"><i class="lg lead"></i>ведущий <i class="lg follower"></i>ведомые <i class="lg axis-x"></i>X <i class="lg axis-y"></i>Y · колесо — масштаб, перетаскивание — обзор</p>
+      </section>
+    </div>
+
+    <div class="pair bottom">
       <section class="card">
         <div class="section-heading"><h2>Аппараты</h2><span id="sim-time" class="muted">Время —</span></div>
         <div class="table-wrap"><table><thead><tr><th>Аппарат</th><th>Состояние</th><th>Высота</th><th>Скорость</th></tr></thead><tbody id="drones"></tbody></table></div>
-        <div class="map-heading"><h3>Положение на площадке</h3><span class="muted">Вид сверху · оценка PX4</span></div>
-        <canvas id="map" aria-label="Положение аппаратов на площадке"></canvas>
-        <p class="map-note">Красный — ведущий, светлые — ведомые. Красная ось — X, синяя — Y. Цветные точки — цилиндры из Gazebo. Колесо — масштаб, перетаскивание — обзор.</p>
-        <div class="map-target"><span id="target-label">Точка не выбрана</span><button id="go-to-target" disabled>Полететь всем роем</button><button id="clear-target" disabled>Сбросить</button></div>
       </section>
-      <div class="controls">
-        <section class="card">
-          <div class="section-heading"><h2>Строй</h2><span id="formation-status" class="muted">Нет данных</span></div>
-          <form id="formation-form">
-            <label for="formation">Фигура</label>
-            <select id="formation"><option value="line">Линия</option><option value="column">Колонна</option><option value="wedge">Клин</option></select>
-            <div class="fields"><div><label for="scale">Масштаб</label><input id="scale" type="number" min="0.75" max="2" step="0.05" value="1" required></div>
-            <div><label for="duration">Перестроение, с</label><input id="duration" type="number" min="2" max="120" step="1" value="25" required></div></div>
-            <button id="apply" type="submit" disabled>Применить строй</button>
-          </form>
-          <p class="hint">Доступно после взлёта. Дождитесь завершения текущего перестроения перед следующим.</p>
-          <p id="errors" class="metric">Ошибки строя: —</p>
-        </section>
-        <section class="card">
-          <h2>Готовые сценарии</h2>
-          <p class="hint">Каждый сценарий сам выполняет взлёт, проверку и посадку.</p>
-          <div class="scenario-buttons"><button data-scenario="s1" disabled><span>Перестроения</span><small>Линия, колонна, клин и масштаб</small></button>
-          <button data-scenario="s2" disabled><span>Сопровождение</span><small>Три скорости и потеря данных</small></button>
-          <button data-scenario="s3" disabled><span>Маршрут к точке</span><small>Автоматическая миссия</small></button></div>
-          <label class="checkbox"><input id="record" type="checkbox" checked> Сохранять измерения полёта</label>
-        </section>
-      </div>
+      <section class="card">
+        <div class="section-heading"><h2>События</h2><span id="output" class="muted"></span></div>
+        <pre id="events" aria-live="off">Событий пока нет.</pre>
+      </section>
     </div>
-    <section class="card log-card"><div class="section-heading"><h2>События</h2><span id="output" class="muted"></span></div><pre id="events" aria-live="off">Событий пока нет.</pre></section>
     <footer>Панель подключается к запущенной симуляции. Закрытие вкладки не завершает полёт — используйте «Посадить всех».</footer>
   </main>
 </body>

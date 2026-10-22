@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import math
 from pathlib import Path
 import time
 
@@ -49,11 +50,10 @@ def main():
             raise RuntimeError(reason)
 
         def click(name):
-            scenario = {'Перестроения': 's1', 'Маршрут к точке': 's3', 'Сопровождение': 's2'}.get(name)
-            if scenario:
-                page.locator(f'[data-scenario="{scenario}"]').click(timeout=10000)
-            else:
-                page.get_by_role('button', name=name, exact=True).click(timeout=10000)
+            page.get_by_role('button', name=name, exact=True).click(timeout=10000)
+
+        def leader():
+            return state()['drones'][0]
 
         def land():
             response = page.request.post(args.url+'/api/command', data=dict(action='land'),
@@ -73,7 +73,7 @@ def main():
                 click('Подготовить и взлететь')
                 wait(lambda s: s['flight']['phase'] == 'ready', 240., 'Нет готовности после взлёта')
                 for name in ('wedge', 'line'):
-                    page.locator('#formation').select_option(name)
+                    page.locator(f'label[for="formation-{name}"]').click()
                     page.locator('#duration').fill('25')
                     click('Применить строй')
                     wait(lambda s: s['formation'] is not None
@@ -84,7 +84,27 @@ def main():
                          and max(s['formation']['errors']) < .6, 120., 'Не установлен выбранный строй')
                     page.locator('#formation-status').filter(has_text='Строй установлен').wait_for()
                     page.screenshot(path=str(args.output/(name+'.png')), full_page=True)
-                click('Удерживать')
+                # Высота всего роя: ведущий меняет только Z, строй сохраняется.
+                altitude = round(leader()['position'][2] + 1., 1)
+                page.locator('#altitude').fill(str(altitude))
+                click('Изменить')
+                wait(lambda s: (s['execution'] or {}).get('status') == 'COMPLETE'
+                     and abs(s['drones'][0]['position'][2]-altitude) < .4
+                     and s.get('formation_settled', False), 120., 'Высота роя не изменена')
+                # Пульт: удержание «вперёд» 3 с, затем торможение и «Стоп».
+                start = leader()['position']
+                box = page.locator('#move-forward').bounding_box()
+                page.mouse.move(box['x']+box['width']/2, box['y']+box['height']/2)
+                page.mouse.down()
+                page.wait_for_timeout(3000)
+                manual_status = (state()['execution'] or {}).get('status')
+                page.mouse.up()
+                assert manual_status == 'MANUAL', manual_status
+                wait(lambda s: math.hypot(*s['drones'][0]['velocity'][:2]) < .15, 30., 'Ведущий не затормозил')
+                moved = math.dist(start[:2], leader()['position'][:2])
+                assert moved > .3, moved
+                results.append(dict(altitude=altitude, manual_moved_m=moved))
+                page.locator('#manual-stop').click()
                 wait(lambda s: s['action']['state'] == 'ok' and s['execution'] is not None
                      and s['execution'].get('status') == 'HOLD', 15., 'Нет подтверждения удержания')
                 click('Посадить всех')
@@ -93,25 +113,6 @@ def main():
                              and s['connected'] and all(not d['armed'] for d in s['drones']),
                              120., 'Посадка не подтверждена')
                 results.append(value['flight'])
-                print('Проверка прерывания сценария во время подготовки', flush=True)
-                click('Перестроения')
-                wait(lambda s: s['flight']['kind'] == 's1'
-                     and any(d.get('armed') for d in s['drones']),
-                     150., 'Нет вооружённого аппарата для проверки прерывания')
-                click('Посадить всех')
-                value = wait(lambda s: s['flight']['phase'] == 'cancelled'
-                             and s['connected'] and all(not d['armed'] for d in s['drones']),
-                             120., 'Прерванный сценарий не подтвердил посадку')
-                results.append(value['flight'])
-                # После S1 ведущий около исходной точки; S3 проверяется до перемещения S2.
-                for kind, label in [('s1', 'Перестроения'), ('s3', 'Маршрут к точке'), ('s2', 'Сопровождение')]:
-                    print('Браузер запускает: '+label, flush=True)
-                    click(label)
-                    value = wait(lambda s: s['flight']['kind'] == kind and s['flight']['phase'] == 'complete'
-                                 and s['connected'] and all(not d['armed'] for d in s['drones']),
-                                 700., 'Сценарий не завершился')
-                    results.append(value['flight'])
-                    print('Пройдено: '+kind, flush=True)
                 page.screenshot(path=str(args.output/'finished.png'), full_page=True)
             assert not errors, errors
             passed = True

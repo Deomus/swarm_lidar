@@ -6,6 +6,5 @@ setup(
                 ('share/leader_interface', ['package.xml']),
                 ('share/leader_interface/config', ['config/leader.yaml'])],
     install_requires=['setuptools', 'numpy'], zip_safe=True,
-    entry_points={'console_scripts': ['leader_node = leader_interface.node:main',
-                                     'keyboard_control = leader_interface.keyboard:main']},
+    entry_points={'console_scripts': ['leader_node = leader_interface.node:main']},
 )

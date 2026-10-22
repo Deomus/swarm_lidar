@@ -1,5 +1,6 @@
 import http.client
 import json
+import math
 from pathlib import Path
 import re
 import threading
@@ -8,11 +9,13 @@ from types import SimpleNamespace
 
 import pytest
 import rclpy
+from geometry_msgs.msg import TwistStamped
 from std_msgs.msg import String
 from swarm_interfaces.msg import SwarmState
 
 from swarm_lidar.web_panel import make_server
-from swarm_lidar.web_ros import PanelBackend, formation_request, goal_request
+from swarm_lidar.web_ros import (PanelBackend, formation_request, goal_request, manual_request,
+                                 manual_velocity)
 from swarm_lidar.web_session import FlightSession
 
 
@@ -222,7 +225,7 @@ def test_session_rejects_parallel_process_and_arbitrary_scenario(tmp_path):
         session.start('shell')
     session.phase = 'ready'
     with pytest.raises(ValueError, match='текущий'):
-        session.start('s1')
+        session.start('operator')
 
 
 def test_finished_process_without_landing_ack_is_not_successful_shutdown(tmp_path):
@@ -311,3 +314,69 @@ def test_hold_waits_for_actual_leader_mode_confirmation(backend):
     backend.formation = dict(time=10., leader_mode='HOLD', leader_intent_stamp=10.)
     backend.tick()
     assert backend.pending is None and backend.action['state'] == 'ok'
+
+
+@pytest.mark.parametrize('body', [
+    dict(forward=2, speed=1.), dict(forward=True, speed=1.), dict(forward=1, speed=3.),
+    dict(forward=1), dict(left=.5, speed=.5)])
+def test_invalid_manual_buttons_are_rejected(body):
+    with pytest.raises(ValueError):
+        manual_request(body)
+
+
+def test_manual_buttons_follow_leader_heading():
+    command = manual_request(dict(forward=1, speed=1.5))
+    assert manual_velocity(command, math.pi/2, 2.5) == pytest.approx((0., 1.5, 0., 0.))
+    vx, vy, vz, yaw_rate = manual_velocity(manual_request(dict(forward=1, left=1, up=1, yaw=-1, speed=1.)), 0., 2.5)
+    assert math.hypot(vx, vy) == pytest.approx(1.) and vx == pytest.approx(vy)
+    assert (vz, yaw_rate) == (.5, -.3)
+    assert manual_velocity(manual_request(dict(up=-1, speed=.5)), 0., .9)[2] == 0.
+
+
+def flying_leader(backend, mode='14', z=2.5):
+    feed(backend, armed=True)
+    state = SwarmState(uav_id=0, valid=True, armed=True, frame_id='map', mode=mode, yaw=math.pi/2)
+    state.timestamp.sec = 10
+    state.pose.position.x, state.pose.position.y, state.pose.position.z = 3., 4., z
+    backend.on_state(state)
+    backend.flight.phase, backend.flight.kind = 'ready', 'operator'
+
+
+def test_manual_requires_flying_offboard_leader(backend):
+    flying_leader(backend, mode='4')
+    with pytest.raises(ValueError, match='Offboard'):
+        backend.submit('manual', dict(forward=1, speed=1.))
+
+
+def test_manual_switches_mode_then_brakes_and_stops_publishing(backend):
+    flying_leader(backend)
+    sent = []
+    backend.manual_publisher = SimpleNamespace(publish=sent.append)
+    backend.call = lambda path: sent.append(path) or SimpleNamespace(done=lambda: False)
+    backend.submit('manual', dict(forward=1, speed=1.))
+    assert backend.commands.queue[0] == ('manual', None) and backend.action['state'] == 'pending'
+    backend.submit('manual', dict(forward=1, speed=1.))
+    assert len(backend.commands.queue) == 1
+    backend.tick()
+    assert '/leader/manual' in sent
+    twist = [m for m in sent if isinstance(m, TwistStamped)][-1]
+    assert (twist.twist.linear.x, twist.twist.linear.y) == pytest.approx((0., 1.))
+    assert backend.snapshot()['manual']
+    backend.manual['wall'] -= 1.
+    backend.tick()
+    twist = [m for m in sent if isinstance(m, TwistStamped)][-1]
+    assert twist.twist.linear.y == 0. and not backend.snapshot()['manual']
+    backend.manual['wall'] -= 3.
+    count = len(sent)
+    backend.tick()
+    assert len(sent) == count and backend.manual is None
+
+
+def test_altitude_goal_keeps_leader_position(backend):
+    flying_leader(backend)
+    goals = []
+    backend.goal_publisher = SimpleNamespace(publish=goals.append)
+    backend.submit('altitude', dict(z=6.))
+    p = goals[0].pose.position
+    assert (p.x, p.y, p.z) == (3., 4., 6.)
+    assert 'Высота роя' in backend.action['message']
