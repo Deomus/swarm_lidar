@@ -1,5 +1,25 @@
 # Примеры результатов
 
+Последняя контролируемая серия на общем коде `b0af772`:
+
+- [following_final_comparison.json](results/following_final_comparison.json) —
+  по три S2 до и после настройки и три S1; одинаковые окна команд, исходники
+  и мир. RMS сопровождения уменьшился на 29,9%, средний максимум — на 20,9%.
+- [График сопровождения](results/following_final_repeatability.png) и
+  [график времени перестроений](results/reformation_final_repeatability.png)
+  показывают отдельные полёты, среднее и разброс.
+- [following_reformations.json](results/following_reformations.json) —
+  все 15 переходов подтвердили полосу 0,3 м; средний RMS строя 0,129 м.
+- [following_final_mission.json](results/following_final_mission.json) —
+  один контрольный маршрут с посадкой и отдельной оценкой конечной ошибки.
+- [following_final_mesh.json](results/following_final_mesh.json) — отдельный
+  S2 с задержкой 40 ± 10 мс, вероятностью потери 3% и отключением поз на 0,7 с.
+
+Метод и ограничения — в [описании серии](../docs/following_repeatability.md).
+Неудачная прежняя вертикальная настройка сохранена в
+[following_s1_rejected.json](results/following_s1_rejected.json).
+Ниже приведены исторические результаты предыдущих версий.
+
 После исправлений архитектуры (исполняемый код `0c1d314`):
 
 [audit_fixes.json](results/audit_fixes.json) объединяет метрики трёх
