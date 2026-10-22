@@ -11,8 +11,10 @@ from mesh_interface.node import MeshNode
 def make_node(duration):
     node = MeshNode.__new__(MeshNode)
     node.now = lambda: 10.
-    node.get_parameter = lambda _: SimpleNamespace(value=duration[0])
+    node.get_parameter = lambda name: SimpleNamespace(
+        value=duration[0] if name == 'drop_duration' else duration[1] if len(duration) > 1 else 0)
     node.channels = [(DelayChannel(), None)]
+    node.target_drop = None
     node.drop_duration = .7
     return node
 
@@ -47,3 +49,21 @@ def test_channels_have_independent_loss_sequences():
         node.destroy_node()
     finally:
         rclpy.shutdown()
+
+
+def test_single_target_drop_keeps_other_poses():
+    from swarm_interfaces.msg import RelativePose
+    node = make_node([.7, 2])
+    assert node.drop_poses(None, SimpleNamespace()).success
+    channel = node.channels[0][0]
+    for target in (1, 2, 3):
+        node.on_pose(RelativePose(target_id=target))
+    assert [m.target_id for m in channel.receive(11.)] == [1, 3] and channel.dropped == 1
+    node.now = lambda: 10.8
+    node.on_pose(RelativePose(target_id=2))
+    assert [m.target_id for m in channel.receive(11.)] == [2]
+
+
+def test_invalid_drop_target_is_rejected():
+    response = make_node([.7, 5]).drop_poses(None, SimpleNamespace())
+    assert not response.success and 'drop_target_id' in response.message

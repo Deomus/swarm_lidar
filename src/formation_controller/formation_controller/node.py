@@ -1,3 +1,4 @@
+from itertools import combinations
 import json
 import math
 import numpy as np
@@ -15,6 +16,9 @@ from .core import (FormationPlan, RelativeVelocityController, formation_offsets,
 from .obstacles import check_transition_map
 from .prediction import LeaderVelocityPredictor
 from lidar_tracker.timing import OrientationHistory
+
+OFFBOARD = '14'  # VehicleStatus.nav_state PX4, строкой в SwarmState.mode
+
 
 class FormationController(Node):
     def __init__(self):
@@ -59,6 +63,7 @@ class FormationController(Node):
         self.create_subscription(OccupancyGrid, '/map', self.on_map,
             QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.orientation_history = OrientationHistory()
+        self.last_world = {}
         self.reason = 'DISABLED'
         self.request_error = None
         self.request_stamp = -1.
@@ -77,15 +82,18 @@ class FormationController(Node):
         self.hold_service = self.create_service(Trigger, '/swarm/hold', self.hold)
         self.timer = self.create_timer(self.p['period'], self.tick)
 
-    def new_controllers(self):
-        return [RelativeVelocityController(
+    def new_controller(self):
+        return RelativeVelocityController(
             kp=self.p['kp'], stale_timeout=self.p['stale_timeout'],
             min_confidence=self.p['min_confidence'], max_speed=self.p['max_speed'],
             max_acceleration=self.p['max_acceleration'], max_jerk=self.p['max_jerk'],
             vertical_kp=self.p['vertical_kp'], vertical_kd=self.p['vertical_kd'],
             vertical_derivative_time=self.p['vertical_derivative_time'],
             velocity_smoothing=self.p['velocity_smoothing'],
-            period=self.p['period']) for _ in range(3)]
+            period=self.p['period'])
+
+    def new_controllers(self):
+        return [self.new_controller() for _ in range(3)]
 
     def now(self):
         return self.get_clock().now().nanoseconds * 1e-9
@@ -144,16 +152,26 @@ class FormationController(Node):
         self.reset_prediction()
         return velocity
 
+    def leader_ready(self):
+        state, now = self.states.get(0), self.now()
+        return (state is not None and state.valid and state.armed
+                and 0 <= now - self.seconds(state.timestamp) <= self.p['stale_timeout'])
+
+    def follower_ready(self, i):
+        """Ведомый в контуре: свежая валидная LiDAR-поза и собственный PX4 в Offboard.
+
+        Аппарат, ушедший из Offboard (например, в удержание PX4 по эскалации
+        моста), выбывает: иначе строй считался бы готовым без него.
+        """
+        state, pose, now = self.states.get(i), self.poses.get(i), self.now()
+        return (state is not None and state.valid and state.armed and state.mode == OFFBOARD
+                and 0 <= now - self.seconds(state.timestamp) <= self.p['stale_timeout']
+                and pose is not None and pose.valid and pose.confidence >= self.p['min_confidence']
+                and pose.frame_id == 'uav_0/lidar_link'
+                and 0 <= now - self.seconds(pose.measurement_stamp) <= self.p['stale_timeout'])
+
     def data_ready(self):
-        now = self.now()
-        return (all(i in self.states and self.states[i].valid and self.states[i].armed and
-                    0 <= now - self.seconds(self.states[i].timestamp) <= self.p['stale_timeout']
-                    for i in range(4)) and
-                all(i in self.poses and self.poses[i].valid and
-                    self.poses[i].confidence >= self.p['min_confidence'] and
-                    self.poses[i].frame_id == 'uav_0/lidar_link' and
-                    0 <= now - self.seconds(self.poses[i].measurement_stamp) <= self.p['stale_timeout']
-                    for i in [1, 2, 3]))
+        return self.leader_ready() and all(self.follower_ready(i) for i in (1, 2, 3))
 
     def enable(self, req, response):
         if not self.data_ready():
@@ -202,10 +220,10 @@ class FormationController(Node):
     def on_map(self, message):
         self.map = message
 
-    def measured(self, leader):
+    def measured(self, leader, indices=(1, 2, 3)):
         heading = Rotation.from_euler('z', leader.yaw)
         relative = []
-        for i in [1, 2, 3]:
+        for i in indices:
             p = self.poses[i].pose.position
             raw = np.array([p.x, p.y, p.z])
             # Модель видимой поверхности сферы, без ground truth.
@@ -222,11 +240,25 @@ class FormationController(Node):
             relative.append(heading.inv().apply(target_enu))
         return np.asarray(relative)
 
-    def publish_slot_targets(self, leader, offsets):
+    def lost_positions(self, leader, current, lost):
+        """Последние измеренные места выбывших, пересчитанные к текущей позе ведущего.
+
+        Место хранится в map по позиции ведущего из его PX4 на момент измерения:
+        после остановки ведущего выбывший остаётся препятствием там, где был.
+        """
+        position = np.array([leader.pose.position.x, leader.pose.position.y, leader.pose.position.z])
+        heading = Rotation.from_euler('z', leader.yaw)
+        for i, relative in current.items():
+            self.last_world[i] = position + heading.apply(relative)
+        return {i: heading.inv().apply(self.last_world[i] - position) for i in lost if i in self.last_world}
+
+    def publish_slot_targets(self, leader, offsets, active=(1, 2, 3)):
         """Место ведомого: позиция ведущего по его PX4 + R(yaw)·offset, курс ведущего."""
         position, yaw = leader.pose.position, leader.yaw
         quaternion = Rotation.from_euler('z', yaw).as_quat()
         for i, offset in zip((1, 2, 3), offsets):
+            if i not in active:
+                continue
             x, y, z = Rotation.from_euler('z', yaw).apply(offset)
             target = PoseStamped()
             target.header.frame_id = 'map'
@@ -245,11 +277,17 @@ class FormationController(Node):
             self.poses.clear()
             self.states.clear()
             self.orientation_history.clear()
+            self.last_world.clear()
             self.controllers = self.new_controllers()
             self.reason = 'CLOCK_RESET'
         self.previous_time = now
-        ready = self.enabled and self.data_ready()
-        if not ready and previous is not None and now >= previous:
+        leader_ok = self.enabled and self.leader_ready()
+        available = [i for i in (1, 2, 3) if leader_ok and self.follower_ready(i)]
+        lost = [i for i in (1, 2, 3) if i not in available]
+        # Частичная потеря — DEGRADED: остальные держат места, ведущий по
+        # статусу встаёт в HOLD, перестроение замирает до возврата всех.
+        state = 'DISABLED' if not self.enabled else 'DATA_HOLD' if not available else 'DEGRADED' if lost else None
+        if state is not None and previous is not None and now >= previous:
             self.plan.pause(now - previous)
         sample = self.plan.sample(now)
         targets = PoseArray()
@@ -262,72 +300,81 @@ class FormationController(Node):
             targets.poses.append(pose)
         self.targets_pub.publish(targets)
         minimum = None
-        errors, yaw_errors = [], []
+        errors, yaw_errors = [None] * 3, [None] * 3
         velocities = [np.zeros(3)] * 3
         yaw_rates = [0.] * 3
-        state = 'DISABLED' if not self.enabled else 'DATA_HOLD'
-        if ready:
+        active = []
+        if available:
             leader = self.states[0]
             try:
-                relative = self.measured(leader)
-                all_points = np.vstack([np.zeros(3), relative])
-                minimum = min(float(np.linalg.norm(all_points[i]-all_points[j]))
-                              for i in range(4) for j in range(i))
-                ready = minimum >= self.p['min_separation'] + .2
-                state = 'FORMATION_CHANGE' if sample.transitioning else 'FOLLOWING'
-                if not ready:
+                current = dict(zip(available, self.measured(leader, available)))
+                obstacles = self.lost_positions(leader, current, lost)
+                points = {0: np.zeros(3), **current, **obstacles}
+                minimum = min(float(np.linalg.norm(points[i]-points[j]))
+                              for i, j in combinations(points, 2))
+                if minimum < self.p['min_separation'] + .2:
                     state = 'COLLISION_STOP'
                     self.enabled = False
                     if previous is not None and now >= previous:
                         self.plan.pause(now - previous)
-                for index, controller in enumerate(self.controllers):
+                else:
+                    active = available
+                    state = state or ('FORMATION_CHANGE' if sample.transitioning else 'FOLLOWING')
+                for i in available:
+                    index, enabled = i - 1, i in active
                     forward = self.forward_velocity(leader, now, index, sample.offsets[index],
                                                     sample.velocities[index])
                     offset = sample.offsets[index].copy()
-                    for j, other in enumerate(all_points):
-                        if j == index + 1:
+                    for j, other in points.items():
+                        if j == i:
                             continue
-                        delta = relative[index] - other
+                        delta = current[i] - other
                         distance = np.linalg.norm(delta)
                         if distance < self.p['warning_distance'] and distance > 1e-6:
                             offset += self.p['repulsion_gain'] * (self.p['warning_distance']-distance) * delta / distance
-                    pose = self.poses[index + 1]
-                    result = controller.step(relative[index], offset, sample.velocities[index],
+                    pose = self.poses[i]
+                    result = self.controllers[index].step(current[i], offset, sample.velocities[index],
                         forward, leader.yaw, leader.yaw_rate,
                         min(self.seconds(pose.measurement_stamp), self.seconds(leader.timestamp)),
-                        now, enabled=ready, confidence=pose.confidence)
-                    velocities[index] = result.velocity_enu if ready else np.zeros(3)
-                    errors.append(float(np.linalg.norm(result.error_flu)))
+                        now, enabled=enabled, confidence=pose.confidence)
+                    velocities[index] = result.velocity_enu if enabled else np.zeros(3)
+                    errors[index] = float(np.linalg.norm(result.error_flu))
                     # Курс ведомого — по собственному PX4, позиция по-прежнему только из LiDAR.
-                    follower_yaw = self.states[index + 1].yaw
-                    yaw_errors.append(float(wrap_angle(leader.yaw - follower_yaw)))
-                    if ready and self.p['match_leader_yaw']:
+                    follower_yaw = self.states[i].yaw
+                    yaw_errors[index] = float(wrap_angle(leader.yaw - follower_yaw))
+                    if enabled and self.p['match_leader_yaw']:
                         yaw_rates[index] = heading_rate(leader.yaw, leader.yaw_rate, follower_yaw,
                                                         self.p['yaw_gain'], self.p['max_yaw_rate'])
             except (ValueError, FloatingPointError):
-                ready, state = False, 'INVALID_GEOMETRY'
-        if not ready:
-            self.controllers = self.new_controllers()
-            self.reset_prediction()
-        if ready:
-            self.publish_slot_targets(self.states[0], sample.offsets)
+                active, state = [], 'INVALID_GEOMETRY'
+        for i in (1, 2, 3):
+            if i not in active:
+                self.controllers[i - 1] = self.new_controller()
+                self.predictors[i - 1].reset()
+        if active:
+            self.publish_slot_targets(self.states[0], sample.offsets, active)
         for i in [1, 2, 3]:
-            command = SwarmCommand(uav_id=i, frame_id='map', valid=bool(ready), safety_state=state)
+            ok = i in active
+            # Выбывший при работающем строе получает DATA_HOLD: по нему мост
+            # отличает потерю данных от намеренного удержания.
+            reason = state if ok or state in ('DISABLED', 'COLLISION_STOP', 'INVALID_GEOMETRY') else 'DATA_HOLD'
+            command = SwarmCommand(uav_id=i, frame_id='map', valid=ok, safety_state=reason)
             command.source_stamp = self.get_clock().now().to_msg()
-            if ready:
+            if ok:
                 command.source_stamp = self.poses[i].measurement_stamp
             command.target_velocity.linear.x, command.target_velocity.linear.y, command.target_velocity.linear.z = map(float, velocities[i-1])
-            command.target_velocity.angular.z = yaw_rates[i-1] if ready else 0.
+            command.target_velocity.angular.z = yaw_rates[i-1] if ok else 0.
             self.command_pub.publish(command)
         self.status_pub.publish(String(data=json.dumps(
             dict(mode=state, formation=self.formation, scale=self.scale,
                  min_distance=minimum, errors=errors, yaw_errors=yaw_errors, time=now,
+                 lost=lost if self.enabled else [],
                  leader_mode=(self.leader_intent or {}).get('mode'),
                  leader_intent_stamp=(self.leader_intent or {}).get('stamp', -1),
                  request_error=self.request_error, request_stamp=self.request_stamp))))
-        if state != self.last_status:
-            self.get_logger().info(f'{state}, min_distance={minimum}, t={now:.3f}')
-            self.last_status = state
+        if (state, lost) != self.last_status:
+            self.get_logger().info(f'{state}, выбыли={lost}, min_distance={minimum}, t={now:.3f}')
+            self.last_status = (state, lost)
 
 def main(args=None):
     rclpy.init(args=args)

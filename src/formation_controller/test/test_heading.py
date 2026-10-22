@@ -41,7 +41,7 @@ def run_tick(match, follower_yaws, leader_yaw=3., leader_yaw_rate=.1, valid=True
         quaternion = Rotation.from_euler('z', leader_yaw).as_quat()
         node.orientation_history.add(now, quaternion)
         for i, yaw in enumerate([leader_yaw, *follower_yaws]):
-            state = SwarmState(uav_id=i, frame_id='map', valid=True, armed=True, yaw=yaw,
+            state = SwarmState(uav_id=i, frame_id='map', valid=True, armed=True, yaw=yaw, mode='14',
                                yaw_rate=leader_yaw_rate if i == 0 else 0.)
             state.timestamp = stamp
             state.pose.orientation.x, state.pose.orientation.y, state.pose.orientation.z, \

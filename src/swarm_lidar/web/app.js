@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 const names = ['Ведущий', 'Ведомый 1', 'Ведомый 2', 'Ведомый 3'];
 const shapes = {line:'Линия',column:'Колонна',wedge:'Клин'};
 const phases = {idle:'Ожидание полёта',starting:'Подготовка и взлёт',running:'Подготовка и взлёт',ready:'Группа готова к командам',landing:'Выполняется посадка',complete:'Полёт завершён',cancelled:'Полёт прерван, посадка выполнена',error:'Проверьте журнал полёта'};
-const modes = {FOLLOWING:'Строй установлен',FORMATION_CHANGE:'Перестроение',DATA_HOLD:'Ожидание измерений',DISABLED:'Управление строем выключено',HOLD:'Удержание',COLLISION_STOP:'Остановка при сближении',CLOCK_RESET:'Сброс времени',INVALID_GEOMETRY:'Неверная геометрия'};
+const modes = {FOLLOWING:'Строй установлен',FORMATION_CHANGE:'Перестроение',DATA_HOLD:'Ожидание измерений',DISABLED:'Управление строем выключено',HOLD:'Удержание',COLLISION_STOP:'Остановка при сближении',CLOCK_RESET:'Сброс времени',INVALID_GEOMETRY:'Неверная геометрия',DEGRADED:'Ведомый выбыл, ведущий стоит'};
 const leaderStatus = {HOLD:'Удержание',MANUAL:'Ручное',DEADMAN:'Ручное · нет команд',MISSION:'Миссия',COMPLETE:'Цель достигнута',WAYPOINT_TIMEOUT:'Не достиг точки',STATE_STALE:'Нет телеметрии',PATH_REVOKED:'Маршрут отозван',FORMATION_UNAVAILABLE:'Строй не готов',GROUP_MOTION_UNAVAILABLE:'Строй не успевает',CLOCK_RESET:'Сброс времени'};
 // Кнопка пульта → оси команды: вперёд, влево, вверх, поворот против часовой.
 const moves = {forward:{forward:1},back:{forward:-1},left:{left:1},right:{left:-1},up:{up:1},down:{up:-1},'turn-left':{yaw:1},'turn-right':{yaw:-1}};
@@ -123,7 +123,7 @@ function render(state) {
   else setTag('formation-status',`${shapes[formation.formation]||''} · ×${Number(formation.scale).toFixed(2)} · ${settling?'Занимают места':modes[formation.mode]||'Ожидание'}`,
     formation.mode==='FOLLOWING'&&!settling?'ok':['FORMATION_CHANGE'].includes(formation.mode)||settling?'busy':'warn');
   const errors=formation&&Array.isArray(formation.errors)&&formation.errors.length===3?formation.errors:null;
-  $('errors').replaceChildren(...(errors?errors.map((e,i)=>{const chip=document.createElement('span');chip.className='chip '+(e<.3?'good':e<.6?'mid':'bad');chip.textContent=`${names[i+1]}: ${Number(e).toFixed(2)} м`;return chip;}):[Object.assign(document.createElement('span'),{className:'chip',textContent:'—'})]));
+  $('errors').replaceChildren(...(errors?errors.map((e,i)=>{const chip=document.createElement('span');chip.className='chip '+(e===null?'bad':e<.3?'good':e<.6?'mid':'bad');chip.textContent=`${names[i+1]}: ${e===null?'выбыл':Number(e).toFixed(2)+' м'}`;return chip;}):[Object.assign(document.createElement('span'),{className:'chip',textContent:'—'})]));
   $('altitude-now').textContent=leader.fresh?leader.position[2].toFixed(1):'—';
   const execution=state.execution;
   const status=execution?.status;
