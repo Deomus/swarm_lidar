@@ -11,10 +11,8 @@ from scipy.spatial.transform import Rotation
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from swarm_interfaces.msg import FormationCommand, RelativePose, SwarmCommand, SwarmState
-from .core import (FormationPlan, RelativeVelocityController, formation_offsets, heading_rate,
-                   slot_feedforward, wrap_angle)
+from .core import FormationPlan, RelativeVelocityController, formation_offsets, heading_rate, wrap_angle
 from .obstacles import check_transition_map
-from .prediction import LeaderVelocityPredictor
 from lidar_tracker.timing import OrientationHistory
 
 OFFBOARD = '14'  # VehicleStatus.nav_state PX4, строкой в SwarmState.mode
@@ -28,9 +26,7 @@ class FormationController(Node):
                         min_separation=2., warning_distance=3., repulsion_gain=.5,
                         gap=4., surface_bias=0., sensor_offset=[0., 0., 1.9],
                         marker_offset_z=0., poses_topic='/mesh/relative_poses',
-                        leader_prediction_horizon=1.9, leader_prediction_max_correction=.6,
-                        leader_prediction_max_acceleration=1., leader_prediction_smoothing=.3,
-                        predict_slot_motion=False, leader_status_topic='/mission/execution_status',
+                        leader_status_topic='/mission/execution_status',
                         states_topic='/mesh/states', commands_topic='/swarm/commands',
                         formation_topic='/swarm/formation_command',
                         status_topic='/swarm/formation_status', target_topic='/swarm/target_offsets')
@@ -38,25 +34,16 @@ class FormationController(Node):
         defaults.update(vertical_kp=1., vertical_kd=1.2, vertical_derivative_time=.2)
         defaults.update(velocity_smoothing='exponential')
         defaults.update(match_leader_yaw=False, yaw_gain=1., max_yaw_rate=.3)
-        defaults.update(feedforward_source='measured', smooth_feedforward=True,
-                        leader_commands_topic='/mesh/commands')
+        defaults.update(leader_commands_topic='/mesh/commands')
         for key, value in defaults.items():
             self.declare_parameter(key, value)
         self.p = {key: self.get_parameter(key).value for key in defaults}
-        if self.p['feedforward_source'] not in ('command', 'measured'):
-            raise ValueError('feedforward_source: command или measured')
         if (not math.isfinite(self.p['yaw_gain']) or self.p['yaw_gain'] < 0
                 or not math.isfinite(self.p['max_yaw_rate']) or self.p['max_yaw_rate'] <= 0):
             raise ValueError('Некорректные параметры удержания курса ведомых')
         self.plan = FormationPlan(self.p['min_separation'] + .2, self.p['gap'],
                                   max_slot_speed=self.p['max_speed'] * .75)
         self.controllers = self.new_controllers()
-        self.predictors = [LeaderVelocityPredictor(
-            horizon=self.p['leader_prediction_horizon'],
-            max_correction=self.p['leader_prediction_max_correction'],
-            max_acceleration=self.p['leader_prediction_max_acceleration'],
-            smoothing_time=self.p['leader_prediction_smoothing'],
-            stale_timeout=self.p['stale_timeout']) for _ in range(3)]
         self.poses, self.states = {}, {}
         self.enabled = False
         self.formation, self.scale = 'line', 1.
@@ -95,7 +82,6 @@ class FormationController(Node):
             vertical_kp=self.p['vertical_kp'], vertical_kd=self.p['vertical_kd'],
             vertical_derivative_time=self.p['vertical_derivative_time'],
             velocity_smoothing=self.p['velocity_smoothing'],
-            smooth_feedforward=self.p['smooth_feedforward'],
             period=self.p['period'])
 
     def new_controllers(self):
@@ -136,50 +122,28 @@ class FormationController(Node):
         except (ValueError, TypeError, KeyError):
             pass
 
-    def reset_prediction(self):
-        for predictor in self.predictors:
-            predictor.reset()
-
     def on_command(self, msg):
         if msg.uav_id == 0:
             self.leader_command = msg
 
-    def leader_motion(self, leader, now, index=0, offset=None, offset_velocity=None):
+    def leader_motion(self, leader, now):
         """Упреждение: скорость (ENU) и yaw rate ведущего.
 
         Источник command — заданная ведущему команда из mesh: она уже
         ограничена по ускорению и рывку и опережает измеренную скорость на
         запаздывание PX4, одинаковое у всех аппаратов. Недействительная
         свежая команда означает торможение ведущего до нуля. Без свежей
-        команды — прежний источник: измеренная скорость с прогнозом.
+        команды (потеря в mesh) — измеренная скорость ведущего.
         """
         command = self.leader_command
-        if (self.p['feedforward_source'] == 'command' and command is not None
-                and command.frame_id == 'map'
+        if (command is not None and command.frame_id == 'map'
                 and 0 <= now - self.seconds(command.source_stamp) <= self.p['stale_timeout']):
             if not command.valid:
                 return np.zeros(3), 0.
             v = command.target_velocity
             return np.array([v.linear.x, v.linear.y, v.linear.z]), v.angular.z
-        return self.forward_velocity(leader, now, index, offset, offset_velocity), leader.yaw_rate
-
-    def forward_velocity(self, leader, now, index=0, offset=None, offset_velocity=None):
         v = leader.velocity.linear
-        velocity = np.array([v.x, v.y, v.z])
-        intent = self.leader_intent
-        if (intent is not None and intent['valid'] and intent['status'] in ('MANUAL', 'MISSION')
-                and 0 <= now-intent['stamp'] <= self.p['stale_timeout']):
-            predictor = self.predictors[index]
-            slot = velocity
-            if self.p['predict_slot_motion'] and offset is not None:
-                slot = slot_feedforward(offset, offset_velocity, velocity,
-                                        leader.yaw, leader.yaw_rate)
-            predicted = predictor.update(slot, self.seconds(leader.timestamp), now)
-            # Ядро ниже само добавляет вращение и перестроение: здесь только поправка.
-            return velocity + (predicted - slot)
-        # Шум оценки ускорения в HOLD не должен подталкивать ведомых.
-        self.reset_prediction()
-        return velocity
+        return np.array([v.x, v.y, v.z]), leader.yaw_rate
 
     def leader_ready(self):
         state, now = self.states.get(0), self.now()
@@ -223,14 +187,12 @@ class FormationController(Node):
             return response
         self.enabled = True
         self.controllers = self.new_controllers()
-        self.reset_prediction()
         response.success = True
         response.message = 'LiDAR-relative контур включён'
         return response
 
     def hold(self, req, response):
         self.enabled = False
-        self.reset_prediction()
         response.success = True
         response.message = 'Контур отключён; ведомым выдаётся нулевая скорость'
         return response
@@ -360,8 +322,7 @@ class FormationController(Node):
                     state = state or ('FORMATION_CHANGE' if sample.transitioning else 'FOLLOWING')
                 for i in available:
                     index, enabled = i - 1, i in active
-                    forward, leader_yaw_rate = self.leader_motion(leader, now, index, sample.offsets[index],
-                                                                  sample.velocities[index])
+                    forward, leader_yaw_rate = self.leader_motion(leader, now)
                     offset = sample.offsets[index].copy()
                     for j, other in points.items():
                         if j == i:
@@ -388,7 +349,6 @@ class FormationController(Node):
         for i in (1, 2, 3):
             if i not in active:
                 self.controllers[i - 1] = self.new_controller()
-                self.predictors[i - 1].reset()
         if active:
             self.publish_slot_targets(self.states[0], sample.offsets, active)
         for i in [1, 2, 3]:

@@ -243,12 +243,10 @@ class RelativeVelocityController:
     def __init__(self, kp=0.6, stale_timeout=0.3, min_confidence=0.5,
                  max_speed=3.0, max_acceleration=2.0, max_jerk=4.0, period=0.05,
                  vertical_kp=None, vertical_kd=0., vertical_derivative_time=.2,
-                 velocity_smoothing='exponential', smooth_feedforward=True):
+                 velocity_smoothing='exponential'):
         self.kp = _positive(kp, 'kp')
-        # False: упреждение (уже гладкая команда ведущего) идёт без фильтра,
-        # сглаживается только поправка по LiDAR, а выход ограничен по
-        # ускорению без запаздывания. True — прежнее сглаживание всей команды.
-        self.smooth_feedforward = bool(smooth_feedforward)
+        # Упреждение (уже гладкая команда ведущего) идёт без фильтра: сглаживается
+        # только поправка по LiDAR, выход ограничен по ускорению без запаздывания.
         self.max_speed = _positive(max_speed, 'max_speed')
         self.max_step = _positive(max_acceleration, 'max_acceleration') * _positive(period, 'period')
         self.output = np.zeros(3)
@@ -304,10 +302,7 @@ class RelativeVelocityController:
             correction_enu = rotation @ correction
         else:
             self._z_stamp, self._z_value, self._z_rate = -math.inf, None, 0.
-        if self.smooth_feedforward:
-            velocity = self.limiter.step(feedforward + correction_enu)
-        else:
-            target = clip_norm(feedforward + self.limiter.step(correction_enu), self.max_speed)
-            self.output = self.output + clip_norm(target - self.output, self.max_step)
-            velocity = self.output.copy()
+        target = clip_norm(feedforward + self.limiter.step(correction_enu), self.max_speed)
+        self.output = self.output + clip_norm(target - self.output, self.max_step)
+        velocity = self.output.copy()
         return ControlResult(velocity, error, 'FOLLOWING' if good else 'BRAKING')

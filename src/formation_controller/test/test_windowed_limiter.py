@@ -7,9 +7,8 @@ import pytest
 import yaml
 
 from formation_controller.core import (
-    RelativeVelocityController, VelocityLimiter, WindowedVelocityLimiter, slot_feedforward,
+    RelativeVelocityController, VelocityLimiter, WindowedVelocityLimiter,
 )
-from formation_controller.prediction import LeaderVelocityPredictor
 
 
 @pytest.mark.parametrize('speed,acceleration,jerk,period', [
@@ -50,38 +49,6 @@ def test_invalid_input_preserves_filter_state(value):
     with pytest.raises(ValueError):
         actual.step(value)
     np.testing.assert_array_equal(actual.step([0., 0., 0.]), reference.step([0., 0., 0.]))
-
-
-def test_following_translation_turns_and_stops_on_ideal_model():
-    period = .05
-    leader = VelocityLimiter(1.5, 1., 2., period)
-    filters = [VelocityLimiter(2., 4., 8., period), WindowedVelocityLimiter(2., 4., 8., period)]
-    predictors = [LeaderVelocityPredictor(horizon=horizon) for horizon in (1.9, .95)]
-    offset = np.array([-4., -4., 0.])
-    positions = np.tile(offset, (2, 1))
-    leader_position, yaw, errors = np.zeros(3), 0., []
-    for tick in range(1800):
-        now = tick*period
-        phase = now % 24
-        speed = (.5, 1., 1.5)[min(2, int(now//24))]
-        desired = ([speed, 0., 0.] if phase < 12 else [0., speed/2, .1] if phase < 16
-                   else [0., 0., -.1] if phase < 20 else [0., 0., 0.])
-        rate = .08 if 12 <= phase < 16 else -.08 if 16 <= phase < 20 else 0.
-        velocity = leader.step(desired)
-        leader_position += velocity*period
-        yaw += rate*period
-        c, s = np.cos(yaw), np.sin(yaw)
-        rotation = np.array([[c, -s, 0.], [s, c, 0.], [0., 0., 1.]])
-        target = leader_position+rotation@offset
-        forward = slot_feedforward(offset, np.zeros(3), velocity, yaw, rate)
-        for index in range(2):
-            predicted = predictors[index].update(forward, now, now)
-            positions[index] += period*filters[index].step(predicted+.3*(target-positions[index]))
-        errors.append(np.linalg.norm(target-positions, axis=1))
-    errors = np.asarray(errors)
-    rms = np.sqrt(np.mean(errors**2, axis=0))
-    assert rms[1] < .7*rms[0]
-    assert errors[:, 1].max() < .8*errors[:, 0].max()
 
 
 def test_new_smoothing_preserves_stale_and_confidence_gates():

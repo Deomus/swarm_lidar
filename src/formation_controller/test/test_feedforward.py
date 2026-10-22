@@ -6,10 +6,10 @@ import pytest
 from formation_controller.core import RelativeVelocityController
 
 
-def controller(smooth):
+def controller():
     return RelativeVelocityController(kp=.3, stale_timeout=.5, min_confidence=.4, max_speed=2.,
                                       max_acceleration=4., max_jerk=8., period=.05,
-                                      velocity_smoothing='windowed', smooth_feedforward=smooth)
+                                      velocity_smoothing='windowed')
 
 
 def steps(ctl, leader_velocity, count):
@@ -21,13 +21,13 @@ def steps(ctl, leader_velocity, count):
 
 
 def test_feedforward_reaches_leader_command_without_filter_delay():
-    # Без поправки (ошибка 0): старая схема через 0,5 с ещё далека от 1 м/с.
-    assert steps(controller(False), [1., 0., 0.], 10)[0] == pytest.approx(1.)
-    assert steps(controller(True), [1., 0., 0.], 10)[0] < .5
+    # Без поправки (ошибка 0) за 0,5 с выход достигает команды ведущего:
+    # прежнее окно сглаживания давало здесь меньше 0,5 м/с.
+    assert steps(controller(), [1., 0., 0.], 10)[0] == pytest.approx(1.)
 
 
 def test_output_respects_acceleration_and_speed_limits():
-    ctl = controller(False)
+    ctl = controller()
     previous = np.zeros(3)
     for k in range(60):
         out = ctl.step([-4., 0., 0.], [-4., 0., 0.], np.zeros(3), [5., 0., 0.], 0., 0., k*.05, k*.05)
@@ -42,9 +42,8 @@ def test_node_takes_fresh_leader_command_and_falls_back_to_measured():
     from formation_controller.node import FormationController
     leader = SwarmState(yaw_rate=.05)
     leader.velocity.linear.x = .4
-    probe = SimpleNamespace(p=dict(feedforward_source='command', stale_timeout=.5),
-                            seconds=FormationController.seconds, leader_command=None,
-                            forward_velocity=lambda *args: np.array([.4, 0., 0.]))
+    probe = SimpleNamespace(p=dict(stale_timeout=.5),
+                            seconds=FormationController.seconds, leader_command=None)
     command = SwarmCommand(uav_id=0, frame_id='map', valid=True)
     command.source_stamp.sec = 10
     command.target_velocity.linear.x, command.target_velocity.angular.z = 1., .2

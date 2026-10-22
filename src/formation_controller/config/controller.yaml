@@ -13,9 +13,6 @@ formation_controller:
     velocity_smoothing: windowed
     # Упреждение — заданная ведущему команда из mesh, без сглаживания;
     # сглаживается только поправка по LiDAR, выход ограничен по ускорению.
-    # Модель S2: RMS ошибки места 0,455 → 0,106 м; measured/true — прежняя схема.
-    feedforward_source: command
-    smooth_feedforward: false
     leader_commands_topic: /mesh/commands
     min_separation: 2.0
     warning_distance: 3.0
@@ -24,11 +21,6 @@ formation_controller:
     surface_bias: 0.0
     sensor_offset: [0.0, 0.0, 1.9]
     marker_offset_z: 0.0
-    leader_prediction_horizon: 0.95
-    leader_prediction_max_correction: 0.6
-    leader_prediction_max_acceleration: 1.0
-    leader_prediction_smoothing: 0.3
-    predict_slot_motion: true
     # Ведомые держат курс лидера: упреждение его yaw_rate и P по ошибке курса.
     match_leader_yaw: true
     yaw_gain: 1.0

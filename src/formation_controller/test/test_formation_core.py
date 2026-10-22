@@ -172,11 +172,15 @@ def test_limiter_speed_acceleration_and_jerk_under_reversals(speed, acceleration
 def test_feedforward_flu_rotation_turn_and_error():
     controller = RelativeVelocityController()
     offset = np.array([-4.0, 0, 0])
-    result = controller.step(offset + [1, 0, 0], offset, [0, 0, 0], [1, 0, 0],
-                             math.pi / 2, 0.1, 10, 10)
+    first = controller.step(offset + [1, 0, 0], offset, [0, 0, 0], [1, 0, 0],
+                            math.pi / 2, 0.1, 10, 10)
+    # Первый шаг ограничен ускорением: |Δv| <= max_acceleration·period.
+    assert np.linalg.norm(first.velocity_enu) == pytest.approx(controller.max_step)
+    for tick in range(1, 2000):
+        result = controller.step(offset + [1, 0, 0], offset, [0, 0, 0], [1, 0, 0],
+                                 math.pi / 2, 0.1, 10 + tick * .05, 10 + tick * .05)
     # ENU v = [1,0,0] + R90 * [-0.6,-0.4,0] = [1.4,-0.6,0].
-    expected = np.array([1.4, -0.6, 0]) * controller.limiter.alpha ** 2
-    np.testing.assert_allclose(result.velocity_enu, expected)
+    np.testing.assert_allclose(result.velocity_enu, [1.4, -0.6, 0], atol=1e-9)
     assert result.safety_state == 'FOLLOWING'
 
 

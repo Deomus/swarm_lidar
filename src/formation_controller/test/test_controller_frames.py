@@ -5,7 +5,6 @@ from scipy.spatial.transform import Rotation
 from swarm_interfaces.msg import RelativePose, SwarmState
 
 from formation_controller.node import FormationController
-from formation_controller.prediction import LeaderVelocityPredictor
 
 
 def test_sensor_offset_and_tilt_are_removed_before_heading_control():
@@ -29,27 +28,6 @@ def test_sensor_offset_and_tilt_are_removed_before_heading_control():
     result = FormationController.measured(probe, leader)
     expected = Rotation.from_euler('z', .4).inv().apply(world_relative)
     np.testing.assert_allclose(result, np.tile(expected, (3, 1)), atol=1e-7)
-
-
-def test_prediction_requires_fresh_active_leader_intent_and_resets_in_hold():
-    probe = SimpleNamespace(p=dict(stale_timeout=.5, predict_slot_motion=False),
-                            predictors=[LeaderVelocityPredictor() for _ in range(3)],
-                            leader_intent=dict(stamp=10., status='MANUAL', valid=True),
-                            seconds=FormationController.seconds)
-    probe.reset_prediction = lambda: FormationController.reset_prediction(probe)
-    leader = SwarmState()
-    leader.timestamp.sec = 10
-    np.testing.assert_array_equal(FormationController.forward_velocity(probe, leader, 10.), [0, 0, 0])
-    leader.timestamp.nanosec = 100000000
-    leader.velocity.linear.x = .1
-    assert FormationController.forward_velocity(probe, leader, 10.1)[0] > .1
-    probe.leader_intent.update(status='HOLD', valid=False)
-    np.testing.assert_array_equal(FormationController.forward_velocity(probe, leader, 10.1), [.1, 0, 0])
-    probe.leader_intent.update(status='MANUAL', valid=True)
-    # После HOLD первая скорость не вызывает оценки ускорения через разрыв.
-    leader.velocity.linear.x = 1.
-    np.testing.assert_array_equal(FormationController.forward_velocity(probe, leader, 10.1), [1., 0, 0])
-    np.testing.assert_array_equal(FormationController.forward_velocity(probe, leader, 11.), [1., 0, 0])
 
 
 def test_old_scan_uses_old_orientation_before_current_heading_transform():
@@ -79,26 +57,3 @@ def test_old_scan_uses_old_orientation_before_current_heading_transform():
                                np.tile(expected, (3, 1)), atol=1e-8)
 
 
-def test_slot_prediction_has_separate_history_and_does_not_double_turn_velocity():
-    probe = SimpleNamespace(p=dict(stale_timeout=.5, predict_slot_motion=True),
-                            predictors=[LeaderVelocityPredictor() for _ in range(3)],
-                            leader_intent=dict(stamp=10., status='MANUAL', valid=True),
-                            seconds=FormationController.seconds)
-    probe.reset_prediction = lambda: FormationController.reset_prediction(probe)
-    leader = SwarmState(yaw_rate=.08)
-    leader.timestamp.sec = 10
-    offsets = [np.array([-4., -4., 0.]), np.array([-4., 0., 0.])]
-    for i, offset in enumerate(offsets):
-        # Первый отсчёт только запоминает движение места, поправка ещё нулевая.
-        np.testing.assert_array_equal(FormationController.forward_velocity(
-            probe, leader, 10., i, offset, np.zeros(3)), np.zeros(3))
-    leader.timestamp.nanosec = 100000000
-    leader.yaw = .008
-    outputs = [FormationController.forward_velocity(probe, leader, 10.1, i, offset, np.zeros(3))
-               for i, offset in enumerate(offsets)]
-    assert not np.allclose(outputs[0], outputs[1])
-    assert all(0 < np.linalg.norm(output) <= .6 for output in outputs)
-    probe.leader_intent.update(status='HOLD', valid=False)
-    np.testing.assert_array_equal(FormationController.forward_velocity(
-        probe, leader, 10.1, 0, offsets[0], np.zeros(3)), np.zeros(3))
-    assert all(predictor._stamp is None for predictor in probe.predictors)
