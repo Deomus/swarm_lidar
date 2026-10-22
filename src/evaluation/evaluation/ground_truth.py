@@ -1,6 +1,9 @@
 """Чтение SceneBroadcaster Pose_V без потери name и общего timestamp."""
 from math import isfinite
+import os
 import re
+import sys
+import traceback
 from threading import Lock
 
 from geometry_msgs.msg import TransformStamped
@@ -62,12 +65,22 @@ class GroundTruthReader(Node):
 
 def main(args=None):
     rclpy.init(args=args)
+    code = 0
     node = GroundTruthReader()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
+    except BaseException:
+        traceback.print_exc()
+        code = 1
     finally:
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+        # Поток gz-transport может вызвать Python-обработчик уже во время
+        # финализации интерпретатора (Fatal Python error, SIGABRT при Ctrl+C).
+        # Ресурсы ROS закрыты выше: завершаемся без финализации.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(code)

@@ -1,7 +1,10 @@
 """Пространственный предфильтр настоящего облака Gazebo перед передачей DDS."""
 
 import math
+import os
 from pathlib import Path
+import sys
+import traceback
 from threading import Lock
 
 from gz.msgs10.pointcloud_packed_pb2 import PointCloudPacked
@@ -156,14 +159,24 @@ class CloudSource(Node):
 
 def main(args=None):
     rclpy.init(args=args)
+    code = 0
     node = None
     try:
         node = CloudSource()
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
+    except BaseException:
+        traceback.print_exc()
+        code = 1
     finally:
         if node is not None:
             node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+        # Поток gz-transport может вызвать Python-обработчик уже во время
+        # финализации интерпретатора (Fatal Python error, SIGABRT при Ctrl+C).
+        # Ресурсы ROS закрыты выше: завершаемся без финализации.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(code)
