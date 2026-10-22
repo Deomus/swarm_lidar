@@ -22,11 +22,12 @@
       <div class="flight-state"><span id="flight-dot" class="dot"></span><div><h2>Полёт <span id="swarm-mode" class="tag" title="Режим группы по ТЗ §8">—</span></h2><p id="flight-status">Ожидание симуляции</p></div></div>
       <label class="switch"><input id="record" type="checkbox" checked>Сохранять измерения</label>
       <div class="buttons">
-        <button id="prepare" class="primary" disabled>Подготовить и взлететь</button>
         <button id="resume" class="warn" hidden disabled>Вернуть в строй</button>
         <button id="hold" disabled>Удерживать</button>
         <button id="land" class="danger" disabled>Посадить всех</button>
       </div>
+      <div id="fleet" class="fleet" aria-label="Взлёт и посадка отдельных аппаратов"></div>
+      <p class="hint fleet-hint">Взлёт по одному: сначала ведущий, затем ведомые. Когда взлетят все четыре, строй соберётся сам. Ведущий садится последним.</p>
     </section>
     <div id="notice" class="notice" role="status" aria-live="polite">Подключение к панели…</div>
 

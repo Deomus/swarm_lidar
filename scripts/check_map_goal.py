@@ -29,13 +29,18 @@ def main():
         page.on('pageerror', lambda error: result['errors'].append(str(error)))
         try:
             page.goto(args.url)
-            page.locator('#connection').filter(has_text='Четыре аппарата подключены').wait_for(timeout=30000)
+            page.locator('#connection.connected').wait_for(timeout=30000)
             if args.prepare:
-                page.locator('#prepare').click(timeout=15000)
-                deadline = time.monotonic()+240.
+                # Взлёт по одному: первое нажатие начинает сессию, остальные в очереди;
+                # после четвёртого строй собирается сам.
+                for i in range(4):
+                    page.locator(f'#takeoff-{i}').click(timeout=15000)
+                    page.wait_for_timeout(700)
+                deadline = time.monotonic()+300.
                 while time.monotonic() < deadline:
                     state = page.request.get(args.url+'/api/state').json()
-                    if state['flight']['phase'] == 'ready':
+                    if (state['flight']['phase'] == 'ready' and state['formation_settled']
+                            and (state['formation'] or {}).get('mode') == 'FOLLOWING'):
                         result['operator_output'] = state['flight']['output']
                         break
                     if state['flight']['phase'] == 'error':

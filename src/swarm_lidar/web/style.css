@@ -16,6 +16,14 @@ h2{font-size:17px;margin:0;font-weight:620;letter-spacing:-.2px}
 .pill b{font-weight:500}
 .card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);min-width:0}
 .flight-bar{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.fleet{flex-basis:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.fleet-hint{flex-basis:100%;margin:0}
+.uav{padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg2);display:flex;flex-direction:column;gap:8px;min-width:0}
+.uav header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0}
+.uav b{font-size:14px;font-weight:620}.uav header span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uav header span.up{color:var(--accent)}.uav header span.warn{color:var(--amber)}
+.uav .row{display:flex;gap:6px}.uav .row button{flex:1;padding:8px 6px;font-size:13px}
+.uav.lead{border-color:#5b3a33}
 .flight-state{display:flex;align-items:center;gap:14px;margin-right:auto}
 .flight-state h2 .tag{margin-left:8px;vertical-align:2px;font-size:11px;font-weight:600;letter-spacing:.4px}
 .flight-state p{margin:2px 0 0;color:var(--muted);font-size:14px}
@@ -106,5 +114,6 @@ pre{white-space:pre-wrap;word-break:break-word;font:12px/1.8 ui-monospace,SFMono
 #output{max-width:65%;overflow-wrap:anywhere;text-align:right}
 footer{color:var(--muted);font-size:12px;margin-top:22px;text-align:center}
 @media(max-width:1080px){.s1-grid{grid-template-columns:1fr}.pair,.pair.bottom{grid-template-columns:1fr}.pad{max-width:280px}}
+@media(max-width:900px){.fleet{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){main{padding:20px 14px 30px}header{flex-direction:column;align-items:flex-start}.card{padding:18px}.s1-form{grid-template-columns:1fr}.flight-bar{flex-direction:column;align-items:stretch}.buttons button{flex:1}canvas{height:320px}h1{font-size:23px}.tag{max-width:45%}}
 @media(prefers-reduced-motion:reduce){button,.shapes label{transition:none}}

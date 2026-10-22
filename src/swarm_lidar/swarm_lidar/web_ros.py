@@ -111,6 +111,8 @@ class PanelBackend(Node):
         self.manual_publisher = self.create_publisher(TwistStamped, '/leader/cmd_vel', 10)
         self.manual = None
         self.manual_requested_until = 0.
+        # Взлёты, нажатые до готовности сессии: отправляются исполнителю позже.
+        self.queued_takeoffs = []
         self.create_timer(.05, self.tick)
 
     def now(self):
@@ -218,10 +220,34 @@ class PanelBackend(Node):
                 self.flight.start('operator', body.get('record', True))
                 self.action = dict(state='ok', message='Подготовка началась. Ожидайте подтверждённого взлёта.')
                 return
+            if action in ('takeoff', 'land_uav'):
+                uav = body.get('uav')
+                if isinstance(uav, bool) or uav not in (0, 1, 2, 3):
+                    raise ValueError('Номер аппарата: 0–3')
+                if action == 'takeoff' and not self.flight.active():
+                    # Первая кнопка «Взлететь» начинает сессию с записью; исполнитель
+                    # сначала проверяет аппараты на земле, затем принимает взлёты.
+                    if self.action['state'] == 'pending':
+                        raise ValueError('Дождитесь завершения текущей операции')
+                    if not snapshot['connected'] or any(row.get('armed') for row in snapshot['drones']):
+                        raise ValueError('Нужны свежие состояния четырёх аппаратов на земле')
+                    self.flight.start('operator', body.get('record', True))
+                    self.queued_takeoffs = [uav]
+                    self.action = dict(state='ok', message='Полёт начат: проверка аппаратов на земле, затем взлёт.')
+                    return
+                if action == 'takeoff' and session['phase'] in ('starting', 'running'):
+                    if uav not in self.queued_takeoffs:
+                        self.queued_takeoffs.append(uav)
+                    return
+                if session['phase'] != 'ready' or session['kind'] != 'operator':
+                    raise ValueError('Команда доступна во время полёта, начатого из панели')
+                self.commands.put_nowait((action, uav))
+                return
             if action == 'land':
                 if session['phase'] == 'landing':
                     return
                 self.manual = None
+                self.queued_takeoffs = []
                 self.cancel_goal()
                 if self.flight.active():
                     while not self.commands.empty():
@@ -244,7 +270,7 @@ class PanelBackend(Node):
                 return
             if action in ('goal', 'altitude', 'manual', 'formation', 'hold') and (
                     session['phase'] != 'ready' or session['kind'] != 'operator' or not snapshot['connected']):
-                raise ValueError('Сначала выполните «Подготовить и взлететь» и дождитесь готовности')
+                raise ValueError('Сначала поднимите аппараты кнопками «Взлететь» и дождитесь готовности')
             leader = snapshot['drones'][0]
             if action == 'manual':
                 command = manual_request(body)
@@ -353,6 +379,10 @@ class PanelBackend(Node):
                 self.clock_progress = wall
                 self.clock_previous = now
             self.publish_manual(now, wall)
+            if self.queued_takeoffs and self.flight.snapshot()['phase'] == 'ready':
+                for uav in self.queued_takeoffs:
+                    self.commands.put_nowait(('takeoff', uav))
+                self.queued_takeoffs = []
             status = self.formation or {}
             errors = status.get('errors', [])
             close = (status.get('mode') == 'FOLLOWING' and 0 <= now-status.get('time', -1) <= .5
@@ -411,7 +441,10 @@ class PanelBackend(Node):
                             and now-execution['stamp'] <= .5
                             and (self.formation or {}).get('leader_mode') == 'HOLD'
                             and sent_at <= (self.formation or {}).get('leader_intent_stamp', -1) <= now)
-                        if name != 'hold' or hold_confirmed:
+                        if name in ('takeoff', 'land_uav'):
+                            self.action = dict(state='ok', message=response.message)
+                            self.pending = None
+                        elif name != 'hold' or hold_confirmed:
                             self.action = dict(state='ok', message={
                                 'mission': 'Режим миссии включён.', 'finish': 'Посадка запрошена.',
                                 'manual': 'Ручное управление ведущим включено.',
@@ -449,6 +482,8 @@ class PanelBackend(Node):
                         future = self.call('/leader/mission')
                     elif name == 'manual':
                         future = self.call('/leader/manual')
+                    elif name in ('takeoff', 'land_uav'):
+                        future = self.call(f'/scenario/uav_{values}/{"takeoff" if name == "takeoff" else "land"}')
                     elif name == 'enable':
                         future = self.call('/swarm/enable_formation')
                     elif name == 'resume':

@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const names = ['Ведущий', 'Ведомый 1', 'Ведомый 2', 'Ведомый 3'];
 const shapes = {line:'Линия',column:'Колонна',wedge:'Клин'};
-const phases = {idle:'Ожидание полёта',starting:'Подготовка и взлёт',running:'Подготовка и взлёт',ready:'Группа готова к командам',landing:'Выполняется посадка',complete:'Полёт завершён',cancelled:'Полёт прерван, посадка выполнена',error:'Проверьте журнал полёта'};
+const phases = {idle:'Ожидание полёта',starting:'Запуск полёта',running:'Проверка аппаратов на земле',ready:'Полёт: команды доступны',landing:'Выполняется посадка',complete:'Полёт завершён',cancelled:'Полёт прерван, посадка выполнена',error:'Проверьте журнал полёта'};
 const modes = {FOLLOWING:'Строй установлен',FORMATION_CHANGE:'Перестроение',DATA_HOLD:'Ожидание измерений',DISABLED:'Управление строем выключено',HOLD:'Удержание',COLLISION_STOP:'Остановка при сближении',CLOCK_RESET:'Сброс времени',INVALID_GEOMETRY:'Неверная геометрия',DEGRADED:'Ведомый выбыл, ведущий стоит'};
 const leaderStatus = {HOLD:'Удержание',MANUAL:'Ручное',DEADMAN:'Ручное · нет команд',MISSION:'Миссия',COMPLETE:'Цель достигнута',WAYPOINT_TIMEOUT:'Не достиг точки',STATE_STALE:'Нет телеметрии',PATH_REVOKED:'Маршрут отозван',FORMATION_UNAVAILABLE:'Строй не готов',GROUP_MOTION_UNAVAILABLE:'Строй не успевает',CLOCK_RESET:'Сброс времени'};
 // Кнопка пульта → оси команды: вперёд, влево, вверх, поворот против часовой.
@@ -19,6 +19,21 @@ const groundMarks = [
   {x:0, y:-25, color:'#f2c714', label:'Y −25'},
 ];
 const token = document.querySelector('meta[name=panel-token]').content;
+// Плитки отдельных аппаратов: состояние и кнопки взлёта/посадки.
+const tiles = names.map((name, i) => {
+  const tile = document.createElement('div');
+  tile.className = 'uav' + (i === 0 ? ' lead' : '');
+  const header = document.createElement('header'), title = document.createElement('b'), state = document.createElement('span');
+  title.textContent = name; state.textContent = 'Нет связи'; header.append(title, state);
+  const row = document.createElement('div'); row.className = 'row';
+  const up = document.createElement('button'), down = document.createElement('button');
+  up.id = `takeoff-${i}`; up.className = 'primary'; up.textContent = 'Взлететь'; up.disabled = true;
+  down.id = `land-${i}`; down.className = 'danger'; down.textContent = 'Посадить'; down.disabled = true;
+  up.onclick = () => command('takeoff', {uav: i, record: $('record').checked});
+  down.onclick = () => command('land_uav', {uav: i});
+  row.append(up, down); tile.append(header, row); $('fleet').append(tile);
+  return {state, up, down};
+});
 const rows = names.map(name => {
   const tr = document.createElement('tr');
   for (const text of [name,'Нет связи','—','—']) { const td=document.createElement('td');td.textContent=text;tr.append(td); }
@@ -70,7 +85,6 @@ document.querySelectorAll('[data-move]').forEach(button=>{
 window.addEventListener('blur',()=>stopManual());
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopManual();});
 $('manual-stop').onclick=()=>{stopManual(false);command('hold');};
-$('prepare').onclick=()=>command('prepare',{record:$('record').checked});
 $('resume').onclick=()=>command('resume');
 $('hold').onclick=()=>{stopManual(false);command('hold');};
 $('land').onclick=()=>{stopManual(false);command('land');};
@@ -82,7 +96,6 @@ $('altitude-form').onsubmit=event=>{event.preventDefault();if(!$('set-altitude')
 function render(state) {
   current=state;
   const flight=state.flight,active=['starting','running','ready','landing'].includes(flight.phase);
-  const available=state.connected&&!active&&!sending&&state.action.state!=='pending'&&state.drones.every(d=>!d.armed);
   const operator=state.connected&&flight.phase==='ready'&&flight.kind==='operator';
   const ready=operator&&!sending&&state.action.state!=='pending';
   const leader=state.drones[0];
@@ -92,7 +105,16 @@ function render(state) {
   // Аппарат вне Offboard при готовой сессии — эскалация моста; возврат по решению оператора.
   const parked=operator&&state.drones.some(d=>d.fresh&&d.armed&&d.mode!=='14'&&d.health!=='FAILSAFE_LAND');
   $('resume').hidden=!parked;$('resume').disabled=!parked||!ready;
-  $('prepare').disabled=!available;$('hold').disabled=!operator||sending;
+  const phase=flight.phase,landing=phase==='landing',session=['starting','running','ready'].includes(phase);
+  state.drones.forEach((drone,i)=>{
+    const tile=tiles[i],followersUp=state.drones.slice(1).some(d=>d.armed);
+    tile.state.textContent=!drone.fresh?'Нет данных':!drone.armed?'На земле':drone.health==='FAILSAFE_LAND'?'Посадка: отказ':drone.mode==='18'?'Посадка':drone.health==='FAILSAFE_HOLD'?'Удержание PX4':`В полёте · ${drone.position[2].toFixed(1)} м`;
+    tile.state.className=!drone.fresh||(drone.health||'').startsWith('FAILSAFE')?'warn':drone.armed?'up':'';
+    // Первый взлёт начинает сессию; во время подготовки нажатия ставятся в очередь.
+    tile.up.disabled=sending||landing||!drone.fresh||drone.armed||(!session&&!(state.connected&&state.drones.every(d=>!d.armed)))||(session&&flight.kind!=='operator');
+    tile.down.disabled=sending||!operator||!drone.fresh||!drone.armed||drone.mode==='18'||(i===0&&followersUp);
+    tile.down.title=i===0&&followersUp?'Ведущий садится последним: сначала ведомые или «Посадить всех»':'';
+  });$('hold').disabled=!operator||sending;
   $('land').disabled=!(active||state.drones.some(d=>d.armed))||flight.phase==='landing'||sending;
   $('apply').disabled=!ready||!state.formation_settled;
   $('set-altitude').disabled=!ready||!flying;
@@ -111,9 +133,9 @@ function render(state) {
   if(localError) setNotice(localError,'error');
   else if(flight.phase==='error') setNotice('Полёт завершился с ошибкой. Проверьте события и подтверждение посадки.','error');
   else if(flight.phase==='landing') setNotice('Выполняется посадка. Дождитесь разоружения всех аппаратов.','pending');
-  else if(['starting','running'].includes(flight.phase)) setNotice('Выполняется подготовка: взлёт и включение строя. Посадка доступна в любой момент.','pending');
+  else if(['starting','running'].includes(flight.phase)) setNotice('Проверка аппаратов на земле; нажатые взлёты выполнятся по очереди. Посадка доступна в любой момент.','pending');
   else if(['complete','cancelled'].includes(flight.phase)) setNotice('Посадка подтверждена. Можно начать новый полёт.');
-  else if(flight.phase==='ready'&&state.action.state==='ok'&&state.action.message.startsWith('Подготовка')) setNotice('Группа готова: выберите строй, ведите ведущего вручную или укажите точку на карте.');
+  else if(flight.phase==='idle'&&state.connected) setNotice('Нажмите «Взлететь» у ведущего: полёт начнётся с проверки аппаратов на земле.');
   else setNotice(state.action.message,state.action.state==='error'?'error':state.action.state==='pending'?'pending':'');
   state.drones.forEach((drone,i)=>{
     const cells=rows[i].children;

@@ -146,7 +146,7 @@ def test_future_state_cannot_block_later_valid_telemetry(backend):
 
 def test_commands_require_prepared_operator_and_established_formation(backend):
     feed(backend)
-    with pytest.raises(ValueError, match='взлететь'):
+    with pytest.raises(ValueError, match='Взлететь'):
         backend.submit('formation', dict(formation='line', scale=1., duration=25.))
     backend.flight.phase, backend.flight.kind = 'ready', 'operator'
     backend.on_formation(String(data=json.dumps(dict(time=10., mode='FORMATION_CHANGE', formation='line', scale=1.))))
@@ -404,3 +404,37 @@ def test_resume_without_parked_drones_is_rejected(backend):
     flying_leader(backend)
     with pytest.raises(ValueError, match='удержании PX4'):
         backend.submit('resume', {})
+
+
+def test_first_takeoff_starts_session_and_is_sent_when_ready(backend):
+    feed(backend)
+    started = []
+    backend.flight.start = lambda kind, record: started.append((kind, record))
+    backend.submit('takeoff', dict(uav=0, record=True))
+    assert started == [('operator', True)] and backend.queued_takeoffs == [0]
+    backend.flight.phase, backend.flight.kind = 'running', 'operator'
+    backend.submit('takeoff', dict(uav=1))
+    assert backend.queued_takeoffs == [0, 1]
+    calls = []
+    backend.call = lambda path: calls.append(path) or SimpleNamespace(
+        done=lambda: True, result=lambda: SimpleNamespace(success=True, message='uav_0: взлёт в очереди'))
+    backend.flight.phase = 'ready'
+    for _ in range(4):
+        backend.tick()
+    assert calls == ['/scenario/uav_0/takeoff', '/scenario/uav_1/takeoff']
+
+
+@pytest.mark.parametrize('uav', [4, -1, True, None])
+def test_invalid_uav_number_is_rejected(backend, uav):
+    feed(backend)
+    with pytest.raises(ValueError, match='0–3'):
+        backend.submit('takeoff', dict(uav=uav))
+
+
+def test_single_landing_needs_operator_session(backend):
+    feed(backend, armed=True)
+    with pytest.raises(ValueError, match='полёта'):
+        backend.submit('land_uav', dict(uav=2))
+    backend.flight.phase, backend.flight.kind = 'ready', 'operator'
+    backend.submit('land_uav', dict(uav=2))
+    assert backend.commands.get_nowait() == ('land_uav', 2)

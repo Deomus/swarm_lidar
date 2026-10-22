@@ -278,7 +278,8 @@ def test_operator_waits_for_explicit_finish_and_uses_wall_limit(scenario_module,
         pytest.fail('Не принято явное завершение')
     scenario.wait = wait
     scenario.operator_session()
-    assert services == ['/scenario/finish']
+    assert services == ['/scenario/finish'] + [f'/scenario/uav_{i}/{action}'
+                                               for i in range(4) for action in ('takeoff', 'land')]
 
 
 @pytest.mark.parametrize('fresh', [False, True])
@@ -307,3 +308,20 @@ def test_operator_rejects_clock_rewind(scenario_module, monkeypatch):
     scenario.wait = wait
     with pytest.raises(RuntimeError, match='назад'):
         scenario.operator_session()
+
+
+def test_operator_requests_validate_order_and_leader_lands_last():
+    from types import SimpleNamespace
+    from swarm_interfaces.msg import SwarmState
+    from swarm_lidar.scenario import Scenario
+    scenario = Scenario.__new__(Scenario)
+    scenario.requests = []
+    scenario.states = {i: SwarmState(uav_id=i, valid=True, armed=i in (0, 2)) for i in range(4)}
+    answer = lambda action, i: scenario.request(action, i, SimpleNamespace())
+    assert answer('takeoff', 1).success and not answer('takeoff', 1).success
+    assert not answer('takeoff', 2).success  # уже вооружён
+    assert not answer('land', 3).success  # уже на земле
+    response = answer('land', 0)
+    assert not response.success and 'последним' in response.message
+    assert answer('land', 2).success
+    assert scenario.requests == [('takeoff', 1), ('land', 2)]

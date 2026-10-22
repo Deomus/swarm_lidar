@@ -123,22 +123,26 @@ class Scenario:
                    0 <= self.now()-self.states[i].timestamp.sec-self.states[i].timestamp.nanosec*1e-9 < .5
                    for i in range(4))
 
-    def prepare(self):
+    def prepare_ground(self):
         self.wait(self.fresh, 60., 'Нет четырёх свежих состояний')
         self.event('Четыре PX4 готовы')
         self.wait_ground_settled()
-        for i in range(4):
-            # После посадки PX4 может оставаться в AUTO_LAND, где preflight
-            # не разрешает повторное вооружение. Запрашиваем штатный HOLD.
-            self.call(f'/uav_{i}/hold')
-            ground_z = self.states[i].pose.position.z
-            self.call(f'/uav_{i}/arm', retry=30.)
-            self.wait(lambda: self.states[i].armed, 5., 'Нет arm ack')
-            self.call(f'/uav_{i}/takeoff')
-            self.wait_sim(lambda: self.fresh() and self.states[i].armed and
-                      self.states[i].pose.position.z - ground_z > 2.1,
-                      35., 'Не выполнен takeoff относительно стартовой высоты')
-            self.event(f'uav_{i}: взлёт подтверждён')
+
+    def takeoff_one(self, i):
+        # После посадки PX4 может оставаться в AUTO_LAND, где preflight
+        # не разрешает повторное вооружение. Запрашиваем штатный HOLD.
+        self.call(f'/uav_{i}/hold')
+        ground_z = self.states[i].pose.position.z
+        self.call(f'/uav_{i}/arm', retry=30.)
+        self.wait(lambda: self.states[i].armed, 5., 'Нет arm ack')
+        self.call(f'/uav_{i}/takeoff')
+        self.wait_sim(lambda: self.fresh() and self.states[i].armed and
+                  self.states[i].pose.position.z - ground_z > 2.1,
+                  35., 'Не выполнен takeoff относительно стартовой высоты')
+        self.event(f'uav_{i}: взлёт подтверждён')
+
+    def form(self):
+        """Строй после взлёта всех четырёх: LiDAR-цели, Offboard, контур, линия."""
         self.wait(lambda: all(abs(self.states[i].velocity.linear.z) < .12 for i in range(4)),
                   20., 'Не стабилизировалась высота')
         self.valid_counts = {1: 0, 2: 0, 3: 0}
@@ -158,6 +162,12 @@ class Scenario:
             formation='line', scale=1., transition_time=25., source='scenario'))
         self.settle('line', 1., 70.)
         self.event('LiDAR-контур включён; line удерживается')
+
+    def prepare(self):
+        self.prepare_ground()
+        for i in range(4):
+            self.takeoff_one(i)
+        self.form()
 
     def wait_ground_settled(self):
         """Сценарий начинается на известной площадке с нулевой высотой ENU.
@@ -393,14 +403,65 @@ class Scenario:
         response.message = 'Оператор завершил проверку; сценарий выполнит удержание и посадку'
         return response
 
+    def request(self, action, i, response):
+        """Запрос панели на взлёт или посадку одного аппарата; выполняет цикл сессии."""
+        state = self.states.get(i)
+        response.success = False
+        if state is None or not state.valid:
+            response.message = f'uav_{i}: нет свежей телеметрии'
+        elif any(item == (action, i) for item in self.requests):
+            response.message = f'uav_{i}: запрос уже в очереди'
+        elif action == 'takeoff' and state.armed:
+            response.message = f'uav_{i}: уже вооружён'
+        elif action == 'land' and not state.armed:
+            response.message = f'uav_{i}: уже на земле'
+        elif action == 'land' and i == 0 and any(
+                j in self.states and self.states[j].armed for j in (1, 2, 3)):
+            response.message = 'Ведущий садится последним: сначала посадите ведомых или «Посадить всех»'
+        else:
+            self.requests.append((action, i))
+            response.success = True
+            response.message = f'uav_{i}: {"взлёт" if action == "takeoff" else "посадка"} в очереди'
+        return response
+
+    def serve_request(self):
+        """Один запрос из очереди; после взлёта четвёртого строй собирается сам."""
+        action, i = self.requests.pop(0)
+        try:
+            if action == 'takeoff':
+                self.takeoff_one(i)
+                if not self.formed and all(self.states[j].armed for j in range(4)):
+                    self.event('Взлетели все четыре: сбор строя')
+                    self.form()
+                    self.formed = True
+            else:
+                self.call(f'/uav_{i}/land')
+                self.event(f'uav_{i}: посадка запрошена')
+        except RuntimeError as error:
+            self.event(f'uav_{i}: {"взлёт" if action == "takeoff" else "посадка"} не выполнены: {error}')
+            if action == 'takeoff' and self.states[i].armed:
+                self.call(f'/uav_{i}/land')
+                self.event(f'uav_{i}: посадка после неудачного взлёта или сбора строя')
+        if all(not state.armed for state in self.states.values()):
+            self.formed = False
+
     def operator_session(self, timeout=1800., stale_timeout=5.):
-        """Ручной прогон с явным завершением, без автоматических манёвров."""
+        """Ручной прогон с явным завершением, без автоматических манёвров.
+
+        Взлёт и посадку отдельных аппаратов запрашивает панель через
+        /scenario/uav_i/takeoff и /scenario/uav_i/land.
+        """
         if (not all(math.isfinite(value) for value in (timeout, stale_timeout))
                 or min(timeout, stale_timeout) <= 0):
             raise ValueError('Некорректные пределы операторского ожидания')
         self.operator_finished = False
+        self.requests, self.formed = [], False  # сессия оператора начинается на земле
         self.operator_finish_service = self.node.create_service(
             Trigger, '/scenario/finish', self.finish_operator)
+        self.operator_services = [self.node.create_service(
+            Trigger, f'/scenario/uav_{i}/{action}',
+            lambda request, response, action=action, i=i: self.request(action, i, response))
+            for i in range(4) for action in ('takeoff', 'land')]
         self.event('Ожидание оператора')
         last_progress = [time.monotonic()]
         previous_stamps = [None]
@@ -420,6 +481,9 @@ class Scenario:
                     previous_stamps[0] = stamps
             if time.monotonic()-last_progress[0] >= stale_timeout:
                 raise RuntimeError('Нет новых свежих состояний во время ручного прогона')
+            if self.requests:
+                self.serve_request()
+                last_progress[0] = time.monotonic()
             return False
         # Реальный предел ожидания, чтобы остановленные часы симуляции
         # не превращали сессию в бесконечную. Полётные защиты работают сами.
@@ -462,7 +526,11 @@ class Scenario:
         return goal
 
     def run(self):
-        self.prepare()
+        if self.kind == 'operator':
+            # Взлёт по одному аппарату — кнопками панели внутри сессии.
+            self.prepare_ground()
+        else:
+            self.prepare()
         if self.kind == 's1':
             self.manual(5., [0., 0., .12])
             self.manual(5., [0., 0., -.12])

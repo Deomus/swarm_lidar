@@ -70,8 +70,11 @@ def main():
             page.set_viewport_size(dict(width=1280, height=1100))
             if args.flight:
                 wait(lambda s: s['connected'], 90., 'Нет четырёх аппаратов')
-                click('Подготовить и взлететь')
-                wait(lambda s: s['flight']['phase'] == 'ready', 240., 'Нет готовности после взлёта')
+                for i in range(4):
+                    page.locator(f'#takeoff-{i}').click(timeout=15000)
+                    page.wait_for_timeout(700)
+                wait(lambda s: s['flight']['phase'] == 'ready' and s.get('formation_settled', False)
+                     and (s['formation'] or {}).get('mode') == 'FOLLOWING', 300., 'Строй не собрался после взлёта')
                 for name in ('wedge', 'line'):
                     page.locator(f'label[for="formation-{name}"]').click()
                     page.locator('#duration').fill('25')
