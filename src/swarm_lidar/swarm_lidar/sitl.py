@@ -15,7 +15,9 @@ def main():
     parser.add_argument('--gui', choices=['true', 'false'], default='true')
     parser.add_argument('--duration', type=float, default=0.)
     parser.add_argument('--agent-port', type=int, default=8889)
-    parser.add_argument('--lidar', choices=['true', 'false'], default='false')
+    parser.add_argument('--lidar', choices=['true', 'false'], default='true')
+    # Мир, мосты и трекер рассчитаны ровно на лидера и трёх ведомых.
+    parser.add_argument('--uav-count', choices=['4'], default='4')
     parser.add_argument('--stack', choices=['true', 'false'], default='true')
     parser.add_argument('--video', choices=['true', 'false'], default='false')
     args = parser.parse_args()
