@@ -38,9 +38,13 @@ class FormationController(Node):
         defaults.update(vertical_kp=1., vertical_kd=1.2, vertical_derivative_time=.2)
         defaults.update(velocity_smoothing='exponential')
         defaults.update(match_leader_yaw=False, yaw_gain=1., max_yaw_rate=.3)
+        defaults.update(feedforward_source='measured', smooth_feedforward=True,
+                        leader_commands_topic='/mesh/commands')
         for key, value in defaults.items():
             self.declare_parameter(key, value)
         self.p = {key: self.get_parameter(key).value for key in defaults}
+        if self.p['feedforward_source'] not in ('command', 'measured'):
+            raise ValueError('feedforward_source: command или measured')
         if (not math.isfinite(self.p['yaw_gain']) or self.p['yaw_gain'] < 0
                 or not math.isfinite(self.p['max_yaw_rate']) or self.p['max_yaw_rate'] <= 0):
             raise ValueError('Некорректные параметры удержания курса ведомых')
@@ -64,6 +68,7 @@ class FormationController(Node):
             QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
         self.orientation_history = OrientationHistory()
         self.last_world = {}
+        self.leader_command = None
         self.reason = 'DISABLED'
         self.request_error = None
         self.request_stamp = -1.
@@ -76,6 +81,7 @@ class FormationController(Node):
                                    for i in (1, 2, 3)}
         self.pose_sub = self.create_subscription(RelativePose, self.p['poses_topic'], self.on_pose, 10)
         self.state_sub = self.create_subscription(SwarmState, self.p['states_topic'], self.on_state, 10)
+        self.create_subscription(SwarmCommand, self.p['leader_commands_topic'], self.on_command, 10)
         self.formation_sub = self.create_subscription(FormationCommand, self.p['formation_topic'], self.on_formation, 10)
         self.leader_status_sub = self.create_subscription(String, self.p['leader_status_topic'], self.on_leader_status, 10)
         self.enable_service = self.create_service(Trigger, '/swarm/enable_formation', self.enable)
@@ -90,6 +96,7 @@ class FormationController(Node):
             vertical_kp=self.p['vertical_kp'], vertical_kd=self.p['vertical_kd'],
             vertical_derivative_time=self.p['vertical_derivative_time'],
             velocity_smoothing=self.p['velocity_smoothing'],
+            smooth_feedforward=self.p['smooth_feedforward'],
             period=self.p['period'])
 
     def new_controllers(self):
@@ -133,6 +140,29 @@ class FormationController(Node):
     def reset_prediction(self):
         for predictor in self.predictors:
             predictor.reset()
+
+    def on_command(self, msg):
+        if msg.uav_id == 0:
+            self.leader_command = msg
+
+    def leader_motion(self, leader, now, index=0, offset=None, offset_velocity=None):
+        """Упреждение: скорость (ENU) и yaw rate ведущего.
+
+        Источник command — заданная ведущему команда из mesh: она уже
+        ограничена по ускорению и рывку и опережает измеренную скорость на
+        запаздывание PX4, одинаковое у всех аппаратов. Недействительная
+        свежая команда означает торможение ведущего до нуля. Без свежей
+        команды — прежний источник: измеренная скорость с прогнозом.
+        """
+        command = self.leader_command
+        if (self.p['feedforward_source'] == 'command' and command is not None
+                and command.frame_id == 'map'
+                and 0 <= now - self.seconds(command.source_stamp) <= self.p['stale_timeout']):
+            if not command.valid:
+                return np.zeros(3), 0.
+            v = command.target_velocity
+            return np.array([v.linear.x, v.linear.y, v.linear.z]), v.angular.z
+        return self.forward_velocity(leader, now, index, offset, offset_velocity), leader.yaw_rate
 
     def forward_velocity(self, leader, now, index=0, offset=None, offset_velocity=None):
         v = leader.velocity.linear
@@ -333,8 +363,8 @@ class FormationController(Node):
                     state = state or ('FORMATION_CHANGE' if sample.transitioning else 'FOLLOWING')
                 for i in available:
                     index, enabled = i - 1, i in active
-                    forward = self.forward_velocity(leader, now, index, sample.offsets[index],
-                                                    sample.velocities[index])
+                    forward, leader_yaw_rate = self.leader_motion(leader, now, index, sample.offsets[index],
+                                                                  sample.velocities[index])
                     offset = sample.offsets[index].copy()
                     for j, other in points.items():
                         if j == i:
@@ -345,7 +375,7 @@ class FormationController(Node):
                             offset += self.p['repulsion_gain'] * (self.p['warning_distance']-distance) * delta / distance
                     pose = self.poses[i]
                     result = self.controllers[index].step(current[i], offset, sample.velocities[index],
-                        forward, leader.yaw, leader.yaw_rate,
+                        forward, leader.yaw, leader_yaw_rate,
                         min(self.seconds(pose.measurement_stamp), self.seconds(leader.timestamp)),
                         now, enabled=enabled, confidence=pose.confidence)
                     velocities[index] = result.velocity_enu if enabled else np.zeros(3)
@@ -354,7 +384,7 @@ class FormationController(Node):
                     follower_yaw = self.states[i].yaw
                     yaw_errors[index] = float(wrap_angle(leader.yaw - follower_yaw))
                     if enabled and self.p['match_leader_yaw']:
-                        yaw_rates[index] = heading_rate(leader.yaw, leader.yaw_rate, follower_yaw,
+                        yaw_rates[index] = heading_rate(leader.yaw, leader_yaw_rate, follower_yaw,
                                                         self.p['yaw_gain'], self.p['max_yaw_rate'])
             except (ValueError, FloatingPointError):
                 active, state = [], 'INVALID_GEOMETRY'

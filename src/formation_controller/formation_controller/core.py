@@ -261,8 +261,15 @@ class RelativeVelocityController:
     def __init__(self, kp=0.6, stale_timeout=0.3, min_confidence=0.5,
                  max_speed=3.0, max_acceleration=2.0, max_jerk=4.0, period=0.05,
                  vertical_kp=None, vertical_kd=0., vertical_derivative_time=.2,
-                 velocity_smoothing='exponential'):
+                 velocity_smoothing='exponential', smooth_feedforward=True):
         self.kp = _positive(kp, 'kp')
+        # False: упреждение (уже гладкая команда ведущего) идёт без фильтра,
+        # сглаживается только поправка по LiDAR, а выход ограничен по
+        # ускорению без запаздывания. True — прежнее сглаживание всей команды.
+        self.smooth_feedforward = bool(smooth_feedforward)
+        self.max_speed = _positive(max_speed, 'max_speed')
+        self.max_step = _positive(max_acceleration, 'max_acceleration') * _positive(period, 'period')
+        self.output = np.zeros(3)
         self.vertical_kp = self.kp if vertical_kp is None else _positive(vertical_kp, 'vertical_kp')
         if not math.isfinite(vertical_kd) or vertical_kd < 0:
             raise ValueError('vertical_kd must be finite and nonnegative')
@@ -294,13 +301,13 @@ class RelativeVelocityController:
         if finite and ordered and measurement_stamp <= now:
             self.last_stamp = measurement_stamp
         error = vectors[1] - vectors[0] if finite else np.zeros(3)
-        desired = np.zeros(3)
+        feedforward, correction_enu = np.zeros(3), np.zeros(3)
         if good:
             r, offset, offset_velocity, leader_velocity = vectors
             c, s = math.cos(leader_yaw), math.sin(leader_yaw)
             rotation = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
-            desired = slot_feedforward(offset, offset_velocity, leader_velocity,
-                                       leader_yaw, leader_yaw_rate)
+            feedforward = slot_feedforward(offset, offset_velocity, leader_velocity,
+                                           leader_yaw, leader_yaw_rate)
             if measurement_stamp > self._z_stamp:
                 dt = measurement_stamp-self._z_stamp
                 if self._z_value is not None and dt <= self.stale_timeout:
@@ -312,8 +319,13 @@ class RelativeVelocityController:
                 self._z_stamp, self._z_value = measurement_stamp, r[2]
             correction = self.kp * (offset-r)
             correction[2] = self.vertical_kp * (offset[2]-r[2]) - self.vertical_kd * (self._z_rate-offset_velocity[2])
-            desired += rotation @ correction
+            correction_enu = rotation @ correction
         else:
             self._z_stamp, self._z_value, self._z_rate = -math.inf, None, 0.
-        velocity = self.limiter.step(desired)
+        if self.smooth_feedforward:
+            velocity = self.limiter.step(feedforward + correction_enu)
+        else:
+            target = clip_norm(feedforward + self.limiter.step(correction_enu), self.max_speed)
+            self.output = self.output + clip_norm(target - self.output, self.max_step)
+            velocity = self.output.copy()
         return ControlResult(velocity, error, 'FOLLOWING' if good else 'BRAKING')
