@@ -10,7 +10,8 @@ from scipy.spatial.transform import Rotation
 from std_msgs.msg import String
 from std_srvs.srv import Trigger
 from swarm_interfaces.msg import FormationCommand, RelativePose, SwarmCommand, SwarmState
-from .core import FormationPlan, RelativeVelocityController, slot_feedforward, formation_offsets
+from .core import (FormationPlan, RelativeVelocityController, formation_offsets, heading_rate,
+                   slot_feedforward, wrap_angle)
 from .obstacles import check_transition_map
 from .prediction import LeaderVelocityPredictor
 from lidar_tracker.timing import OrientationHistory
@@ -32,9 +33,13 @@ class FormationController(Node):
         defaults.update(require_transition_map=False, transition_map_margin=.75)
         defaults.update(vertical_kp=1., vertical_kd=1.2, vertical_derivative_time=.2)
         defaults.update(velocity_smoothing='exponential')
+        defaults.update(match_leader_yaw=False, yaw_gain=1., max_yaw_rate=.3)
         for key, value in defaults.items():
             self.declare_parameter(key, value)
         self.p = {key: self.get_parameter(key).value for key in defaults}
+        if (not math.isfinite(self.p['yaw_gain']) or self.p['yaw_gain'] < 0
+                or not math.isfinite(self.p['max_yaw_rate']) or self.p['max_yaw_rate'] <= 0):
+            raise ValueError('Некорректные параметры удержания курса ведомых')
         self.plan = FormationPlan(self.p['min_separation'] + .2, self.p['gap'],
                                   max_slot_speed=self.p['max_speed'] * .75)
         self.controllers = self.new_controllers()
@@ -238,8 +243,9 @@ class FormationController(Node):
             targets.poses.append(pose)
         self.targets_pub.publish(targets)
         minimum = None
-        errors = []
+        errors, yaw_errors = [], []
         velocities = [np.zeros(3)] * 3
+        yaw_rates = [0.] * 3
         state = 'DISABLED' if not self.enabled else 'DATA_HOLD'
         if ready:
             leader = self.states[0]
@@ -273,6 +279,12 @@ class FormationController(Node):
                         now, enabled=ready, confidence=pose.confidence)
                     velocities[index] = result.velocity_enu if ready else np.zeros(3)
                     errors.append(float(np.linalg.norm(result.error_flu)))
+                    # Курс ведомого — по собственному PX4, позиция по-прежнему только из LiDAR.
+                    follower_yaw = self.states[index + 1].yaw
+                    yaw_errors.append(float(wrap_angle(leader.yaw - follower_yaw)))
+                    if ready and self.p['match_leader_yaw']:
+                        yaw_rates[index] = heading_rate(leader.yaw, leader.yaw_rate, follower_yaw,
+                                                        self.p['yaw_gain'], self.p['max_yaw_rate'])
             except (ValueError, FloatingPointError):
                 ready, state = False, 'INVALID_GEOMETRY'
         if not ready:
@@ -284,10 +296,11 @@ class FormationController(Node):
             if ready:
                 command.source_stamp = self.poses[i].measurement_stamp
             command.target_velocity.linear.x, command.target_velocity.linear.y, command.target_velocity.linear.z = map(float, velocities[i-1])
+            command.target_velocity.angular.z = yaw_rates[i-1] if ready else 0.
             self.command_pub.publish(command)
         self.status_pub.publish(String(data=json.dumps(
             dict(mode=state, formation=self.formation, scale=self.scale,
-                 min_distance=minimum, errors=errors, time=now,
+                 min_distance=minimum, errors=errors, yaw_errors=yaw_errors, time=now,
                  leader_mode=(self.leader_intent or {}).get('mode'),
                  leader_intent_stamp=(self.leader_intent or {}).get('stamp', -1),
                  request_error=self.request_error, request_stamp=self.request_stamp))))

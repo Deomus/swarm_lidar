@@ -179,6 +179,17 @@ def limit_group_motion(velocity, yaw_rate, offsets, offset_velocities, heading, 
     return np.asarray(velocity) * factor, yaw_rate * factor, factor
 
 
+def wrap_angle(angle):
+    """Угол в [-π, π]: ошибка курса через ±π берётся по короткой стороне."""
+    return math.remainder(angle, math.tau)
+
+
+def heading_rate(leader_yaw, leader_yaw_rate, follower_yaw, gain, max_rate):
+    """Скорость рыскания ведомого за курсом лидера: упреждение и P по ошибке, ENU."""
+    rate = leader_yaw_rate + gain * wrap_angle(leader_yaw - follower_yaw)
+    return float(np.clip(rate, -max_rate, max_rate))
+
+
 def clip_norm(vector, limit):
     norm = float(np.linalg.norm(vector))
     return vector * (limit / norm) if norm > limit else vector.copy()

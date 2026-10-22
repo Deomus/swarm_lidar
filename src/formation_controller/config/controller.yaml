@@ -23,6 +23,10 @@ formation_controller:
     leader_prediction_max_acceleration: 1.0
     leader_prediction_smoothing: 0.3
     predict_slot_motion: true
+    # Ведомые держат курс лидера: упреждение его yaw_rate и P по ошибке курса.
+    match_leader_yaw: true
+    yaw_gain: 1.0
+    max_yaw_rate: 0.3
     require_transition_map: true
     transition_map_margin: 0.75
     leader_status_topic: /mission/execution_status

@@ -102,6 +102,13 @@ yaw — рад, yaw_rate — рад/с, положительное вращен�
 Расчёт: v = v_leader + R(yaw)·[Kp·(offset−relative) + offset_dot
 + yaw_rate·(−offset_y, offset_x, 0)]. Перед PX4 bridge преобразует ENU в NED.
 
+При `match_leader_yaw=true` ведомый держит курс ведущего:
+angular.z = clip(yaw_rate_лидера + yaw_gain·wrap(yaw_лидера − yaw_ведомого),
+±max_yaw_rate). Курс ведомого берётся из его собственного PX4, положение
+по-прежнему только из LiDAR. Скорость управляется в мировой системе, поэтому
+курс корпуса не влияет на удержание места. Вне FOLLOWING/FORMATION_CHANGE
+скорость yaw равна нулю. Ошибки курса публикуются в `yaw_errors` статуса.
+
 Данные старше stale_timeout, future/out-of-order stamp, invalid, низкий confidence,
 нечисловые значения или enabled=false вызывают BRAKING: новая цель скорости равна
 нулю без продолжения feedforward лидера. Повтор stamp допустим только в пределах
