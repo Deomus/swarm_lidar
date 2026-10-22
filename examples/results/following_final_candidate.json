@@ -137,67 +137,136 @@
         "controller_active_share": 1
       },
       "transitions": null
+    },
+    {
+      "source": "log/following_final_series_20261022/s2_3/flight",
+      "scenario": "s2",
+      "passed": true,
+      "passed_landing": true,
+      "runtime_revision": "b0af77293c9f27a00f54e84ac761e5e6d14ab995",
+      "configuration_sha256": "222b493340f00cb59f04db46fd30c996010e0358d0f5a27d8130f3b35385fcfc",
+      "formation": {
+        "count": 2271,
+        "mean": 0.3941818561385171,
+        "rms": 0.5075366762293281,
+        "max": 1.81822373956238,
+        "min": 0.014242790948054663
+      },
+      "localization": {
+        "count": 2271,
+        "mean": 0.036560952639714685,
+        "rms": 0.037931004998374755,
+        "max": 0.0773300761582365,
+        "min": 0.0028042708109694402
+      },
+      "min_pair_distance_m": 3.5280439469471743,
+      "active_rows": 2271,
+      "relative_stale_share": 0,
+      "leader_state_stale_share": 0,
+      "formation_missing_share": 0,
+      "localization_missing_share": 0,
+      "manual_windows": {
+        "0.5": {
+          "count": 723,
+          "mean": 0.30298992523802143,
+          "rms": 0.42561294981075654,
+          "max": 1.412905823984577,
+          "min": 0.02770414501617234
+        },
+        "1.0": {
+          "count": 723,
+          "mean": 0.41517570198815207,
+          "rms": 0.5232343067421908,
+          "max": 1.7313521565007375,
+          "min": 0.021617089548120447
+        },
+        "1.5": {
+          "count": 753,
+          "mean": 0.4760492303755004,
+          "rms": 0.5772514434619418,
+          "max": 1.81822373956238,
+          "min": 0.014242790948054663
+        }
+      },
+      "confirmed_zero_delay_s": 0.308,
+      "fixed_manual_profiles": {
+        "rows": 2160,
+        "formation_error_m": {
+          "count": 2160,
+          "mean": 0.3991350220135378,
+          "rms": 0.515281173191484,
+          "max": 1.81822373956238,
+          "min": 0.014242790948054663
+        },
+        "relative_stale_share": 0,
+        "formation_missing_share": 0,
+        "min_pair_distance_m": 3.5280439469471743,
+        "window_duration_s": 24,
+        "window_count": 3,
+        "controller_active_share": 1
+      },
+      "transitions": null
     }
   ],
   "all_passed": true,
   "formation_rms_m": {
-    "count": 2,
-    "mean": 0.5053846692063608,
-    "sample_std": 0.013196844661691413,
+    "count": 3,
+    "mean": 0.5061020048806832,
+    "sample_std": 0.009413929356085761,
     "min": 0.4960530908558134,
     "max": 0.5147162475569084
   },
   "formation_max_m": {
-    "count": 2,
-    "mean": 1.8357753952779534,
-    "sample_std": 0.05964528452761627,
+    "count": 3,
+    "mean": 1.8299248433727622,
+    "sample_std": 0.04337587873433987,
     "min": 1.7935998101226749,
     "max": 1.877950980433232
   },
   "min_pair_distance_m": {
-    "count": 2,
-    "mean": 3.560789986918454,
-    "sample_std": 0.04102650752588483,
-    "min": 3.5317798652384997,
+    "count": 3,
+    "mean": 3.549874640261361,
+    "sample_std": 0.03462689038621991,
+    "min": 3.5280439469471743,
     "max": 3.589800108598408
   },
   "localization_rms_m": {
-    "count": 2,
-    "mean": 0.038062344517294025,
-    "sample_std": 0.000012290070535344209,
-    "min": 0.038053654125077226,
+    "count": 3,
+    "mean": 0.03801856467765427,
+    "sample_std": 0.00007632526445110153,
+    "min": 0.037931004998374755,
     "max": 0.03807103490951083
   },
   "confirmed_zero_delay_s": {
-    "count": 2,
-    "mean": 0.35,
-    "sample_std": 0.025455844122715694,
-    "min": 0.332,
+    "count": 3,
+    "mean": 0.336,
+    "sample_std": 0.030199337741082997,
+    "min": 0.308,
     "max": 0.368
   },
   "fixed_profile_rms_m": {
-    "count": 2,
-    "mean": 0.5126650642599633,
-    "sample_std": 0.012131161954837846,
+    "count": 3,
+    "mean": 0.5135371005704702,
+    "sample_std": 0.008709987782297984,
     "min": 0.5040870373780252,
     "max": 0.5212430911419014
   },
   "fixed_profile_max_m": {
-    "count": 2,
-    "mean": 1.8357753952779534,
-    "sample_std": 0.05964528452761627,
+    "count": 3,
+    "mean": 1.8299248433727622,
+    "sample_std": 0.04337587873433987,
     "min": 1.7935998101226749,
     "max": 1.877950980433232
   },
   "fixed_profile_min_pair_distance_m": {
-    "count": 2,
-    "mean": 3.560789986918454,
-    "sample_std": 0.04102650752588483,
-    "min": 3.5317798652384997,
+    "count": 3,
+    "mean": 3.549874640261361,
+    "sample_std": 0.03462689038621991,
+    "min": 3.5280439469471743,
     "max": 3.589800108598408
   },
   "planned_runs": 3,
-  "completed_runs": 2,
-  "series_complete": false,
+  "completed_runs": 3,
+  "series_complete": true,
   "note": "Новая конфигурация на общем коде b0af772: windowed, горизонт .95, вертикальные P.6/D.6. Пилоты исключены из основной серии."
 }
