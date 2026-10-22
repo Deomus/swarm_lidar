@@ -2,9 +2,17 @@ import numpy as np
 from lidar_tracker.tracking import TargetTracker, cluster_points
 
 
-def test_dense_oversize_component_rejects_whole_frame_without_false_fragments():
-    dense = np.random.default_rng(7).normal(0., .001, (3000, 3))
-    assert cluster_points(dense, .5, 3, 500) == []
+def test_dense_object_is_dropped_without_fragments_and_keeps_other_targets():
+    rng = np.random.default_rng(7)
+    # Плотная поверхность столба: 40×60 точек с шагом 3 см и редкая кайма.
+    xs, zs = np.meshgrid(np.arange(40) * .03, np.arange(60) * .03)
+    pillar = np.column_stack([np.full(xs.size, 7.), xs.ravel(), zs.ravel()])
+    fringe = pillar[::50] + [0., 1.3, 0.]
+    body = rng.normal([-4., 0., 0.], .05, (40, 3))
+    clusters = cluster_points(np.vstack([pillar, fringe, body]), .5, 3, 500)
+    assert len(clusters) == 1
+    np.testing.assert_allclose(clusters[0].mean(axis=0), [-4., 0., 0.], atol=.05)
+    assert cluster_points(rng.normal(0., .001, (3000, 3)), .5, 3, 500) == []
 
 
 def test_large_sparse_component_is_dropped_without_rejecting_frame():

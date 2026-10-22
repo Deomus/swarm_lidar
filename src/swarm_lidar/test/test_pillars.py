@@ -24,14 +24,14 @@ def test_worlds_place_pillars_from_yaml(world):
     assert float(model.find('.//collision/geometry/cylinder/radius').text) == radius
 
 
-def test_route_east_goes_around_pillar_wall_with_formation_margin():
+def test_route_south_goes_around_pillar_wall_with_formation_margin():
     pillars, radius = load_obstacles(CONFIG)
     grid = training_map(pillars, radius)
-    assert grid.data[(100 + 4) * 200 + 100 + 18] == 100  # клетка столба (18; 4)
-    assert grid.data[100 * 200 + 100 + 18] == 0  # промежуток стены без inflation
+    assert grid.data[(100 - 18) * 200 + 100 + 4] == 100  # клетка столба (4; −18)
+    assert grid.data[(100 - 18) * 200 + 100] == 0  # промежуток стены без inflation
     blocked = inflated_grid(200, 200, 1., grid.data, 6.75)
-    cells = astar(200, 200, blocked, (100, 100), (135, 100))
-    points = shortcut_path([(100.5, 100.5), *[(x + .5, y + .5) for x, y in cells], (135.5, 100.5)],
+    cells = astar(200, 200, blocked, (100, 100), (100, 65))
+    points = shortcut_path([(100.5, 100.5), *[(x + .5, y + .5) for x, y in cells], (100.5, 65.5)],
                            200, 200, blocked)
     assert len(points) > 2  # прямой путь перекрыт, есть поворот
     for x, y in cells:

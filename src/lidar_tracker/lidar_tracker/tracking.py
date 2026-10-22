@@ -54,22 +54,29 @@ def cluster_points(points, tolerance=0.8, min_size=3, max_size=5000):
     """Связные компоненты графа соседей не дальше tolerance.
 
     Компонента больше max_size отбрасывается, остальные кластеры кадра
-    сохраняются. Если у точки больше max_size соседей, плотный фон
-    отклоняет кадр целиком: это ограничивает число рёбер графа.
+    сохраняются. Точка с более чем max_size соседями — часть плотного
+    объекта (столб, стена вблизи): она и любая компонента, касающаяся её,
+    отбрасываются, а не весь кадр. Так число рёбер графа ограничено, а
+    обрывки плотного объекта не принимаются за цели.
     """
     data = np.asarray(points, dtype=float).reshape(-1, 3)
     data = data[np.isfinite(data).all(axis=1)]
     if not len(data):
         return []
-    tree = cKDTree(data)
-    if tree.query_ball_point(data, tolerance, return_length=True).max() > max_size:
+    dense = cKDTree(data).query_ball_point(data, tolerance, return_length=True) > max_size
+    sparse, dense_points = data[~dense], data[dense]
+    if not len(sparse):
         return []
+    tree = cKDTree(sparse)
     pairs = tree.query_pairs(tolerance, output_type='ndarray')
     graph = coo_matrix((np.ones(len(pairs), dtype=bool), (pairs[:, 0], pairs[:, 1])),
-                       shape=(len(data), len(data)))
+                       shape=(len(sparse), len(sparse)))
     _, labels = connected_components(graph, directed=False)
-    sizes = np.bincount(labels)
-    return [data[labels == label]
+    if len(dense_points):
+        touching = cKDTree(dense_points).query_ball_point(sparse, tolerance, return_length=True) > 0
+        labels[np.isin(labels, labels[touching])] = -1
+    sizes = np.bincount(labels[labels >= 0], minlength=labels.max() + 1)
+    return [sparse[labels == label]
             for label in np.flatnonzero((sizes >= min_size) & (sizes <= max_size))]
 
 

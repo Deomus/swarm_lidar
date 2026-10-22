@@ -12,12 +12,12 @@
 <material><ambient>0.5 0.55 0.6 1</ambient><diffuse>0.5 0.55 0.6 1</diffuse></material></visual>
 </link></model>
 <include><uri>model://training_ground</uri></include>
-<include><uri>model://pillar</uri><name>pillar_0</name><pose>18 -12 0 0 0 0</pose></include>
-<include><uri>model://pillar</uri><name>pillar_1</name><pose>18 -4 0 0 0 0</pose></include>
-<include><uri>model://pillar</uri><name>pillar_2</name><pose>18 4 0 0 0 0</pose></include>
-<include><uri>model://pillar</uri><name>pillar_3</name><pose>18 12 0 0 0 0</pose></include>
-<include><uri>model://pillar</uri><name>pillar_4</name><pose>-15 15 0 0 0 0</pose></include>
-<include><uri>model://pillar</uri><name>pillar_5</name><pose>8 -20 0 0 0 0</pose></include>
+<include><uri>model://pillar</uri><name>pillar_0</name><pose>-12 -18 0 0 0 0</pose></include>
+<include><uri>model://pillar</uri><name>pillar_1</name><pose>-4 -18 0 0 0 0</pose></include>
+<include><uri>model://pillar</uri><name>pillar_2</name><pose>4 -18 0 0 0 0</pose></include>
+<include><uri>model://pillar</uri><name>pillar_3</name><pose>12 -18 0 0 0 0</pose></include>
+<include><uri>model://pillar</uri><name>pillar_4</name><pose>-20 12 0 0 0 0</pose></include>
+<include><uri>model://pillar</uri><name>pillar_5</name><pose>-25 -40 0 0 0 0</pose></include>
 <include><uri>model://swarm_x500_leader</uri><name>uav_0</name><pose>0 0 0.24 0 0 0</pose></include>
 <include><uri>model://swarm_x500_target</uri><name>uav_1</name><pose>-4 -4 0.24 0 0 0</pose></include>
 <include><uri>model://swarm_x500_target</uri><name>uav_2</name><pose>-4 0 0.24 0 0 0</pose></include>

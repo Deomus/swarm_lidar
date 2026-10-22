@@ -494,10 +494,10 @@ class Scenario:
 
     def mission_goal(self):
         if self.kind == 's3_pillars':
-            # Штатная карта со столбами (training_map): цель за стеной x=18 м,
+            # Штатная карта со столбами (training_map): цель за стеной y=−18 м,
             # прямой путь перекрыт — A* должен обойти край стены.
             self.wait(lambda: self.map_before is not None, 5., 'Нет карты площадки со столбами')
-            return self.send_goal(35., 0., 3.)
+            return self.send_goal(0., -35., 3.)
         self.wait(lambda: self.map_before is not None, 5., 'Нет исходной карты для восстановления')
         self.map_overridden = True
         grid = OccupancyGrid()
