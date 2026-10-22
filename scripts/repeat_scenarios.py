@@ -62,7 +62,8 @@ def run_one(root, kind, index, px4):
     with (output/'sitl.log').open('x') as sim_log, (output/'scenario.log').open('x') as flight_log:
         try:
             simulator = subprocess.Popen([sys.executable, '-m', 'swarm_lidar.sitl',
-                '--px4-dir', str(px4), '--gui', 'false', '--lidar', 'true', '--stack', 'true'],
+                '--px4-dir', str(px4), '--gui', 'false', '--lidar', 'true', '--stack', 'true',
+                '--web', 'false'],
                 stdout=sim_log, stderr=subprocess.STDOUT, start_new_session=True)
             scenario = subprocess.Popen([sys.executable, '-m', 'swarm_lidar.scenario', kind,
                 '--output', str(flight), '--record-bag'], stdout=flight_log,
@@ -104,7 +105,7 @@ def main():
     parser.add_argument('--px4-dir', type=Path, default=Path.home()/'PX4-Autopilot')
     parser.add_argument('--runs', type=int, default=3)
     parser.add_argument('--start-index', type=int, default=1)
-    parser.add_argument('--scenarios', nargs='+', choices=('s1', 's2', 's3'), default=['s2'])
+    parser.add_argument('--scenarios', nargs='+', choices=('s1', 's2', 's3', 's3_pillars'), default=['s2'])
     args = parser.parse_args()
     if args.runs < 1 or args.start_index < 1:
         parser.error('Число повторов и начальный номер должны быть положительными')

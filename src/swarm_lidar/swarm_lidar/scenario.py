@@ -12,7 +12,7 @@ import time
 import rclpy
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import PoseStamped, TwistStamped
-from nav_msgs.msg import OccupancyGrid
+from nav_msgs.msg import OccupancyGrid, Path as PathMsg
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rclpy.parameter_client import AsyncParameterClient
@@ -32,6 +32,7 @@ class Scenario:
         self.valid_counts = {1: 0, 2: 0, 3: 0}
         self.execution, self.planner = {}, ''
         self.plan_result = None
+        self.planned_path = self.path = None
         self.events = []
         self.clients = []
         self.map_before = None
@@ -43,7 +44,8 @@ class Scenario:
             self.node.create_subscription(String, '/swarm/formation_status', lambda m: setattr(self, 'status', json.loads(m.data)), 10),
             self.node.create_subscription(String, '/mission/execution_status', lambda m: setattr(self, 'execution', json.loads(m.data)), 10),
             self.node.create_subscription(String, '/mission/status', lambda m: setattr(self, 'planner', m.data), 10),
-            self.node.create_subscription(String, '/mission/plan_result', lambda m: setattr(self, 'plan_result', json.loads(m.data)), 10)]
+            self.node.create_subscription(String, '/mission/plan_result', lambda m: setattr(self, 'plan_result', json.loads(m.data)), 10),
+            self.node.create_subscription(PathMsg, '/mission/path', lambda m: setattr(self, 'planned_path', m), 10)]
         self.formation_pub = self.node.create_publisher(FormationCommand, '/swarm/formation_command', 10)
         self.manual_pub = self.node.create_publisher(TwistStamped, '/leader/cmd_vel', 10)
         self.map_pub = self.node.create_publisher(OccupancyGrid, '/map', QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
@@ -491,6 +493,11 @@ class Scenario:
         self.event('Оператор завершил ручной прогон через /scenario/finish')
 
     def mission_goal(self):
+        if self.kind == 's3_pillars':
+            # Штатная карта со столбами (training_map): цель за стеной x=18 м,
+            # прямой путь перекрыт — A* должен обойти край стены.
+            self.wait(lambda: self.map_before is not None, 5., 'Нет карты площадки со столбами')
+            return self.send_goal(35., 0., 3.)
         self.wait(lambda: self.map_before is not None, 5., 'Нет исходной карты для восстановления')
         self.map_overridden = True
         grid = OccupancyGrid()
@@ -507,12 +514,15 @@ class Scenario:
         self.map_pub.publish(grid)
         start = self.now()
         self.wait(lambda: self.now()-start > .5, 3., 'Clock')
+        return self.send_goal(6., 3., 3.)
+
+    def send_goal(self, x, y, z):
         goal = PoseStamped()
         goal.header.frame_id = 'map'
         goal.header.stamp = self.node.get_clock().now().to_msg()
-        goal.pose.position.x, goal.pose.position.y, goal.pose.position.z = 6., 3., 3.
+        goal.pose.position.x, goal.pose.position.y, goal.pose.position.z = x, y, z
         goal.pose.orientation.w = 1.
-        self.planner, self.plan_result = '', None
+        self.planner, self.plan_result, self.planned_path = '', None, None
         self.goal_pub.publish(goal)
         self.wait(lambda: self.planner.startswith(('PLANNED', 'REJECTED')), 10., 'Нет результата A*')
         if not self.planner.startswith('PLANNED'):
@@ -520,9 +530,18 @@ class Scenario:
         goal_id = [goal.header.stamp.sec, goal.header.stamp.nanosec]
         self.wait(lambda: self.plan_result is not None and self.plan_result.get('goal_id') == goal_id
             and self.plan_result.get('status') == 'PLANNED'
-            and self.execution.get('accepted_path_stamp') == self.plan_result.get('path_stamp'),
+            and self.execution.get('accepted_path_stamp') == self.plan_result.get('path_stamp')
+            and self.planned_path is not None
+            and [self.planned_path.header.stamp.sec, self.planned_path.header.stamp.nanosec]
+                == self.plan_result.get('path_stamp'),
             10., 'Ведущий не подтвердил нужный маршрут')
         self.event(self.planner)
+        self.path = self.planned_path
+        if self.kind == 's3_pillars':
+            corners = [(p.pose.position.x, p.pose.position.y) for p in self.path.poses[1:-1]]
+            if not corners:
+                raise RuntimeError('Маршрут не обходит стену столбов: нет промежуточных точек')
+            self.event('Обход стены через ' + ', '.join(f'({x:.1f}; {y:.1f})' for x, y in corners))
         return goal
 
     def run(self):
@@ -561,7 +580,8 @@ class Scenario:
                         'PATH_REVOKED', 'FORMATION_UNAVAILABLE', 'GROUP_MOTION_UNAVAILABLE'}
             self.wait_sim(lambda: mission_start <= self.execution.get('stamp', -1) <= self.now()
                       and self.now()-self.execution['stamp'] < .5
-                      and self.execution.get('status') in terminal, 180., 'Миссия не завершилась')
+                      and self.execution.get('status') in terminal,
+                      300. if self.kind == 's3_pillars' else 180., 'Миссия не завершилась')
             if self.execution.get('status') != 'COMPLETE':
                 raise RuntimeError(str(self.execution))
             self.settle('line', 1., 45.)
@@ -615,7 +635,7 @@ class Scenario:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('scenario', choices=['s1', 's2', 's3', 'braking', 'operator'])
+    parser.add_argument('scenario', choices=['s1', 's2', 's3', 's3_pillars', 'braking', 'operator'])
     parser.add_argument('--output', default=None)
     parser.add_argument('--record-bag', action='store_true', help='Записать сообщения сценария в rosbag')
     parser.add_argument('--record-cloud', action='store_true', help='Включить rosbag и исходное облако LiDAR')

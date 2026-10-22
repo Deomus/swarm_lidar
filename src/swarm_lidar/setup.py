@@ -12,6 +12,7 @@ setup(name='swarm_lidar', version='0.1.0', packages=['swarm_lidar'],
                   ('share/swarm_lidar/worlds', glob('worlds/*.sdf')),
                   ('share/swarm_lidar/config', glob('config/*.yaml')),
                   ('share/swarm_lidar/web', glob('web/*')),
+                  ('share/swarm_lidar/rviz', glob('rviz/*.rviz')),
                   *[('share/swarm_lidar/' + str(path.parent), [str(path)])
                     for path in model_files]],
       install_requires=['setuptools', 'numpy', 'PyYAML'], zip_safe=True,

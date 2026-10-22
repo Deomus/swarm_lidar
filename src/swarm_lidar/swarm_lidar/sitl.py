@@ -42,6 +42,7 @@ def main():
     parser.add_argument('--web', choices=['true', 'false'], default='true')
     parser.add_argument('--web-port', type=int, default=8080)
     parser.add_argument('--open-browser', choices=['true', 'false'], default='true')
+    parser.add_argument('--rviz', choices=['true', 'false'], default='false')
     args = parser.parse_args()
     if args.video == 'true' and args.lidar != 'true':
         parser.error('Обзорная камера требует lidar:=true для системы датчиков мира')
@@ -141,6 +142,9 @@ def main():
                                     PX4_UXRCE_DDS_NS=f'uav_{i}',
                                     PX4_UXRCE_DDS_PORT=str(args.agent_port)))
         print(f'Четыре PX4 запущены. Логи: {runtime}', flush=True)
+        if args.rviz == 'true':
+            start('rviz', ['rviz2', '-d', str(share / 'rviz' / 'swarm.rviz'),
+                           '--ros-args', '-p', 'use_sim_time:=true'])
         if args.web == 'true':
             # Панель — из корня запуска: её журналы полётов в log/web.
             start('web_panel', [str(Path(sys.executable)), '-m', 'swarm_lidar.web_panel',
@@ -148,7 +152,7 @@ def main():
             print(f'Панель управления: http://localhost:{args.web_port} '
                   '(дождитесь подключения четырёх аппаратов)', flush=True)
         deadline = time.monotonic() + args.duration if args.duration else float('inf')
-        panel_reported = False
+        reported = set()
         browser_pending = args.web == 'true' and args.open_browser == 'true'
         while time.monotonic() < deadline:
             if browser_pending:
@@ -156,12 +160,12 @@ def main():
             for name, proc in processes:
                 if proc.poll() is None:
                     continue
-                if name == 'web_panel':
-                    # Без панели симуляция остаётся рабочей; причина — в её журнале.
-                    if not panel_reported:
-                        print(f'Панель завершилась ({proc.returncode}); см. {runtime / "web_panel.log"}',
+                if name in ('web_panel', 'rviz'):
+                    # Без панели и RViz симуляция остаётся рабочей; причина — в журнале.
+                    if name not in reported:
+                        print(f'{name} завершился ({proc.returncode}); см. {runtime / (name + ".log")}',
                               flush=True)
-                        panel_reported = True
+                        reported.add(name)
                     continue
                 raise RuntimeError(f'{name} завершился: {proc.returncode}; см. {runtime}')
             time.sleep(.5)
