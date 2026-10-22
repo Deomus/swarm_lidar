@@ -1,6 +1,6 @@
 """A* на сетке; unknown и пространство за картой считаются препятствием."""
 from heapq import heappop, heappush
-from math import floor, hypot, isfinite, sqrt
+from math import ceil, floor, hypot, isfinite, sqrt
 
 
 class PlanningError(ValueError):
@@ -76,3 +76,41 @@ def astar(width, height, blocked, start, goal):
                 estimate = candidate + hypot(goal[0] - nxt[0], goal[1] - nxt[1])
                 heappush(queue, (estimate, candidate, nxt))
     raise PlanningError('Цель недостижима')
+
+
+def segment_cells(a, b):
+    """Клетки, через которые проходит отрезок a→b; координаты в клетках.
+
+    Консервативно: в точках пересечения линий сетки, включая узлы, берутся
+    все соседние клетки, поэтому касание угла занятой клетки тоже считается.
+    """
+    (ax, ay), (bx, by) = a, b
+    dx, dy = bx - ax, by - ay
+    params = {0., 1.}
+    for start, delta in ((ax, dx), (ay, dy)):
+        if delta:
+            low, high = sorted((start, start + delta))
+            params.update((line - start) / delta for line in range(floor(low) + 1, ceil(high)))
+    ts = sorted(params)
+    cells = {(floor(ax + (t0 + t1) / 2 * dx), floor(ay + (t0 + t1) / 2 * dy))
+             for t0, t1 in zip(ts, ts[1:])}
+    for t in ts:
+        x, y = ax + t * dx, ay + t * dy
+        cells.update((floor(x + ox), floor(y + oy)) for ox in (-1e-9, 1e-9) for oy in (-1e-9, 1e-9))
+    return cells
+
+
+def shortcut_path(points, width, height, blocked):
+    """Убирает лестницу A*: точка остаётся, только если без неё отрезок задел бы
+    занятую клетку или край карты. Соседние точки входа должны быть видимы."""
+    def visible(a, b):
+        return all(0 <= x < width and 0 <= y < height and (x, y) not in blocked
+                   for x, y in segment_cells(a, b))
+    result, anchor = [points[0]], 0
+    for k in range(2, len(points)):
+        if not visible(points[anchor], points[k]):
+            anchor = k - 1
+            result.append(points[anchor])
+    if len(points) > 1:
+        result.append(points[-1])
+    return result

@@ -10,7 +10,7 @@ from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import String
 from swarm_interfaces.msg import SwarmState
 
-from mission_planner.grid import PlanningError, astar, inflated_grid
+from mission_planner.grid import PlanningError, astar, inflated_grid, shortcut_path
 
 
 class MissionPlanner(Node):
@@ -128,20 +128,26 @@ class MissionPlanner(Node):
         start, target = [(floor((p.x - origin.x) / info.resolution),
                           floor((p.y - origin.y) / info.resolution)) for p in positions]
         cells = astar(info.width, info.height, blocked, start, target)
+        # Точные старт и цель лежат в своих свободных клетках, поэтому отрезки до
+        # центров этих клеток безопасны; лишние центры удаляет проверка видимости.
+        exact = [((p.x - origin.x) / info.resolution, (p.y - origin.y) / info.resolution)
+                 for p in positions]
+        points = shortcut_path([exact[0], *[(x + .5, y + .5) for x, y in cells], exact[1]],
+                               info.width, info.height, blocked)
         path = Path()
         path.header.frame_id = 'map'
         path.header.stamp = self.get_clock().now().to_msg()
-        for x, y in cells:
+        for x, y in points:
             pose = PoseStamped()
             pose.header = path.header
-            pose.pose.position.x = origin.x + (x + .5) * info.resolution
-            pose.pose.position.y = origin.y + (y + .5) * info.resolution
+            pose.pose.position.x = origin.x + x * info.resolution
+            pose.pose.position.y = origin.y + y * info.resolution
             pose.pose.position.z = altitude
             pose.pose.orientation.w = 1.
             path.poses.append(pose)
-        # Последняя точка — точная цель внутри безопасной клетки, не её центр.
-        path.poses[-1].pose.position.x = goal.pose.position.x
-        path.poses[-1].pose.position.y = goal.pose.position.y
+        # Концы без ошибки округления пересчёта в клетки.
+        for pose, point in ((path.poses[0], positions[0]), (path.poses[-1], positions[1])):
+            pose.pose.position.x, pose.pose.position.y = point.x, point.y
         self.planned_radius = formation_radius
         return path
 

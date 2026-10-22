@@ -103,3 +103,11 @@ def test_column_geometry_blocks_path_near_obstacle(planner):
     planner.on_offsets(offsets)
     with pytest.raises(PlanningError, match='препятствии'):
         planner.plan(goal)
+
+
+def test_open_map_path_starts_at_leader_and_goes_straight_to_goal(planner):
+    goal = inputs(planner)
+    planner.state.pose.position.x, planner.state.pose.position.y = 1.2, 1.7
+    goal.pose.position.x, goal.pose.position.y = 8.1, 4.6
+    path = planner.plan(goal)
+    assert [(p.pose.position.x, p.pose.position.y) for p in path.poses] == [(1.2, 1.7), (8.1, 4.6)]
