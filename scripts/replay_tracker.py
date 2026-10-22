@@ -17,7 +17,7 @@ import yaml
 CLOUD = '/uav_0/lidar/points'
 TRUTH = '/evaluation/ground_truth'
 # Только входы трекера и пассивной оценки. Старые оценки и команды исключены.
-REPLAY_TOPICS = (CLOUD, TRUTH, '/mesh/states', '/swarm/target_offsets',
+REPLAY_TOPICS = (CLOUD, TRUTH, '/swarm/states', '/mesh/states', '/swarm/target_offsets',
                  '/swarm/formation_status', '/mission/path', '/mission/execution_status')
 REQUIRED_TYPES = {CLOUD: 'sensor_msgs/msg/PointCloud2', TRUTH: 'tf2_msgs/msg/TFMessage'}
 

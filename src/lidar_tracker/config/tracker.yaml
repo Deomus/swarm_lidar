@@ -12,6 +12,8 @@ lidar_tracker:
     ground_filter: true
     level_filter: true
     sensor_offset: [0.0, 0.0, 1.9]
+    # Собственная ориентация лидера: локальная телеметрия, не канал mesh.
+    orientation_topic: /swarm/states
     ground_distance: 0.04
     ground_min_points: 1000
     ground_fraction: 0.7

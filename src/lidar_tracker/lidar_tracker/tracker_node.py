@@ -20,7 +20,7 @@ class LidarTracker(Node):
             min_range=0.5, max_range=80., min_z=-10., max_z=10.,
             ground_filter=False, ground_distance=.04, ground_min_points=1000,
             ground_fraction=.7,
-            level_filter=False, sensor_offset=[0., 0., 1.9], orientation_topic='/mesh/states',
+            level_filter=False, sensor_offset=[0., 0., 1.9], orientation_topic='/swarm/states',
             max_processing_points=10000,
             cluster_tolerance=0.5, min_cluster_size=3, max_cluster_size=500,
             max_cluster_extent=1.5, confidence_threshold=0.25,
