@@ -17,6 +17,7 @@ h2{font-size:17px;margin:0;font-weight:620;letter-spacing:-.2px}
 .card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);min-width:0}
 .flight-bar{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 .flight-state{display:flex;align-items:center;gap:14px;margin-right:auto}
+.flight-state h2 .tag{margin-left:8px;vertical-align:2px;font-size:11px;font-weight:600;letter-spacing:.4px}
 .flight-state p{margin:2px 0 0;color:var(--muted);font-size:14px}
 .dot{width:12px;height:12px;border-radius:50%;background:#56636f;flex:none}
 .dot.ready{background:var(--accent);box-shadow:0 0 0 5px rgba(95,224,176,.14)}

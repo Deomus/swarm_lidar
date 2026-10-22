@@ -574,7 +574,7 @@ def main():
             topics = ['/clock', '/tf', '/tf_static', '/map', '/swarm/states', '/mesh/states',
                       '/swarm/relative_poses', '/mesh/relative_poses', '/swarm/commands', '/mesh/commands',
                       '/swarm/formation_command', '/swarm/formation_status', '/swarm/target_offsets',
-                      '/swarm/health', '/leader/cmd_vel', '/mission/goal', '/mission/path',
+                      '/swarm/health', '/swarm/mode', '/leader/cmd_vel', '/mission/goal', '/mission/path',
                       '/mission/status', '/mission/plan_result', '/mission/execution_status', '/evaluation/ground_truth']
             if args.record_cloud:
                 topics.append('/uav_0/lidar/points')

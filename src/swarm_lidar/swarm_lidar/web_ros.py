@@ -104,6 +104,8 @@ class PanelBackend(Node):
         self.create_subscription(String, '/swarm/formation_status', self.on_formation, 10)
         self.create_subscription(String, '/mission/execution_status', self.on_execution, 10)
         self.create_subscription(String, '/mission/status', self.on_mission_status, 10)
+        self.swarm_mode = None
+        self.create_subscription(String, '/swarm/mode', lambda m: self.status_message(m, 'swarm_mode', 'time'), 10)
         self.publisher = self.create_publisher(FormationCommand, '/swarm/formation_command', 10)
         self.goal_publisher = self.create_publisher(PoseStamped, '/mission/goal', 10)
         self.manual_publisher = self.create_publisher(TwistStamped, '/leader/cmd_vel', 10)
@@ -195,6 +197,8 @@ class PanelBackend(Node):
             moving = bool(manual and wall-manual['wall'] <= MANUAL_REPEAT_TIMEOUT and any(manual['command'][:4]))
             return dict(connected=connected, time=now, drones=rows, formation_settled=settled,
                         manual=moving,
+                        swarm_mode=self.swarm_mode if (self.swarm_mode is not None
+                            and 0 <= now-self.swarm_mode['time'] <= 1.) else None,
                         formation=formation if formation_fresh else None,
                         execution=self.execution if (self.execution is not None
                             and 0 <= now-self.execution['stamp'] <= .5) else None,

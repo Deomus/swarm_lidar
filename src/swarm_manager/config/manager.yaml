@@ -8,4 +8,9 @@ swarm_manager:
     long_timeout: 1.0
     period: 0.1
     qos_depth: 10
-
+    formation_topic: /swarm/formation_status
+    leader_topic: /mission/execution_status
+    mode_topic: /swarm/mode
+    status_timeout: 0.5
+    # Строй считается сформированным, когда ошибки всех мест меньше, м.
+    forming_error: 0.6
