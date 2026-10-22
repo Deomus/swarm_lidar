@@ -86,6 +86,7 @@ class TargetTracker:
         self.last_complete_stamp = None
         self.velocity = np.zeros_like(self.positions)
         self.stamps = [None] * len(self.positions)
+        self.reacquired = []
         self.gate, self.ambiguity = gate, ambiguity
         self.alpha, self.timeout = alpha, timeout
 
@@ -108,6 +109,7 @@ class TargetTracker:
     def update(self, centers, stamp):
         centers = np.asarray(centers, dtype=float).reshape(-1, 3)
         result = [None] * len(self.positions)
+        self.reacquired = []
         if not len(centers):
             return result
         predicted = self.positions.copy()
@@ -115,10 +117,13 @@ class TargetTracker:
             if last is not None and 0 < stamp - last <= self.timeout:
                 predicted[i] += self.velocity[i] * (stamp - last)
         distances = np.linalg.norm(predicted[:, None] - centers[None, :], axis=2)
-        candidates = []
+        candidates, lost = [], []
         for i, row in enumerate(distances):
             last = self.stamps[i]
-            if last is not None and (stamp <= last or stamp - last > self.timeout):
+            if last is not None and stamp <= last:
+                continue
+            if last is not None and stamp - last > self.timeout:
+                lost.append(i)
                 continue
             order = np.argsort(row)
             if row[order[0]] > self.gate:
@@ -137,6 +142,24 @@ class TargetTracker:
                 self.velocity[i] = (position - self.positions[i]) / (stamp - last)
             self.positions[i], self.stamps[i] = position, stamp
             result[i] = (position.copy(), j)
+        # Потерянный трек возвращается только у последнего положения: ближайший
+        # кластер в gate, не занятый живыми треками, без близкого второго.
+        claimed = {j for _, j in candidates}
+        recovered = []
+        for i in lost:
+            order = np.argsort(distances[i])
+            j = int(order[0])
+            if distances[i, j] > self.gate or j in claimed:
+                continue
+            if len(order) > 1 and distances[i, order[1]] - distances[i, j] < self.ambiguity:
+                continue
+            recovered.append((i, j))
+        for i, j in recovered:
+            if sum(k == j for _, k in recovered) != 1:
+                continue
+            self.positions[i], self.velocity[i], self.stamps[i] = centers[j].copy(), 0., stamp
+            result[i] = (centers[j].copy(), j)
+            self.reacquired.append(i)
         if all(item is not None for item in result):
             self.last_complete_positions = self.positions.copy()
             self.last_complete_stamp = stamp

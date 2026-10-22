@@ -38,7 +38,11 @@ def test_cloud_pipeline_reacquires_column_after_reset(monkeypatch):
             assert all(m.valid for m in messages[-3:])
         clock[0] += 10.
         cloud(column)
-        assert all(not m.valid for m in messages[-3:])
+        # Длительный разрыв: ID возвращаются у последних положений без reset.
+        for index, message in enumerate(messages[-3:]):
+            assert message.valid and message.target_id == index+1
+            p = message.pose.position
+            np.testing.assert_allclose([p.x, p.y, p.z], column[index], atol=.03)
         response = node.reset(Trigger.Request(), Trigger.Response())
         assert response.success and 'LiDAR' in response.message
         clock[0] += .1

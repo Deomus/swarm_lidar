@@ -143,6 +143,9 @@ class LidarTracker(Node):
                 centers.append(center)
                 confidences.append(confidence)
         self.publish(cloud.header.stamp, self.tracker.update(centers, stamp), confidences)
+        for index in self.tracker.reacquired:
+            self.get_logger().info(
+                f'uav_{self.ids[index]}: цель повторно захвачена у последнего положения, t={stamp:.3f}')
 
     def observe_clock(self):
         now = self.get_clock().now().nanoseconds * 1e-9
