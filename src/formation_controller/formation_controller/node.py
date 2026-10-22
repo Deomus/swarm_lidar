@@ -2,7 +2,7 @@ import json
 import math
 import numpy as np
 import rclpy
-from geometry_msgs.msg import Pose, PoseArray
+from geometry_msgs.msg import Pose, PoseArray, PoseStamped
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from nav_msgs.msg import OccupancyGrid
@@ -65,6 +65,10 @@ class FormationController(Node):
         self.command_pub = self.create_publisher(SwarmCommand, self.p['commands_topic'], 10)
         self.status_pub = self.create_publisher(String, self.p['status_topic'], 10)
         self.targets_pub = self.create_publisher(PoseArray, self.p['target_topic'], 10)
+        # Целевые места в map только для наблюдения: управление идёт скоростью
+        # по LiDAR-ошибке, абсолютные позиции ведомых здесь не используются.
+        self.setpoint_pose_pubs = {i: self.create_publisher(PoseStamped, f'/uav_{i}/setpoint/pose', 10)
+                                   for i in (1, 2, 3)}
         self.pose_sub = self.create_subscription(RelativePose, self.p['poses_topic'], self.on_pose, 10)
         self.state_sub = self.create_subscription(SwarmState, self.p['states_topic'], self.on_state, 10)
         self.formation_sub = self.create_subscription(FormationCommand, self.p['formation_topic'], self.on_formation, 10)
@@ -218,6 +222,21 @@ class FormationController(Node):
             relative.append(heading.inv().apply(target_enu))
         return np.asarray(relative)
 
+    def publish_slot_targets(self, leader, offsets):
+        """Место ведомого: позиция ведущего по его PX4 + R(yaw)·offset, курс ведущего."""
+        position, yaw = leader.pose.position, leader.yaw
+        quaternion = Rotation.from_euler('z', yaw).as_quat()
+        for i, offset in zip((1, 2, 3), offsets):
+            x, y, z = Rotation.from_euler('z', yaw).apply(offset)
+            target = PoseStamped()
+            target.header.frame_id = 'map'
+            target.header.stamp = self.get_clock().now().to_msg()
+            target.pose.position.x, target.pose.position.y, target.pose.position.z = (
+                position.x + x, position.y + y, position.z + z)
+            o = target.pose.orientation
+            o.x, o.y, o.z, o.w = map(float, quaternion)
+            self.setpoint_pose_pubs[i].publish(target)
+
     def tick(self):
         now = self.now()
         previous = self.previous_time
@@ -290,6 +309,8 @@ class FormationController(Node):
         if not ready:
             self.controllers = self.new_controllers()
             self.reset_prediction()
+        if ready:
+            self.publish_slot_targets(self.states[0], sample.offsets)
         for i in [1, 2, 3]:
             command = SwarmCommand(uav_id=i, frame_id='map', valid=bool(ready), safety_state=state)
             command.source_stamp = self.get_clock().now().to_msg()

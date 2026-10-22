@@ -25,7 +25,7 @@ def test_heading_rate_feedforward_correction_and_limit():
     assert heading_rate(1.5, .2, 0., 1., .3) == .3
 
 
-def run_tick(match, follower_yaws, leader_yaw=3., leader_yaw_rate=.1, valid=True):
+def run_tick(match, follower_yaws, leader_yaw=3., leader_yaw_rate=.1, valid=True, targets=None):
     rclpy.init(args=['--ros-args', '-p', f'match_leader_yaw:={str(match).lower()}'])
     try:
         node = FormationController()
@@ -34,6 +34,9 @@ def run_tick(match, follower_yaws, leader_yaw=3., leader_yaw_rate=.1, valid=True
         commands = []
         node.command_pub = SimpleNamespace(publish=commands.append)
         node.status_pub = node.targets_pub = SimpleNamespace(publish=lambda _: None)
+        if targets is not None:
+            node.setpoint_pose_pubs = {i: SimpleNamespace(publish=lambda m, i=i: targets.update({i: m}))
+                                       for i in (1, 2, 3)}
         stamp = Time(nanoseconds=round(now*1e9)).to_msg()
         quaternion = Rotation.from_euler('z', leader_yaw).as_quat()
         node.orientation_history.add(now, quaternion)
@@ -68,3 +71,16 @@ def test_followers_turn_towards_leader_heading_by_short_side():
 def test_heading_hold_disabled_or_data_hold_gives_zero_yaw_rate():
     for commands in (run_tick(False, [2., 2., 2.]), run_tick(True, [2., 2., 2.], valid=False)):
         assert all(commands[i].target_velocity.angular.z == 0. for i in (1, 2, 3))
+
+
+def test_slot_setpoints_are_leader_position_plus_rotated_offsets():
+    targets = {}
+    run_tick(True, [3., 3., 3.], leader_yaw=math.pi/2, targets=targets)
+    # Линия за ведущим, смотрящим на север: места на юге, с курсом ведущего.
+    expected = {1: (4., -4.), 2: (0., -4.), 3: (-4., -4.)}
+    for i, (x, y) in expected.items():
+        p = targets[i].pose.position
+        assert (p.x, p.y) == pytest.approx((x, y)) and targets[i].header.frame_id == 'map'
+        q = targets[i].pose.orientation
+        assert Rotation.from_quat([q.x, q.y, q.z, q.w]).as_euler('xyz')[2] == pytest.approx(math.pi/2)
+    assert run_tick(True, [3., 3., 3.], valid=False, targets=(empty := {})) and not empty

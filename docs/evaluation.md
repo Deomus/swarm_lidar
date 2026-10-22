@@ -68,6 +68,12 @@ ROS_DOMAIN_ID=73 ros2 bag play log/s1_ДАТА_ВРЕМЯ/bag \
 | `/swarm/target_offsets` | `geometry_msgs/msg/PoseArray` | Три offsets в порядке uav_1..3 |
 | `/mesh/states` | `swarm_interfaces/msg/SwarmState` | Свежесть телеметрии лидера |
 
+Выход: `/evaluation/metrics` (`std_msgs/String`, JSON) на каждом такте записи —
+время, минимальная дистанция по эталону и по каждому ведомому ошибка
+локализации, ошибка места, признак устаревшего измерения и активности
+контроллера; отсутствующее значение — `null`. Итоговая статистика
+по-прежнему сохраняется в CSV и `summary.json`.
+
 Для ground truth подходят имена моделей `uav_0..uav_3` и scoped names,
 заканчивающиеся на имя модели, например `swarm::uav_1`. Вложенные link frames
 вроде `uav_1/base_link` игнорируются, поскольку их transform может быть локальным.

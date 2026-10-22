@@ -18,6 +18,7 @@ arm, takeoff, переключение PX4 в Offboard и посадка в па
 | вход при контроле группы | `/swarm/formation_status` | `std_msgs/String`, режим контроллера формации и исходное время `time` |
 | вход при ограничении движения группы | `/swarm/target_offsets` | `geometry_msgs/PoseArray`, актуальные места ведомых |
 | выход | `/swarm/commands` | `swarm_interfaces/SwarmCommand`, всегда uav_id=0, frame_id=map |
+| выход в MISSION | `/uav_0/setpoint/pose` | `geometry_msgs/PoseStamped`, текущая точка маршрута в map |
 | выход | `/mission/execution_status` | `std_msgs/String`, JSON mode/status/waypoint/total/valid/stamp, accepted_path_stamp и group_motion_scale |
 
 Сервисы `std_srvs/Trigger`: `/leader/hold`, `/leader/manual`, `/leader/mission`.

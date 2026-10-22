@@ -62,8 +62,12 @@ def test_synthetic_gt_and_invalid_share(recorder):
     state = SwarmState()
     state.uav_id, state.valid, state.timestamp = 0, True, stamp
     node.on_state(state)
+    metrics = []
+    node.metrics_pub = type('Sink', (), dict(publish=lambda self, m: metrics.append(json.loads(m.data))))()
     node.tick()
     assert len(node.rows) == 3
+    assert metrics[-1]['min_pair_distance_m'] == 2.
+    assert metrics[-1]['targets']['2']['formation_error_m'] == 0. and metrics[-1]['targets']['2']['relative_stale'] == 0
     assert all(row['localization_error_m'] == pytest.approx(0., abs=1e-12) for row in node.rows)
     assert all(row['formation_error_m'] == 0. for row in node.rows)
     assert all(row['min_pair_distance_m'] == 2. for row in node.rows)

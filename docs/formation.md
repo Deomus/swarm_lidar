@@ -150,6 +150,10 @@ w←w+α(u−w), v←v+α(w−v). При нулевом начальном со�
 `/swarm/formation_command`; публикует `/swarm/commands` (только uav_1..3),
 `/swarm/target_offsets` (PoseArray, frame uav_0/heading) и JSON String
 `/swarm/formation_status`. QoS reliable/volatile, depth10; период задаётся YAML.
+При активном контуре также публикуется `/uav_i/setpoint/pose` (PoseStamped, map):
+место ведомого = позиция ведущего по его PX4 + R(yaw)·offset, с курсом ведущего.
+Это наблюдаемая цель для RViz и анализа; управление по-прежнему идёт скоростью
+по LiDAR-ошибке, абсолютные позиции ведомых не используются.
 
 Контур изначально отключён. Trigger `/swarm/enable_formation` требует четырёх
 вооружённых аппаратов со свежей телеметрией и трёх валидных LiDAR-целей.

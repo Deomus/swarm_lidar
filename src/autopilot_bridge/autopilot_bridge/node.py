@@ -3,7 +3,7 @@ from collections import deque
 import numpy as np
 import rclpy
 from builtin_interfaces.msg import Time
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, TwistStamped
 from px4_msgs.msg import (OffboardControlMode, TrajectorySetpoint, VehicleCommand,
                          VehicleCommandAck, VehicleLocalPosition, VehicleOdometry, VehicleStatus)
 from rclpy.node import Node
@@ -37,6 +37,8 @@ class AutopilotBridge(Node):
         self.stream_enabled = self.p['use_offboard']
         self.state_pub = self.create_publisher(SwarmState, self.p['states_topic'], 10)
         self.local_state_pub = self.create_publisher(SwarmState, 'autopilot/state', 10)
+        # Наблюдаемая копия скорости, отправляемой PX4, в map ENU (ТЗ §6.2).
+        self.setpoint_velocity_pub = self.create_publisher(TwistStamped, 'setpoint/velocity', 10)
         self.control_pub = self.create_publisher(OffboardControlMode, self.p['offboard_topic'], 10)
         self.setpoint_pub = self.create_publisher(TrajectorySetpoint, self.p['trajectory_topic'], 10)
         self.command_pub = self.create_publisher(VehicleCommand, self.p['command_topic'], 10)
@@ -236,6 +238,11 @@ class AutopilotBridge(Node):
             sp.yaw = math.nan
             sp.yawspeed = -yaw_rate
             self.setpoint_pub.publish(sp)
+            observed = TwistStamped()
+            observed.header.stamp, observed.header.frame_id = now.to_msg(), self.p['map_frame']
+            observed.twist.linear.x, observed.twist.linear.y, observed.twist.linear.z = map(float, desired)
+            observed.twist.angular.z = yaw_rate
+            self.setpoint_velocity_pub.publish(observed)
 
 def main(args=None):
     rclpy.init(args=args)

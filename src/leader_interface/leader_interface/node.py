@@ -5,7 +5,7 @@ import math
 import numpy as np
 
 import rclpy
-from geometry_msgs.msg import TwistStamped, PoseArray
+from geometry_msgs.msg import PoseArray, PoseStamped, TwistStamped
 from nav_msgs.msg import Path
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -54,6 +54,8 @@ class LeaderInterface(Node):
             grace=self.p['formation_unavailable_grace'])
         self.command_pub = self.create_publisher(SwarmCommand, self.p['commands_topic'], 10)
         self.status_pub = self.create_publisher(String, self.p['status_topic'], 10)
+        # Текущая точка маршрута в map для наблюдения (ТЗ §6.2), только в MISSION.
+        self.setpoint_pose_pub = self.create_publisher(PoseStamped, '/uav_0/setpoint/pose', 10)
         self.subscriptions_ = [
             self.create_subscription(SwarmState, self.p['states_topic'], self.state, 10),
             self.create_subscription(TwistStamped, self.p['manual_topic'], self.manual, 10),
@@ -192,6 +194,14 @@ class LeaderInterface(Node):
         message.target_velocity.linear.z = float(v[2])
         message.target_velocity.angular.z = yaw_rate
         self.command_pub.publish(message)
+        if self.core.mode == 'MISSION' and self.core.path is not None and self.core.index < len(self.core.path):
+            waypoint = PoseStamped()
+            waypoint.header.frame_id = self.p['frame_id']
+            waypoint.header.stamp = self.get_clock().now().to_msg()
+            waypoint.pose.position.x, waypoint.pose.position.y, waypoint.pose.position.z = map(
+                float, self.core.path[self.core.index])
+            waypoint.pose.orientation.w = 1.
+            self.setpoint_pose_pub.publish(waypoint)
         status = dict(mode=self.core.mode, status=result.status, waypoint=result.waypoint_index,
                       total=len(self.core.path) if self.core.path is not None else 0,
                       valid=result.valid, stamp=now,

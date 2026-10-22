@@ -38,3 +38,27 @@ def test_future_and_reordered_samples_cannot_replace_current_epoch(bridge):
     node.advance_telemetry()
     assert node.odom.timestamp == 10000000
     assert not node.future_telemetry['odom']
+
+
+def test_offboard_stream_mirrors_enu_setpoint_velocity(bridge):
+    from swarm_interfaces.msg import SwarmCommand
+    node, clock = bridge
+    node.on_odom(VehicleOdometry(timestamp=10000000, q=[1., 0., 0., 0.],
+                                 pose_frame=VehicleOdometry.POSE_FRAME_NED,
+                                 velocity_frame=VehicleOdometry.VELOCITY_FRAME_NED))
+    node.on_local(VehicleLocalPosition(timestamp=10000000, xy_valid=True, z_valid=True,
+                                       v_xy_valid=True, v_z_valid=True))
+    node.on_status(VehicleStatus(timestamp=10000000))
+    command = SwarmCommand(uav_id=0, frame_id='map', valid=True)
+    command.source_stamp.sec = 10
+    command.target_velocity.linear.x, command.target_velocity.linear.y = 1., -.5
+    command.target_velocity.angular.z = .2
+    node.on_command(command)
+    sent, observed = [], []
+    node.setpoint_pub = type('Sink', (), dict(publish=lambda self, m: sent.append(m)))()
+    node.setpoint_velocity_pub = type('Sink', (), dict(publish=lambda self, m: observed.append(m)))()
+    node.stream_enabled = True
+    node.tick()
+    twist = observed[-1].twist
+    assert (twist.linear.x, twist.linear.y, twist.angular.z) == pytest.approx((1., -.5, .2))
+    assert list(sent[-1].velocity[:2]) == pytest.approx([-.5, 1.]) and sent[-1].yawspeed == pytest.approx(-.2)

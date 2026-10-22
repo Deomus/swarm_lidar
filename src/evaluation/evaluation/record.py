@@ -66,6 +66,7 @@ class Recorder(Node):
         self.create_subscription(String, '/swarm/formation_status', self.on_status, 10)
         self.create_subscription(NavPath, '/mission/path', self.on_path, 10)
         self.create_subscription(String, '/mission/execution_status', self.on_mission_status, 10)
+        self.metrics_pub = self.create_publisher(String, '/evaluation/metrics', 10)
         self.create_timer(self.p['period'], self.tick)
 
     def on_gt(self, msg):
@@ -154,6 +155,7 @@ class Recorder(Node):
         desired_offsets = self.offsets_at(truth[0]) if truth else None
         state_fresh = (self.state is not None and self.state.valid
                        and 0 <= now - seconds(self.state.timestamp) <= self.p['stale_timeout'])
+        published = []
         for index in range(1, 4):
             sample = self.latest(self.relative[index], now)
             valid = (sample is not None and sample[1].valid
@@ -205,7 +207,15 @@ class Recorder(Node):
             self.writer.writerow(row)
             self.rows.append(row)
             self.summary.update(row)
+            published.append(row)
         self.file.flush()
+        # Текущий такт для наблюдения в ROS; NaN передаётся как null.
+        finite = lambda value: value if isinstance(value, (int, float)) and isfinite(value) else None
+        self.metrics_pub.publish(String(data=json.dumps(dict(
+            time=now, min_pair_distance_m=finite(published[0]['min_pair_distance_m']),
+            targets={str(row['target_id']): {key: finite(row[key]) for key in (
+                'localization_error_m', 'formation_error_m', 'relative_stale', 'controller_active')}
+                for row in published}), allow_nan=False)))
 
     def finish(self):
         self.file.close()

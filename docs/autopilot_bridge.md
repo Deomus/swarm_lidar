@@ -45,7 +45,9 @@ watermark и не блокируют последующие корректные
 не управляет аппаратом. `target_velocity.angular.z` — ENU yaw rate (рад/с),
 в PX4 yawspeed знак меняется. Возраст команды ограничен `command_timeout`.
 Выходы: `/swarm/states` и `/uav_i/autopilot/state`, SwarmState, reliable,
-volatile, depth 10. Частота — 20 Гц по умолчанию.
+volatile, depth 10. Частота — 20 Гц по умолчанию. При включённом stream
+`/uav_i/setpoint/velocity` (`geometry_msgs/TwistStamped`, map ENU) повторяет
+скорость и yaw rate, фактически отправленные PX4, включая нулевую при BRAKE.
 
 При включённом stream без свежей валидной команды выдаётся нулевая скорость,
 а не последняя устаревшая команда. Position/acceleration/jerk/yaw задаются
