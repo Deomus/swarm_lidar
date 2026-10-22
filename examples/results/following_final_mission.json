@@ -1,0 +1,62 @@
+{
+  "source": "log/following_final_mission_20261022/s3_1/flight",
+  "scenario": "s3",
+  "passed": true,
+  "passed_landing": true,
+  "runtime_revision": "b0af77293c9f27a00f54e84ac761e5e6d14ab995",
+  "configuration_sha256": "222b493340f00cb59f04db46fd30c996010e0358d0f5a27d8130f3b35385fcfc",
+  "formation": {
+    "count": 2118,
+    "mean": 0.07175642567982271,
+    "rms": 0.07793999201207051,
+    "max": 0.1782641579186776,
+    "min": 0.010740491212681499
+  },
+  "localization": {
+    "count": 2118,
+    "mean": 0.03707945247686381,
+    "rms": 0.0383650339711765,
+    "max": 0.07033745446747769,
+    "min": 0.0032643494379097047
+  },
+  "min_pair_distance_m": 3.9363813208228153,
+  "active_rows": 2118,
+  "relative_stale_share": 0,
+  "leader_state_stale_share": 0,
+  "formation_missing_share": 0,
+  "localization_missing_share": 0,
+  "manual_windows": {},
+  "confirmed_zero_delay_s": null,
+  "fixed_manual_profiles": null,
+  "transitions": null,
+  "route_error_m": {
+    "count": 2007,
+    "mean": 0.2426316656320961,
+    "rms": 0.26029781849458483,
+    "max": 0.5998295022857897,
+    "min": 0.10039198384027578
+  },
+  "goal": {
+    "event_time": 124.16000000000001,
+    "gt_time": 124.168,
+    "gt_delta_s": 0.007999999999995566,
+    "goal_time": 55.164,
+    "goal_map_m": [
+      6,
+      3,
+      3
+    ],
+    "leader_base_map_m": [
+      5.760183104007089,
+      3.241108804228688,
+      3.2235327359100316
+    ],
+    "final_goal_error_m": 0.4069551364753695,
+    "match_tolerance_s": 0.15,
+    "source": "log/following_final_mission_20261022/s3_1/flight",
+    "model_base_z": 0.24,
+    "event": "Цель достигнута: ошибка положения лидера 0.349 м",
+    "method": "nearest source timestamp, map ENU, model to base"
+  },
+  "note": "Один контрольный S3 на окончательной конфигурации, в новом мире; в статистику S2 и S1 не входит. Конечная ошибка ведущего и относительная ошибка строя — разные показатели."
+}
