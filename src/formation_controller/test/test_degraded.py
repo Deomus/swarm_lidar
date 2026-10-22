@@ -69,10 +69,14 @@ def test_one_lost_follower_degrades_without_stopping_the_others(controller):
     assert status['mode'] == 'FOLLOWING' and status['lost'] == []
 
 
-def test_follower_out_of_offboard_is_lost(controller):
+def test_follower_out_of_offboard_is_lost_but_parked_not_failing(controller):
     node, clock, sink = controller
     commands, status = tick(node, clock, sink, modes={3: '4'})
     assert status['lost'] == [3] and not commands[3].valid
+    # Данные годны: не отказ, мост не доводит эскалацию до посадки.
+    assert commands[3].safety_state == 'PARKED'
+    commands, status = tick(node, clock, sink, modes={3: '4'}, valid=(1, 2))
+    assert commands[3].safety_state == 'DATA_HOLD'
 
 
 def test_lost_follower_stays_an_obstacle_where_it_was_measured(controller):

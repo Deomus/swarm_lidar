@@ -157,14 +157,25 @@ class FormationController(Node):
         return (state is not None and state.valid and state.armed
                 and 0 <= now - self.seconds(state.timestamp) <= self.p['stale_timeout'])
 
-    def follower_ready(self, i):
+    def parked(self, i):
+        """Данные ведомого годны, но его PX4 вне Offboard (Loiter после эскалации).
+
+        Такой аппарат выбывает из строя, но это не отказ данных: мост не должен
+        продолжать эскалацию до посадки, возврат — по решению оператора.
+        """
+        state = self.states.get(i)
+        return (state is not None and state.armed and state.mode != OFFBOARD
+                and self.follower_ready(i, require_offboard=False))
+
+    def follower_ready(self, i, require_offboard=True):
         """Ведомый в контуре: свежая валидная LiDAR-поза и собственный PX4 в Offboard.
 
         Аппарат, ушедший из Offboard (например, в удержание PX4 по эскалации
         моста), выбывает: иначе строй считался бы готовым без него.
         """
         state, pose, now = self.states.get(i), self.poses.get(i), self.now()
-        return (state is not None and state.valid and state.armed and state.mode == OFFBOARD
+        return (state is not None and state.valid and state.armed
+                and (state.mode == OFFBOARD or not require_offboard)
                 and 0 <= now - self.seconds(state.timestamp) <= self.p['stale_timeout']
                 and pose is not None and pose.valid and pose.confidence >= self.p['min_confidence']
                 and pose.frame_id == 'uav_0/lidar_link'
@@ -357,7 +368,8 @@ class FormationController(Node):
             ok = i in active
             # Выбывший при работающем строе получает DATA_HOLD: по нему мост
             # отличает потерю данных от намеренного удержания.
-            reason = state if ok or state in ('DISABLED', 'COLLISION_STOP', 'INVALID_GEOMETRY') else 'DATA_HOLD'
+            reason = (state if ok or state in ('DISABLED', 'COLLISION_STOP', 'INVALID_GEOMETRY')
+                      else 'PARKED' if self.parked(i) else 'DATA_HOLD')
             command = SwarmCommand(uav_id=i, frame_id='map', valid=ok, safety_state=reason)
             command.source_stamp = self.get_clock().now().to_msg()
             if ok:
