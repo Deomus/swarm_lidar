@@ -55,8 +55,10 @@ def read_run(directory, manual_window_s=24.):
     result = json.loads((flight/'result.json').read_text())
     active = json.loads((flight/'metrics/summary.json').read_text())['active_control']
     config = json.loads(configuration.read_text())
-    fingerprint = hashlib.sha256(json.dumps(
-        [config['parameters'], config['world_sha256']], sort_keys=True).encode()).hexdigest()
+    configuration_parts = [config['parameters'], config['world_sha256']]
+    if 'source_sha256' in config:
+        configuration_parts.append(config['source_sha256'])
+    fingerprint = hashlib.sha256(json.dumps(configuration_parts, sort_keys=True).encode()).hexdigest()
     with (flight/'metrics/samples.csv').open(newline='') as handle:
         rows = [{key: float(value) for key, value in row.items()} for row in csv.DictReader(handle)]
     windows = analyze(result['events'], rows)['windows']

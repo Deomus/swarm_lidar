@@ -2,8 +2,8 @@ formation_controller:
   ros__parameters:
     period: 0.05
     kp: 0.3
-    vertical_kp: 1.0
-    vertical_kd: 1.2
+    vertical_kp: 0.6
+    vertical_kd: 0.6
     vertical_derivative_time: 0.2
     stale_timeout: 0.5
     min_confidence: 0.4

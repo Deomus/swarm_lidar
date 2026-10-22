@@ -1,0 +1,56 @@
+{
+  "status": "rejected_configuration",
+  "runs": [
+    {
+      "source": "log/following_candidate_series_20261022/s1_1/flight",
+      "runtime_revision": "c053c08a87f6ce3471568d174f124d3da947531e",
+      "passed": true,
+      "passed_landing": true,
+      "bag_recorded": true,
+      "run_error": null,
+      "formation": {
+        "count": 4815,
+        "mean": 0.1701619237043813,
+        "rms": 0.20022459002849716,
+        "max": 0.5555650493298724,
+        "min": 0.006893907328165135
+      },
+      "min_pair_distance_m": 2.76086467932464
+    },
+    {
+      "source": "log/following_candidate_series_20261022/s1_2/flight",
+      "runtime_revision": "8b3f8ac34fcc204a9dd89be366519062e1f171d4",
+      "passed": false,
+      "passed_landing": true,
+      "bag_recorded": true,
+      "run_error": "RuntimeError: Формация не установилась: истёк лимит 70.0 с симуляции",
+      "formation": {
+        "count": 4908,
+        "mean": 0.30685873890113075,
+        "rms": 0.3794161915683981,
+        "max": 0.8523179104820087,
+        "min": 0.009564634542980073
+      },
+      "min_pair_distance_m": 2.775807665506116
+    }
+  ],
+  "note": "Серия S1 остановилась после второго опыта. У первого не подтверждены все строгие установления в полосе .3м; второй не уложился в штатный лимит .6м. Горизонтальное улучшение S2 не означает пригодности этой конфигурации по высоте.",
+  "diagnosis": {
+    "source": "log/following_candidate_series_20261022/s1_2/flight/bag",
+    "window_s": [
+      195,
+      236
+    ],
+    "xy_rms_by_follower_m": [
+      0.0495,
+      0.0479,
+      0.05377
+    ],
+    "z_rms_by_follower_m": [
+      0.55622,
+      0.562,
+      0.53908
+    ],
+    "approximate_vertical_period_s": 3.45
+  }
+}

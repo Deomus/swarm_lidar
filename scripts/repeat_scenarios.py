@@ -3,6 +3,7 @@
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -28,7 +29,17 @@ def snapshot():
         path = Path(get_package_share_directory(package))/'config'/name
         files[f'{package}/{name}'] = path.read_text()
     world = Path(get_package_share_directory('swarm_lidar'))/'worlds/swarm_lidar.sdf'
+    geometry = Path(get_package_share_directory('swarm_lidar'))/'config/swarm.yaml'
+    if geometry.exists():
+        files['swarm_lidar/swarm.yaml'] = geometry.read_text()
+    source_hashes = {}
+    for name in ('formation_controller.core', 'formation_controller.node',
+                 'lidar_tracker.tracking', 'lidar_tracker.tracker_node',
+                 'mesh_interface.node', 'leader_interface.core', 'leader_interface.node'):
+        path = Path(importlib.util.find_spec(name).origin)
+        source_hashes[name] = hashlib.sha256(path.read_bytes()).hexdigest()
     return dict(runtime_revision=revision, parameters=files,
+                source_sha256=source_hashes,
                 world_sha256=hashlib.sha256(world.read_bytes()).hexdigest(),
                 ros_domain_id=os.environ.get('ROS_DOMAIN_ID', '0'),
                 note='Каждый сценарий начинается в новом мире, без GUI и видео.')
