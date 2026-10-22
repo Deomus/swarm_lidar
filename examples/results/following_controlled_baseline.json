@@ -68,67 +68,205 @@
         "controller_active_share": 1
       },
       "transitions": null
+    },
+    {
+      "source": "log/following_controlled_baseline_20261022/s2_2/flight",
+      "scenario": "s2",
+      "passed": true,
+      "passed_landing": true,
+      "runtime_revision": "b0af77293c9f27a00f54e84ac761e5e6d14ab995",
+      "configuration_sha256": "83e06f8b6f03280031b5b8afd4801c845edc20bef79839ccff26276e52e4d5a1",
+      "formation": {
+        "count": 2406,
+        "mean": 0.5747347154131812,
+        "rms": 0.7240779892460976,
+        "max": 2.3576253328785683,
+        "min": 0.019296072206516992
+      },
+      "localization": {
+        "count": 2406,
+        "mean": 0.036653843716661486,
+        "rms": 0.03802442983048911,
+        "max": 0.07608095764522967,
+        "min": 0.005853982232951605
+      },
+      "min_pair_distance_m": 3.3530453977210635,
+      "active_rows": 2406,
+      "relative_stale_share": 0,
+      "leader_state_stale_share": 0,
+      "formation_missing_share": 0,
+      "localization_missing_share": 0,
+      "manual_windows": {
+        "0.5": {
+          "count": 723,
+          "mean": 0.3949494969688666,
+          "rms": 0.5920417881130509,
+          "max": 1.8077202641618806,
+          "min": 0.019296072206516992
+        },
+        "1.0": {
+          "count": 723,
+          "mean": 0.6210516124620962,
+          "rms": 0.7390930750016385,
+          "max": 2.103857963312579,
+          "min": 0.08708939989164872
+        },
+        "1.5": {
+          "count": 885,
+          "mean": 0.72022202762647,
+          "rms": 0.8308052322984812,
+          "max": 2.3576253328785683,
+          "min": 0.08251470715005102
+        }
+      },
+      "confirmed_zero_delay_s": 0.404,
+      "fixed_manual_profiles": {
+        "rows": 2160,
+        "formation_error_m": {
+          "count": 2160,
+          "mean": 0.5820149102831895,
+          "rms": 0.7386191123365426,
+          "max": 2.3576253328785683,
+          "min": 0.019296072206516992
+        },
+        "relative_stale_share": 0,
+        "formation_missing_share": 0,
+        "min_pair_distance_m": 3.3530453977210635,
+        "window_duration_s": 24,
+        "window_count": 3,
+        "controller_active_share": 1
+      },
+      "transitions": null
+    },
+    {
+      "source": "log/following_controlled_baseline_20261022/s2_3/flight",
+      "scenario": "s2",
+      "passed": true,
+      "passed_landing": true,
+      "runtime_revision": "b0af77293c9f27a00f54e84ac761e5e6d14ab995",
+      "configuration_sha256": "83e06f8b6f03280031b5b8afd4801c845edc20bef79839ccff26276e52e4d5a1",
+      "formation": {
+        "count": 2415,
+        "mean": 0.5633084512039109,
+        "rms": 0.7133773023904939,
+        "max": 2.275834769270791,
+        "min": 0.008925669322874969
+      },
+      "localization": {
+        "count": 2415,
+        "mean": 0.03652081215399154,
+        "rms": 0.03786618961887114,
+        "max": 0.07765217426941004,
+        "min": 0.003925636951095092
+      },
+      "min_pair_distance_m": 3.397238971283832,
+      "active_rows": 2415,
+      "relative_stale_share": 0,
+      "leader_state_stale_share": 0,
+      "formation_missing_share": 0,
+      "localization_missing_share": 0,
+      "manual_windows": {
+        "0.5": {
+          "count": 726,
+          "mean": 0.3818124332405581,
+          "rms": 0.5623344781148334,
+          "max": 1.7191048275805327,
+          "min": 0.008925669322874969
+        },
+        "1.0": {
+          "count": 726,
+          "mean": 0.5930564438079305,
+          "rms": 0.7349490345952319,
+          "max": 2.1389661187558486,
+          "min": 0.026384060520783563
+        },
+        "1.5": {
+          "count": 891,
+          "mean": 0.7207403909547764,
+          "rms": 0.8243236061536625,
+          "max": 2.275834769270791,
+          "min": 0.08500532240348108
+        }
+      },
+      "confirmed_zero_delay_s": 0.356,
+      "fixed_manual_profiles": {
+        "rows": 2160,
+        "formation_error_m": {
+          "count": 2160,
+          "mean": 0.5669091792950667,
+          "rms": 0.7252873950569613,
+          "max": 2.275834769270791,
+          "min": 0.008925669322874969
+        },
+        "relative_stale_share": 0,
+        "formation_missing_share": 0,
+        "min_pair_distance_m": 3.397238971283832,
+        "window_duration_s": 24,
+        "window_count": 3,
+        "controller_active_share": 1
+      },
+      "transitions": null
     }
   ],
   "all_passed": true,
   "formation_rms_m": {
-    "count": 1,
-    "mean": 0.7215258842056624,
-    "sample_std": null,
-    "min": 0.7215258842056624,
-    "max": 0.7215258842056624
+    "count": 3,
+    "mean": 0.7196603919474179,
+    "sample_std": 0.0055889373605006315,
+    "min": 0.7133773023904939,
+    "max": 0.7240779892460976
   },
   "formation_max_m": {
-    "count": 1,
-    "mean": 2.3046406160385304,
-    "sample_std": null,
-    "min": 2.3046406160385304,
-    "max": 2.3046406160385304
+    "count": 3,
+    "mean": 2.3127002393959635,
+    "sample_std": 0.04148665110993195,
+    "min": 2.275834769270791,
+    "max": 2.3576253328785683
   },
   "min_pair_distance_m": {
-    "count": 1,
-    "mean": 3.4246168964988906,
-    "sample_std": null,
-    "min": 3.4246168964988906,
+    "count": 3,
+    "mean": 3.3916337551679288,
+    "sample_std": 0.03611348356369975,
+    "min": 3.3530453977210635,
     "max": 3.4246168964988906
   },
   "localization_rms_m": {
-    "count": 1,
-    "mean": 0.038459430549324235,
-    "sample_std": null,
-    "min": 0.038459430549324235,
+    "count": 3,
+    "mean": 0.03811668333289483,
+    "sample_std": 0.00030719168595651095,
+    "min": 0.03786618961887114,
     "max": 0.038459430549324235
   },
   "confirmed_zero_delay_s": {
-    "count": 1,
-    "mean": 0.356,
-    "sample_std": null,
+    "count": 3,
+    "mean": 0.372,
+    "sample_std": 0.027712812921102063,
     "min": 0.356,
-    "max": 0.356
+    "max": 0.404
   },
   "fixed_profile_rms_m": {
-    "count": 1,
-    "mean": 0.7334309998707371,
-    "sample_std": null,
-    "min": 0.7334309998707371,
-    "max": 0.7334309998707371
+    "count": 3,
+    "mean": 0.732445835754747,
+    "sample_std": 0.006720236800682555,
+    "min": 0.7252873950569613,
+    "max": 0.7386191123365426
   },
   "fixed_profile_max_m": {
-    "count": 1,
-    "mean": 2.3046406160385304,
-    "sample_std": null,
-    "min": 2.3046406160385304,
-    "max": 2.3046406160385304
+    "count": 3,
+    "mean": 2.3127002393959635,
+    "sample_std": 0.04148665110993195,
+    "min": 2.275834769270791,
+    "max": 2.3576253328785683
   },
   "fixed_profile_min_pair_distance_m": {
-    "count": 1,
-    "mean": 3.4246168964988906,
-    "sample_std": null,
-    "min": 3.4246168964988906,
+    "count": 3,
+    "mean": 3.3916337551679288,
+    "sample_std": 0.03611348356369975,
+    "min": 3.3530453977210635,
     "max": 3.4246168964988906
   },
   "planned_runs": 3,
-  "completed_runs": 1,
-  "series_complete": false,
-  "note": "Контроль на общем коде b0af772: exponential, горизонт1.9, вертикальные P1/D1.2. Внутри группы параметры, мир и исходники зафиксированы."
+  "completed_runs": 3,
+  "series_complete": true,
+  "note": "Контроль на общем коде b0af772: exponential, горизонт1.9, вертикальные P1/D1.2. Настройки, мир и исходники внутри группы совпадают."
 }
