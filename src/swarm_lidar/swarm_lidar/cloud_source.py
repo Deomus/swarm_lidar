@@ -11,6 +11,7 @@ from gz.msgs10.pointcloud_packed_pb2 import PointCloudPacked
 from gz.transport13 import Node as GzNode
 import numpy as np
 import rclpy
+from rclpy._rclpy_pybind11 import RCLError
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import PointCloud2, PointField
@@ -134,8 +135,14 @@ class CloudSource(Node):
                     self.get_logger().warning('Облако отклонено: '+str(error))
             return
         with self._lock:
-            if not self._closing:
-                self.publisher.publish(converted)
+            # Колбэк gz-transport приходит из своего потока и может опередить
+            # флаг остановки, когда ROS уже выключен по SIGINT.
+            if not self._closing and self.context.ok():
+                try:
+                    self.publisher.publish(converted)
+                except RCLError:
+                    if self.context.ok():
+                        raise
 
     def on_orientation(self, msg):
         now = self.get_clock().now().nanoseconds * 1e-9
