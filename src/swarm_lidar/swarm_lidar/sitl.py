@@ -35,7 +35,6 @@ def main():
     parser.add_argument('--gui', choices=['true', 'false'], default='true')
     parser.add_argument('--duration', type=float, default=0.)
     parser.add_argument('--agent-port', type=int, default=8889)
-    parser.add_argument('--lidar', choices=['true', 'false'], default='true')
     # Мир, мосты и трекер рассчитаны ровно на лидера и трёх ведомых.
     parser.add_argument('--uav-count', choices=['4'], default='4')
     parser.add_argument('--stack', choices=['true', 'false'], default='true')
@@ -48,10 +47,8 @@ def main():
     parser.add_argument('--gpu', default='NVIDIA',
                         help='WSL: видеоадаптер для OpenGL через D3D12; none — не трогать')
     args = parser.parse_args()
-    if args.video == 'true' and args.lidar != 'true':
-        parser.error('Обзорная камера требует lidar:=true для системы датчиков мира')
-    if args.web == 'true' and (args.lidar != 'true' or args.stack != 'true'):
-        parser.error('Панель управления требует lidar:=true и stack:=true')
+    if args.web == 'true' and args.stack != 'true':
+        parser.error('Панель управления требует stack:=true')
     # launch передаёт аргументы без shell, поэтому `~` не раскрывается
     # автоматически как в интерактивной оболочке.
     px4 = Path(args.px4_dir).expanduser().resolve()
@@ -111,7 +108,7 @@ def main():
         parser.error('В партиции Gazebo swarm_lidar уже работает мир. Остановите прежний запуск '
                      '(Ctrl+C в его терминале) и повторите.')
     try:
-        world = share / 'worlds' / ('swarm_lidar.sdf' if args.lidar == 'true' else 'swarm.sdf')
+        world = share / 'worlds' / 'swarm_lidar.sdf'
         if args.video == 'true':
             document = ET.parse(world)
             include = ET.SubElement(document.getroot().find('world'), 'include')
@@ -138,8 +135,7 @@ def main():
         else:
             raise RuntimeError('Gazebo не готов за 45 секунд')
         if args.stack == 'true':
-            start('ros_stack', ['ros2', 'launch', 'swarm_lidar', 'runtime.launch.py',
-                                'lidar:=' + args.lidar])
+            start('ros_stack', ['ros2', 'launch', 'swarm_lidar', 'runtime.launch.py'])
         for i in range(4):
             working = runtime / f'uav_{i}'
             working.mkdir()

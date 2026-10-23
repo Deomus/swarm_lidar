@@ -13,8 +13,6 @@ def generate_launch_description():
         DeclareLaunchArgument('px4_dir', default_value=os.environ.get('PX4_DIR', os.path.expanduser('~/PX4-Autopilot'))),
         DeclareLaunchArgument('gui', default_value='true'),
         DeclareLaunchArgument('duration', default_value='0'),
-        # Полный контур LiDAR → строй → PX4 по умолчанию: одна команда по ТЗ §12.
-        DeclareLaunchArgument('lidar', default_value='true'),
         DeclareLaunchArgument('stack', default_value='true'),
         DeclareLaunchArgument('video', default_value='false'),
         DeclareLaunchArgument('web', default_value='true',
@@ -34,7 +32,6 @@ def generate_launch_description():
                             '--px4-dir', LaunchConfiguration('px4_dir'),
                             '--gui', LaunchConfiguration('gui'),
                             '--duration', LaunchConfiguration('duration'),
-                            '--lidar', LaunchConfiguration('lidar'),
                             '--stack', LaunchConfiguration('stack'),
                             '--video', LaunchConfiguration('video'),
                             '--uav-count', LaunchConfiguration('uav_count'),

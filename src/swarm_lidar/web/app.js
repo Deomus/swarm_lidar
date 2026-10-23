@@ -135,7 +135,7 @@ function render(state) {
   $('flight-dot').className='dot'+(flight.phase==='ready'?' ready':flight.phase==='error'?' error':active?' busy':'');
   const swarm=state.swarm_mode;
   setTag('swarm-mode',swarm?swarm.mode:'—',!swarm?'':swarm.mode==='FAILSAFE'?'warn':['DEGRADED','TAKEOFF','FORMING','LAND','FORMATION_CHANGE'].includes(swarm.mode)?'busy':'ok');
-  $('swarm-mode').title=swarm?`Режим группы (ТЗ §8): ${swarm.reason}`:'Режим группы по ТЗ §8';
+  $('swarm-mode').title=swarm?`Режим группы: ${swarm.reason}`:'Режим группы';
   $('sim-time').textContent=`Время ${state.time.toFixed(1)} с`;
   if(localError) setNotice(localError,'error');
   else if(flight.phase==='error') setNotice('Полёт завершился с ошибкой. Проверьте события и подтверждение посадки.','error');

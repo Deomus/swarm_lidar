@@ -44,7 +44,7 @@ class AutopilotBridge(Node):
         self.stream_enabled = self.p['use_offboard']
         self.state_pub = self.create_publisher(SwarmState, self.p['states_topic'], 10)
         self.local_state_pub = self.create_publisher(SwarmState, 'autopilot/state', 10)
-        # Наблюдаемая копия скорости, отправляемой PX4, в map ENU (ТЗ §6.2).
+        # Наблюдаемая копия скорости, отправляемой PX4, в map ENU.
         self.setpoint_velocity_pub = self.create_publisher(TwistStamped, 'setpoint/velocity', 10)
         self.control_pub = self.create_publisher(OffboardControlMode, self.p['offboard_topic'], 10)
         self.setpoint_pub = self.create_publisher(TrajectorySetpoint, self.p['trajectory_topic'], 10)

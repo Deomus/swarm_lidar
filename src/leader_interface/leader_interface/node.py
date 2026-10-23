@@ -54,7 +54,7 @@ class LeaderInterface(Node):
             grace=self.p['formation_unavailable_grace'])
         self.command_pub = self.create_publisher(SwarmCommand, self.p['commands_topic'], 10)
         self.status_pub = self.create_publisher(String, self.p['status_topic'], 10)
-        # Текущая точка маршрута в map для наблюдения (ТЗ §6.2), только в MISSION.
+        # Текущая точка маршрута в map для наблюдения, только в MISSION.
         self.setpoint_pose_pub = self.create_publisher(PoseStamped, '/uav_0/setpoint/pose', 10)
         self.subscriptions_ = [
             self.create_subscription(SwarmState, self.p['states_topic'], self.state, 10),

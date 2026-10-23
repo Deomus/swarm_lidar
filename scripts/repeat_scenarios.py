@@ -67,7 +67,7 @@ def run_one(root, kind, index, px4):
     with (output/'sitl.log').open('x') as sim_log, (output/'scenario.log').open('x') as flight_log:
         try:
             simulator = subprocess.Popen([sys.executable, '-m', 'swarm_lidar.sitl',
-                '--px4-dir', str(px4), '--gui', 'false', '--lidar', 'true', '--stack', 'true',
+                '--px4-dir', str(px4), '--gui', 'false', '--stack', 'true',
                 '--web', 'false'],
                 stdout=sim_log, stderr=subprocess.STDOUT, start_new_session=True)
             scenario = subprocess.Popen([sys.executable, '-m', 'swarm_lidar.scenario', kind,

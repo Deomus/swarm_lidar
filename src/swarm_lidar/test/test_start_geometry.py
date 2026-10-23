@@ -19,7 +19,7 @@ def world_poses(name):
             if (include.findtext('name') or '').startswith('uav_')}
 
 
-@pytest.mark.parametrize('world', ['swarm.sdf', 'swarm_lidar.sdf'])
+@pytest.mark.parametrize('world', ['swarm_lidar.sdf'])
 def test_world_models_start_at_yaml_origins(world):
     origins = load_origins(CONFIG)
     poses = world_poses(world)

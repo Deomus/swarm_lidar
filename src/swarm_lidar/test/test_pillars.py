@@ -13,7 +13,7 @@ PACKAGE = Path(__file__).resolve().parents[1]
 CONFIG = PACKAGE / 'config' / 'obstacles.yaml'
 
 
-@pytest.mark.parametrize('world', ['swarm.sdf', 'swarm_lidar.sdf'])
+@pytest.mark.parametrize('world', ['swarm_lidar.sdf'])
 def test_worlds_place_pillars_from_yaml(world):
     pillars, radius = load_obstacles(CONFIG)
     root = ET.parse(PACKAGE / 'worlds' / world).getroot().find('world')
