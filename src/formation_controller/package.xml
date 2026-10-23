@@ -3,7 +3,7 @@
   <name>formation_controller</name><version>0.1.0</version>
   <description>Формации и ограниченное управление скоростью по LiDAR.</description>
   <maintainer email="smag@todo.invalid">Swarm LiDAR team</maintainer>
-  <license>Apache-2.0</license>
+  <license>MIT</license>
   <buildtool_depend>ament_python</buildtool_depend>
   <depend>python3-numpy</depend>
   <depend>python3-scipy</depend>

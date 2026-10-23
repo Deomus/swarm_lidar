@@ -4,7 +4,7 @@
   <version>0.1.0</version>
   <description>ROS 2 interfaces for the Swarm LiDAR leader-follower system.</description>
   <maintainer email="smag@todo.invalid">Swarm LiDAR team</maintainer>
-  <license>Apache-2.0</license>
+  <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>rosidl_default_generators</buildtool_depend>

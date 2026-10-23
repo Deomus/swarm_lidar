@@ -4,7 +4,7 @@
   <version>0.1.0</version>
   <description>LiDAR point cloud clustering and relative pose tracking.</description>
   <maintainer email="smag@todo.invalid">Swarm LiDAR team</maintainer>
-  <license>Apache-2.0</license>
+  <license>MIT</license>
   <buildtool_depend>ament_python</buildtool_depend>
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>

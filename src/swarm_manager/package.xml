@@ -3,7 +3,7 @@
   <name>swarm_manager</name><version>0.1.0</version>
   <description>Контроль свежести данных и состояния группы.</description>
   <maintainer email="smag@todo.invalid">Swarm LiDAR team</maintainer>
-  <license>Apache-2.0</license>
+  <license>MIT</license>
   <buildtool_depend>ament_python</buildtool_depend>
   <depend>rclpy</depend><depend>swarm_interfaces</depend><depend>diagnostic_msgs</depend><depend>std_msgs</depend>
   <test_depend>python3-pytest</test_depend>

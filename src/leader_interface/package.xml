@@ -3,7 +3,7 @@
   <name>leader_interface</name><version>0.1.0</version>
   <description>Ручные команды и исполнение маршрута лидера.</description>
   <maintainer email="smag@todo.invalid">Swarm LiDAR team</maintainer>
-  <license>Apache-2.0</license>
+  <license>MIT</license>
   <buildtool_depend>ament_python</buildtool_depend>
   <depend>rclpy</depend><depend>geometry_msgs</depend><depend>nav_msgs</depend>
   <depend>std_msgs</depend><depend>std_srvs</depend><depend>swarm_interfaces</depend>
