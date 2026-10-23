@@ -9,7 +9,7 @@ const leaderStatus = {HOLD:'Удержание',MANUAL:'Ручное',DEADMAN:'�
 const moves = {forward:{forward:1},back:{forward:-1},left:{left:1},right:{left:-1},up:{up:1},down:{up:-1},'turn-left':{yaw:1},'turn-right':{yaw:-1}};
 let current = null, sending = false, localError = '', target = null;
 let view = {cx:0, cy:0, scale:12, ready:false}, dragging = null;
-let manual = null, manualInFlight = false, shapeChosen = false;
+let manual = null, manualInFlight = false, shapeChosen = false, scaleChosen = false;
 // Те же ориентиры, что и в учебной площадке Gazebo: ось X красная,
 // ось Y синяя, цилиндры находятся на расстоянии 25 м от начала координат.
 const groundMarks = [
@@ -91,6 +91,7 @@ $('land').onclick=()=>{stopManual(false);command('land');};
 $('go-to-target').onclick=()=>target&&command('goal',{x:target.x,y:target.y,record:$('record').checked});
 $('clear-target').onclick=()=>{target=null;$('target-label').textContent='Щёлкните по карте, чтобы выбрать точку';$('clear-target').disabled=true;$('go-to-target').disabled=true;draw();};
 document.querySelectorAll('input[name=formation]').forEach(input=>input.addEventListener('change',()=>{shapeChosen=true;}));
+$('scale').addEventListener('input',()=>{scaleChosen=true;});
 $('formation-form').onsubmit=event=>{event.preventDefault();if(!$('apply').disabled) command('formation',{formation:document.querySelector('input[name=formation]:checked').value,scale:Number($('scale').value),duration:Number($('duration').value)});};
 $('altitude-form').onsubmit=event=>{event.preventDefault();if(!$('set-altitude').disabled) command('altitude',{z:Number($('altitude').value)});};
 function render(state) {
@@ -153,8 +154,9 @@ function render(state) {
   });
   const formation=state.formation;
   const settling=formation?.mode==='FOLLOWING'&&!state.formation_settled;
-  // До выбора оператора форма показывает текущий строй.
-  if(formation&&!shapeChosen&&$('formation-'+formation.formation)){$('formation-'+formation.formation).checked=true;$('scale').value=Number(formation.scale);}
+  // Телеметрия заполняет только поля, которые оператор ещё не редактировал.
+  if(formation&&!shapeChosen&&$('formation-'+formation.formation)) $('formation-'+formation.formation).checked=true;
+  if(formation&&!scaleChosen&&document.activeElement!==$('scale')) $('scale').value=Number(formation.scale);
   if(!formation) setTag('formation-status','Нет данных');
   else setTag('formation-status',`${shapes[formation.formation]||''} · ×${Number(formation.scale).toFixed(2)} · ${settling?'Занимают места':modes[formation.mode]||'Ожидание'}`,
     formation.mode==='FOLLOWING'&&!settling?'ok':['FORMATION_CHANGE'].includes(formation.mode)||settling?'busy':'warn');
