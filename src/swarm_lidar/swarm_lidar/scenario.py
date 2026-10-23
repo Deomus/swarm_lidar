@@ -38,7 +38,11 @@ class Scenario:
         self.map_before = None
         self.map_overridden = False
         self.subs = [
-            self.node.create_subscription(SwarmCommand, '/mesh/commands', lambda m: self.commands.update({m.uav_id: m}), 10),
+            # Команды, которые получают мосты PX4: ведущему локально от
+            # leader_interface, ведомым — от их собственных контроллеров строя.
+            self.node.create_subscription(SwarmCommand, '/swarm/commands', lambda m: self.commands.update({m.uav_id: m}), 10),
+            *[self.node.create_subscription(SwarmCommand, f'/uav_{i}/command',
+                                            lambda m: self.commands.update({m.uav_id: m}), 10) for i in (1, 2, 3)],
             self.node.create_subscription(SwarmState, '/mesh/states', lambda m: self.states.update({m.uav_id: m}), 10),
             self.node.create_subscription(RelativePose, '/mesh/relative_poses', self.on_pose, 10),
             self.node.create_subscription(String, '/swarm/formation_status', lambda m: setattr(self, 'status', json.loads(m.data)), 10),
@@ -661,6 +665,9 @@ def main():
         if args.record_bag or args.record_cloud:
             topics = ['/clock', '/tf', '/tf_static', '/map', '/swarm/states', '/mesh/states',
                       '/swarm/relative_poses', '/mesh/relative_poses', '/swarm/commands', '/mesh/commands',
+                      '/uav_1/command', '/uav_2/command', '/uav_3/command',
+                      '/swarm/formation_plan', '/mesh/formation_plan', '/swarm/follower_status',
+                      '/mesh/follower_status',
                       '/swarm/formation_command', '/swarm/formation_status', '/swarm/target_offsets',
                       '/swarm/health', '/swarm/mode', '/leader/cmd_vel', '/mission/goal', '/mission/path',
                       '/mission/status', '/mission/plan_result', '/mission/execution_status', '/evaluation/ground_truth']

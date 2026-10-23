@@ -68,7 +68,7 @@ def test_vertical_loop_damps_delayed_sensor_and_vehicle_response():
     # Прежняя модель не включала задержку измерения и команды. С новым
     # фильтром усиление 1/1.2 возбуждало колебания, найденные в длинном S1.
     path = Path(__file__).parents[1]/'config/controller.yaml'
-    configured = yaml.safe_load(path.read_text())['formation_controller']['ros__parameters']
+    configured = yaml.safe_load(path.read_text())['/**/formation_controller']['ros__parameters']
     settings = {key: configured[key] for key in ('kp', 'vertical_kp', 'vertical_kd',
         'velocity_smoothing', 'stale_timeout', 'max_speed', 'max_acceleration', 'max_jerk',
         'period', 'vertical_derivative_time')}

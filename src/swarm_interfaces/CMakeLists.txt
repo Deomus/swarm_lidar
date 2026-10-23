@@ -11,6 +11,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SwarmState.msg"
   "msg/FormationCommand.msg"
   "msg/SwarmCommand.msg"
+  "msg/FormationPlan.msg"
   DEPENDENCIES builtin_interfaces geometry_msgs
 )
 

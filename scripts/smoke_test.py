@@ -86,12 +86,12 @@ def main():
     from rclpy.qos import qos_profile_sensor_data
     from sensor_msgs.msg import PointCloud2
     from std_msgs.msg import String
-    from swarm_interfaces.msg import RelativePose, SwarmCommand, SwarmState
+    from swarm_interfaces.msg import FormationPlan, RelativePose, SwarmCommand, SwarmState
     from tf2_ros import Buffer, TransformListener
 
     rclpy.init()
     node = Node('smoke_test', parameter_overrides=[Parameter('use_sim_time', value=True)])
-    seen = dict(states={}, poses={}, commands=set(), cloud=0, mode=None, health=None)
+    seen = dict(states={}, poses={}, commands=set(), cloud=0, mode=None, health=None, plan=None)
     for i in range(4):
         node.create_subscription(SwarmState, f'/uav_{i}/autopilot/state',
                                  lambda m, i=i: seen['states'].update({i: m}), 10)
@@ -99,7 +99,12 @@ def main():
                              lambda m: seen.update(cloud=seen['cloud']+1), qos_profile_sensor_data)
     node.create_subscription(RelativePose, '/swarm/relative_poses',
                              lambda m: seen['poses'].update({m.target_id: m}), 10)
+    # Команда ведущего идёт ведомым по mesh, команды ведомых — локально своим мостам.
     node.create_subscription(SwarmCommand, '/mesh/commands', lambda m: seen['commands'].add(m.uav_id), 10)
+    for i in (1, 2, 3):
+        node.create_subscription(SwarmCommand, f'/uav_{i}/command',
+                                 lambda m, i=i: seen['commands'].add(m.uav_id) if m.uav_id == i else None, 10)
+    node.create_subscription(FormationPlan, '/mesh/formation_plan', lambda m: seen.update(plan=m), 10)
     node.create_subscription(String, '/swarm/mode', lambda m: seen.update(mode=json.loads(m.data)), 10)
     node.create_subscription(DiagnosticArray, '/swarm/health', lambda m: seen.update(health=m), 10)
     buffer = Buffer(node=node)
@@ -144,8 +149,11 @@ def main():
                   and abs(now() - m.measurement_stamp.sec - m.measurement_stamp.nanosec * 1e-9) < 1.
                   for i, m in seen['poses'].items()), 60.,
               lambda: {i: (m.valid, m.frame_id) for i, m in seen['poses'].items()})
-        check('команды /mesh/commands для четырёх аппаратов', lambda: seen['commands'] >= {0, 1, 2, 3}, 30.,
+        check('команда ведущего в mesh и команды трёх ведомых их мостам',
+              lambda: seen['commands'] >= {0, 1, 2, 3}, 30.,
               lambda: sorted(seen['commands']))
+        check('план строя от ведущего приходит ведомым через mesh',
+              lambda: seen['plan'] is not None and len(seen['plan'].end_offsets) == 3, 30.)
         check('setpoint-топики объявлены',
               lambda: all(node.count_publishers(f'/uav_{i}/setpoint/velocity') and
                           node.count_publishers(f'/uav_{i}/fmu/in/trajectory_setpoint') for i in range(4))

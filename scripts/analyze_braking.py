@@ -21,8 +21,10 @@ def read_bag(path, start, end, base_z=.24):
     from swarm_interfaces.msg import SwarmCommand
     from tf2_msgs.msg import TFMessage
 
-    types = {'/swarm/commands': SwarmCommand, '/swarm/formation_status': String,
-             '/evaluation/ground_truth': TFMessage}
+    # Команды ведомых — то, что получает мост PX4 каждого ведомого.
+    command_topics = {f'/uav_{i}/command' for i in (1, 2, 3)}
+    types = {**{topic: SwarmCommand for topic in command_topics},
+             '/swarm/formation_status': String, '/evaluation/ground_truth': TFMessage}
     reader = rosbag2_py.SequentialReader()
     reader.open(rosbag2_py.StorageOptions(uri=str(path), storage_id='mcap'),
                 rosbag2_py.ConverterOptions('cdr', 'cdr'))
@@ -37,7 +39,7 @@ def read_bag(path, start, end, base_z=.24):
         if topic == '/swarm/formation_status':
             status = json.loads(message.data)
             statuses[float(status['time'])] = status
-        elif topic == '/swarm/commands':
+        elif topic in command_topics:
             if message.uav_id not in commands:
                 continue
             velocity = message.target_velocity.linear

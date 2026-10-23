@@ -1,0 +1,18 @@
+# Координатор строя на ведущем: план ведомым и сводный статус.
+formation_coordinator:
+  ros__parameters:
+    period: 0.05
+    stale_timeout: 0.5
+    max_speed: 2.0
+    min_separation: 2.0
+    gap: 4.0
+    require_transition_map: true
+    transition_map_margin: 0.75
+    # Собственная телеметрия ведущего, без mesh.
+    states_topic: /swarm/states
+    follower_status_topic: /mesh/follower_status
+    leader_status_topic: /mission/execution_status
+    formation_topic: /swarm/formation_command
+    plan_topic: /swarm/formation_plan
+    status_topic: /swarm/formation_status
+    target_topic: /swarm/target_offsets

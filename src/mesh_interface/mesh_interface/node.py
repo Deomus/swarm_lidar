@@ -1,8 +1,9 @@
 import rclpy
 import math
 from rclpy.node import Node
+from std_msgs.msg import String
 from std_srvs.srv import Trigger
-from swarm_interfaces.msg import RelativePose, SwarmState, SwarmCommand
+from swarm_interfaces.msg import FormationPlan, RelativePose, SwarmState, SwarmCommand
 from .channel import DelayChannel
 
 class MeshNode(Node):
@@ -12,7 +13,10 @@ class MeshNode(Node):
                         period=0.01, qos_depth=10, drop_duration=.7, drop_target_id=0,
                         poses_in='/swarm/relative_poses', poses_out='/mesh/relative_poses',
                         states_in='/swarm/states', states_out='/mesh/states',
-                        commands_in='/swarm/commands', commands_out='/mesh/commands')
+                        commands_in='/swarm/commands', commands_out='/mesh/commands',
+                        plan_in='/swarm/formation_plan', plan_out='/mesh/formation_plan',
+                        follower_status_in='/swarm/follower_status',
+                        follower_status_out='/mesh/follower_status')
         for key, value in defaults.items():
             self.declare_parameter(key, value)
         p = {key: self.get_parameter(key).value for key in defaults}
@@ -22,7 +26,8 @@ class MeshNode(Node):
         self.previous_time = None
         self.target_drop = None
         for index, (msg_type, name) in enumerate(
-                [(RelativePose, 'poses'), (SwarmState, 'states'), (SwarmCommand, 'commands')]):
+                [(RelativePose, 'poses'), (SwarmState, 'states'), (SwarmCommand, 'commands'),
+                 (FormationPlan, 'plan'), (String, 'follower_status')]):
             # Свой seed канала: потери поз, состояний и команд не совпадают по номеру пакета.
             channel = DelayChannel(p['delay'], p['jitter'], p['loss'], p['capacity'], p['seed'] + index)
             pub = self.create_publisher(msg_type, p[name + '_out'], p['qos_depth'])

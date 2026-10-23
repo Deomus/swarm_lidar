@@ -2,7 +2,8 @@
   ros__parameters:
     map_frame: map
     lidar_offset: [0.0, 0.0, 1.9]
-    commands_topic: /mesh/commands
+    # Задаётся в запуске: /swarm/commands ведущему, /uav_i/command ведомым.
+    commands_topic: /swarm/commands
     states_topic: /swarm/states
     odometry_topic: fmu/out/vehicle_odometry
     local_position_topic: fmu/out/vehicle_local_position_v1

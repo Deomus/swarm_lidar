@@ -152,29 +152,100 @@ rosbag (MCAP), `metrics/samples.csv`, `metrics/summary.json` и графики.
 
 ## Архитектура
 
-```text
-Gazebo LiDAR ─► cloud_source ─► lidar_tracker ─► /swarm/relative_poses ─┐
-PX4 ×4 ◄─► autopilot_bridge ×4 ─► /swarm/states ────────────────────────┤
-                                                                        ▼
-                              mesh_interface (задержка, потери) ─► /mesh/*
-                                                                        │
-  панель / leader_interface ◄─ mission_planner (A*)                     │
-            │ /swarm/commands (лидер)                                   ▼
-            └──────────────► formation_controller ─► /swarm/commands (ведомые)
-                                                     │
-                       swarm_manager ─► /swarm/health, /swarm/mode
-                       evaluation (только эталон Gazebo, вне контура)
+```mermaid
+flowchart TB
+    subgraph ground["Наземная станция"]
+        panel["Панель (браузер)"]
+        evaluation["evaluation<br/>вне контура управления"]
+    end
+    subgraph leaderBox["Ведущий uav_0"]
+        cloud["cloud_source"]
+        tracker["lidar_tracker"]
+        map["training_map"]
+        planner["mission_planner<br/>A*"]
+        leader["leader_interface"]
+        coordinator["formation_coordinator<br/>план строя"]
+        manager["swarm_manager"]
+        bridge0["autopilot_bridge"]
+        px40["PX4"]
+    end
+    mesh["mesh_interface<br/>задержка · разброс · потери"]
+    subgraph followerBox["Ведомый uav_i, i = 1..3"]
+        controller["formation_controller<br/>своя скорость и курс"]
+        bridgei["autopilot_bridge"]
+        px4i["PX4"]
+    end
+    gz["Gazebo Harmonic"]
+
+    panel -- "/mission/goal" --> planner
+    map -- "/map" --> planner
+    planner -- "/mission/path" --> leader
+    panel -- "/leader/cmd_vel" --> leader
+    panel -- "/swarm/formation_command" --> coordinator
+    manager -- "/swarm/mode" --> panel
+
+    gz -- "LiDAR" --> cloud
+    cloud -- "/uav_0/lidar/points" --> tracker
+    leader -- "/swarm/commands" --> bridge0
+    bridge0 <-- "XRCE-DDS" --> px40
+
+    tracker -- "/swarm/relative_poses" --> mesh
+    bridge0 -- "/swarm/states" --> mesh
+    leader -- "/swarm/commands" --> mesh
+    coordinator -- "/swarm/formation_plan" --> mesh
+    mesh -- "/mesh/follower_status" --> coordinator
+    mesh -- "/mesh/states" --> leader
+    mesh -- "/mesh/relative_poses<br/>/mesh/states" --> manager
+
+    mesh -- "/mesh/relative_poses<br/>/mesh/states<br/>/mesh/commands<br/>/mesh/formation_plan" --> controller
+    controller -- "/swarm/follower_status" --> mesh
+    bridgei -- "/swarm/states" --> mesh
+    controller -- "/uav_i/command" --> bridgei
+    bridgei <-- "XRCE-DDS" --> px4i
+
+    gz -. "эталон, только для метрик" .-> evaluation
+
+    classDef simC fill:#eceff1,stroke:#607d8b,color:#263238
+    classDef percC fill:#e3f2fd,stroke:#1e88e5,color:#0d47a1
+    classDef opC fill:#fff3e0,stroke:#fb8c00,color:#e65100
+    classDef ctrlC fill:#e8f5e9,stroke:#43a047,color:#1b5e20
+    classDef meshC fill:#f3e5f5,stroke:#8e24aa,color:#4a148c
+    classDef brC fill:#ffebee,stroke:#e53935,color:#b71c1c
+    classDef supC fill:#fffde7,stroke:#fbc02d,color:#5d4037
+    class gz,px40,px4i simC
+    class cloud,tracker percC
+    class panel,map,planner opC
+    class leader,coordinator,controller ctrlC
+    class mesh meshC
+    class bridge0,bridgei brC
+    class manager,evaluation supC
+    style ground fill:#fafafa,stroke:#9e9e9e
+    style leaderBox fill:#fafafa,stroke:#9e9e9e
+    style followerBox fill:#fafafa,stroke:#9e9e9e
 ```
+
+Ведущий измеряет LiDAR-ом положения ведомых и рассылает их по mesh вместе
+со своим состоянием, своей командой и планом строя. Каждый ведомый сам
+рассчитывает своё место и скорость и отдаёт команду своему PX4. Обратно по
+mesh идут его состояние и статус. Панель управления — наземная станция; её
+связь с ведущим не моделируется.
+
+На схеме не показаны две служебные связи:
+- `lidar_tracker` выравнивает облако по ориентации ведущего из его
+  телеметрии `/swarm/states`, минуя mesh;
+- ведущий не начинает движение, пока строй не готов: он и координатор строя
+  обмениваются статусами `/mission/execution_status` и `/swarm/formation_status`.
 
 | Пакет | Узел | Вход | Выход |
 |---|---|---|---|
 | `lidar_tracker` | `tracker_node` | `PointCloud2` лидара | ID, X/Y/Z, дальность, confidence, `valid` |
-| `mesh_interface` | `mesh_node` | `/swarm/*` | `/mesh/*` с задержкой, разбросом и потерями |
+| `mesh_interface` | `mesh_node` | позы, состояния, команда ведущего, план и статусы строя | то же в `/mesh/*` с задержкой, разбросом и потерями |
 | `swarm_manager` | `manager_node` | состояния и позы из mesh | health, режим группы |
-| `formation_controller` | `controller_node` | позы ведомых, состояние лидера, строй | скорость и курс каждого ведомого |
+| `formation_controller` | `coordinator_node` (ведущий) | команда строя, статусы ведомых | план строя, сводный статус |
+| | `controller_node` ×3 (ведомые) | позы, состояния, команда ведущего, план строя из mesh | своя скорость и курс |
 | `leader_interface` | `leader_node` | ручная скорость или маршрут | команда и траектория ведущего |
 | `mission_planner` | `planner_node` | цель и карта `/map` | высота, маршрут A* |
-| `autopilot_bridge` | `bridge_node` ×4, `gcs_heartbeat` | команды из mesh | `TrajectorySetpoint`, `VehicleCommand` PX4 |
+| `autopilot_bridge` | `bridge_node` ×4, `gcs_heartbeat` | команда своего аппарата | `TrajectorySetpoint`, `VehicleCommand` PX4 |
 | `evaluation` | `ground_truth_node` | эталон Gazebo и все темы | ошибки, дистанции, графики |
 | `swarm_lidar` | `sitl`, `cloud_source`, `training_map`, `web_panel`, `scenario` | — | запуск, мир, карта, панель, сценарии |
 
@@ -183,6 +254,7 @@ PX4 ×4 ◄─► autopilot_bridge ×4 ─► /swarm/states ──────�
 - `SwarmState`: ID, поза, скорость, курс и `yaw_rate`, режим PX4, `armed`, health, время, `valid`.
 - `SwarmCommand`: ID, целевая поза и скорость (вместе с `yaw_rate`), время источника, состояние безопасности, `valid`.
 - `FormationCommand`: фигура, масштаб, время перестроения, источник.
+- `FormationPlan`: фигура, масштаб, включение и номер включения, начальные и конечные места ведомых, время начала и длительность перехода.
 
 ### Топики и сервисы
 
@@ -191,9 +263,12 @@ PX4 ×4 ◄─► autopilot_bridge ×4 ─► /swarm/states ──────�
 | `/uav_0/lidar/points` | `PointCloud2` | `cloud_source` (облако лидара из Gazebo) |
 | `/swarm/relative_poses` → `/mesh/relative_poses` | `RelativePose` | трекер → mesh |
 | `/swarm/states` → `/mesh/states` | `SwarmState` | мосты PX4 → mesh |
-| `/swarm/commands` → `/mesh/commands` | `SwarmCommand` | ведущий и контроллер строя → mesh |
+| `/swarm/commands` → `/mesh/commands` | `SwarmCommand` | `leader_interface`: своему мосту и ведомым для упреждения |
+| `/uav_i/command` | `SwarmCommand` | контроллер ведомого → его мост, локально |
+| `/swarm/formation_plan` → `/mesh/formation_plan` | `FormationPlan` | координатор → ведомым |
+| `/swarm/follower_status` → `/mesh/follower_status` | `String` (JSON) | ведомые → координатору |
 | `/swarm/formation_command` | `FormationCommand` | панель, сценарии |
-| `/swarm/formation_status`, `/swarm/target_offsets` | `String` (JSON), `PoseArray` | контроллер строя |
+| `/swarm/formation_status`, `/swarm/target_offsets` | `String` (JSON), `PoseArray` | координатор строя |
 | `/swarm/health`, `/swarm/mode` | `DiagnosticArray`, `String` | `swarm_manager` |
 | `/leader/cmd_vel` | `TwistStamped` | панель (ручной режим) |
 | `/mission/goal`, `/mission/path`, `/mission/plan_result` | `PoseStamped`, `Path`, `String` | панель, планировщик |
@@ -225,8 +300,9 @@ KD-дерево. Слишком большие кластеры (столбы, �
 захватывается у последнего положения.
 
 **Управление строем.** Место ведомого — `P_i = P_leader + R(yaw)·offset_i`.
-Набор `offset_i` задают фигура (линия, колонна, клин) и масштаб. Скорость
-ведомого складывается из:
+Набор `offset_i` задают фигура (линия, колонна, клин) и масштаб. Каждый
+ведомый считает только свою команду, своим экземпляром `formation_controller`.
+Скорость ведомого складывается из:
 - упреждения по заданной команде ведущего из mesh;
 - P-поправки по ошибке LiDAR (по высоте — PD);
 - поправки на вращение строя.
@@ -235,17 +311,25 @@ KD-дерево. Слишком большие кластеры (столбы, �
 скорости (2 м/с), ускорению (4 м/с²) и рывку (8 м/с³). Ведомые держат курс
 лидера.
 
-При смене фигуры перебираются все назначения ведомых на новые места.
-Выбирается безопасное назначение с наименьшим путём; минимальная дистанция на
-прямых путях считается аналитически. Переход идёт по сглаженному шагу
-`s = u²(3 − 2u)`.
+Назначение мест требует согласия всей группы, поэтому его делает
+`formation_coordinator` на ведущем. При смене фигуры он перебирает все
+назначения ведомых на новые места и выбирает безопасное назначение с
+наименьшим путём; минимальная дистанция на прямых путях считается
+аналитически. Ведомым рассылается план: начальные и конечные места, время
+начала и длительность. Переход идёт по сглаженному шагу `s = u²(3 − 2u)`.
+Каждый ведомый сам вычисляет точку перехода на текущий момент по общим часам,
+поэтому задержка mesh не сдвигает места ведомых друг относительно друга.
+Если ведомый выбыл, координатор замораживает переход для всех.
 
 **Безопасность.**
 - **Минимальная дистанция.** Минимум 2 м проверяется до перестроения. В
-  полёте при сближении меньше 3 м работает отталкивание, а при нарушении
-  минимума — остановка строя (`COLLISION_STOP`).
-- **Устаревшие данные.** Если позы LiDAR старше 0,5 с, ведомые тормозят и
-  удерживают место (`DATA_HOLD`). Если отказ длится 5 с, мост переводит PX4
+  полёте при сближении меньше 3 м работает отталкивание. Каждый ведомый
+  видит позы всех аппаратов и при нарушении минимума любой парой сам
+  останавливается (`COLLISION_STOP`), не дожидаясь ведущего; координатор
+  затем выключает строй для всех.
+- **Устаревшие данные.** Если позы LiDAR или план строя старше 0,5 с,
+  ведомый тормозит и удерживает место (`DATA_HOLD`). Остальные продолжают
+  держать строй. Если отказ длится 5 с, мост переводит PX4
   в Loiter; если 30 с — сажает аппарат. Вернуть аппарат можно сервисом
   `resume` или кнопкой панели.
 - **Отказы на уровне группы.** Режимы роя (`FORMING`, `FOLLOWING`,
@@ -289,7 +373,9 @@ LiDAR. Затем A* ищет путь по сетке 1 м (8 направле�
   *Как сделать:* подсказка трекеру по позиции PX4 при повторном захвате.
 - Маршрут миссии строится после взлёта и сбора строя: планировщику нужна
   позиция ведущего в воздухе.
-- Сглаживание измерений — экспоненциальное, без фильтра Калмана.
+- Треки ведомых сглаживает α-фильтр с прогнозом по постоянной скорости и
+  постоянным весом измерения α = 0,7. Фильтра Калмана с весом по оценке
+  неопределённости нет.
 - Автоматического выбора формации по условиям движения нет.
 - Docker на Ubuntu с NVIDIA (`docker/nvidia.yaml`) не проверялся: такой
   машины не было.

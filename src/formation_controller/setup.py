@@ -7,9 +7,10 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/formation_controller']),
         ('share/formation_controller', ['package.xml']),
-        ('share/formation_controller/config', ['config/controller.yaml']),
+        ('share/formation_controller/config', ['config/controller.yaml', 'config/coordinator.yaml']),
     ],
     install_requires=['setuptools', 'numpy'],
     zip_safe=True,
-    entry_points={'console_scripts': ['controller_node = formation_controller.node:main']},
+    entry_points={'console_scripts': ['controller_node = formation_controller.node:main',
+                                      'coordinator_node = formation_controller.coordinator:main']},
 )

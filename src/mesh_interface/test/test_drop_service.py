@@ -44,7 +44,7 @@ def test_channels_have_independent_loss_sequences():
     try:
         node = MeshNode()
         draws = [tuple(channel.random.random() for _ in range(5)) for channel, _ in node.channels]
-        assert len(set(draws)) == 3
+        assert len(set(draws)) == len(node.channels) == 5
         node.destroy_node()
     finally:
         rclpy.shutdown()

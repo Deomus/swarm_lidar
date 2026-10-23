@@ -101,6 +101,22 @@ class FormationSample:
     transitioning: bool
 
 
+def sample_transition(start, end, time, duration, now):
+    """Места на момент now при переходе start → end; одинаково на ведущем и ведомых."""
+    if not math.isfinite(now):
+        raise ValueError('Nonfinite time')
+    start, end = _points(start), _points(end)
+    duration = _positive(duration, 'duration')
+    u = float(np.clip((now - time) / duration, 0, 1))
+    s = u * u * (3 - 2 * u)
+    ds = 6 * u * (1 - u) / duration
+    return FormationSample(
+        start + s * (end - start),
+        ds * (end - start),
+        bool(np.any(start != end) and 0 <= now - time < duration),
+    )
+
+
 class FormationPlan:
     """Выбор безопасной перестановки slots; request не меняет план при отказе."""
 
@@ -123,16 +139,11 @@ class FormationPlan:
         self._time = shifted
 
     def sample(self, now):
-        if not math.isfinite(now):
-            raise ValueError('Nonfinite time')
-        u = float(np.clip((now - self._time) / self._duration, 0, 1))
-        s = u * u * (3 - 2 * u)
-        ds = 6 * u * (1 - u) / self._duration
-        return FormationSample(
-            self._start + s * (self._end - self._start),
-            ds * (self._end - self._start),
-            bool(np.any(self._start != self._end) and 0 <= now - self._time < self._duration),
-        )
+        return sample_transition(self._start, self._end, self._time, self._duration, now)
+
+    def snapshot(self):
+        """Параметры перехода для рассылки ведомым: start, end, время начала, длительность."""
+        return self._start.copy(), self._end.copy(), self._time, self._duration
 
     def request(self, formation, scale, duration, now):
         """Возвращает назначение slots; бросает ValueError при отказе."""

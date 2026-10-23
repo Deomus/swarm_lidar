@@ -19,8 +19,13 @@ def runtime(context):
     bridge_config = str(Path(get_package_share_directory('autopilot_bridge')) / 'config/bridge.yaml')
     origins = load_origins(share / 'config' / 'swarm.yaml')
     for i, origin in enumerate(origins):
+        # Команда своему PX4 приходит локально: ведущему от leader_interface,
+        # ведомому от его контроллера строя. По mesh идут позы, состояния,
+        # команда ведущего (упреждение) и план строя.
+        commands = '/swarm/commands' if i == 0 else f'/uav_{i}/command'
         nodes.append(Node(package='autopilot_bridge', executable='bridge_node', namespace=f'uav_{i}',
                           parameters=[bridge_config, {'uav_id': i, 'origin_enu': origin,
+                                                     'commands_topic': commands,
                                                      'use_sim_time': True}], output='screen'))
     # Программная GCS посылает настоящий MAVLink heartbeat, preflight не отключается.
     nodes.append(Node(package='autopilot_bridge', executable='gcs_heartbeat', output='screen'))
@@ -44,8 +49,15 @@ def runtime(context):
     nodes.append(Node(package='lidar_tracker', executable='tracker_node',
                       parameters=[str(path), {'initial_positions': seeds, 'use_sim_time': True}],
                       output='screen'))
-    for package, executable, config_name in [('formation_controller', 'controller_node', 'controller.yaml'),
-                                              ('leader_interface', 'leader_node', 'leader.yaml'),
+    formation_config = Path(get_package_share_directory('formation_controller')) / 'config'
+    nodes.append(Node(package='formation_controller', executable='coordinator_node',
+                      parameters=[str(formation_config / 'coordinator.yaml'), {'use_sim_time': True}],
+                      output='screen'))
+    for i in (1, 2, 3):
+        nodes.append(Node(package='formation_controller', executable='controller_node', namespace=f'uav_{i}',
+                          parameters=[str(formation_config / 'controller.yaml'),
+                                      {'uav_id': i, 'use_sim_time': True}], output='screen'))
+    for package, executable, config_name in [('leader_interface', 'leader_node', 'leader.yaml'),
                                               ('mission_planner', 'planner_node', 'mission.yaml')]:
         path = Path(get_package_share_directory(package)) / 'config' / config_name
         nodes.append(Node(package=package, executable=executable,

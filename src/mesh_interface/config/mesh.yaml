@@ -6,6 +6,11 @@ mesh_interface:
     states_out: /mesh/states
     commands_in: /swarm/commands
     commands_out: /mesh/commands
+    # План строя от ведущего ведомым и их статусы обратно.
+    plan_in: /swarm/formation_plan
+    plan_out: /mesh/formation_plan
+    follower_status_in: /swarm/follower_status
+    follower_status_out: /mesh/follower_status
     delay: 0.0
     jitter: 0.0
     loss: 0.0

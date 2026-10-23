@@ -26,35 +26,44 @@ def test_heading_rate_feedforward_correction_and_limit():
 
 
 def run_tick(match, follower_yaws, leader_yaw=3., leader_yaw_rate=.1, valid=True, targets=None):
-    rclpy.init(args=['--ros-args', '-p', f'match_leader_yaw:={str(match).lower()}'])
+    """Один такт каждого из трёх ведомых; возвращает их команды."""
+    from rclpy.parameter import Parameter
+    from geometry_msgs.msg import Point
+    from swarm_interfaces.msg import FormationPlan
+    from formation_controller.core import formation_offsets
+    rclpy.init()
+    commands = []
     try:
-        node = FormationController()
         now = 100.
-        node.get_clock = lambda: SimpleNamespace(now=lambda: Time(nanoseconds=round(now*1e9)))
-        commands = []
-        node.command_pub = SimpleNamespace(publish=commands.append)
-        node.status_pub = node.targets_pub = SimpleNamespace(publish=lambda _: None)
-        if targets is not None:
-            node.setpoint_pose_pubs = {i: SimpleNamespace(publish=lambda m, i=i: targets.update({i: m}))
-                                       for i in (1, 2, 3)}
         stamp = Time(nanoseconds=round(now*1e9)).to_msg()
         quaternion = Rotation.from_euler('z', leader_yaw).as_quat()
-        node.orientation_history.add(now, quaternion)
-        for i, yaw in enumerate([leader_yaw, *follower_yaws]):
-            state = SwarmState(uav_id=i, frame_id='map', valid=True, armed=True, yaw=yaw, mode='14',
-                               yaw_rate=leader_yaw_rate if i == 0 else 0.)
-            state.timestamp = stamp
-            state.pose.orientation.x, state.pose.orientation.y, state.pose.orientation.z, \
-                state.pose.orientation.w = quaternion
-            node.states[i] = state
-        for i, y in zip([1, 2, 3], [-4., 0., 4.]):
-            pose = RelativePose(target_id=i, valid=valid, confidence=1., frame_id='uav_0/lidar_link')
-            pose.measurement_stamp = stamp
-            pose.pose.position.x, pose.pose.position.y, pose.pose.position.z = -4., y, -1.9
-            node.poses[i] = pose
-        node.enabled = True
-        node.tick()
-        node.destroy_node()
+        points = [Point(x=float(x), y=float(y), z=float(z)) for x, y, z in formation_offsets('line')]
+        for uid in (1, 2, 3):
+            node = FormationController(parameter_overrides=[
+                Parameter('uav_id', value=uid), Parameter('match_leader_yaw', value=match)])
+            node.get_clock = lambda: SimpleNamespace(now=lambda: Time(nanoseconds=round(now*1e9)))
+            node.command_pub = SimpleNamespace(publish=commands.append)
+            node.status_pub = SimpleNamespace(publish=lambda _: None)
+            node.setpoint_pose_pub = SimpleNamespace(
+                publish=(lambda m, i=uid: targets.update({i: m})) if targets is not None else (lambda _: None))
+            node.orientation_history.add(now, quaternion)
+            for i, yaw in enumerate([leader_yaw, *follower_yaws]):
+                state = SwarmState(uav_id=i, frame_id='map', valid=True, armed=True, yaw=yaw, mode='14',
+                                   yaw_rate=leader_yaw_rate if i == 0 else 0.)
+                state.timestamp = stamp
+                state.pose.orientation.x, state.pose.orientation.y, state.pose.orientation.z, \
+                    state.pose.orientation.w = quaternion
+                node.states[i] = state
+            for i, y in zip([1, 2, 3], [-4., 0., 4.]):
+                pose = RelativePose(target_id=i, valid=valid, confidence=1., frame_id='uav_0/lidar_link')
+                pose.measurement_stamp = stamp
+                pose.pose.position.x, pose.pose.position.y, pose.pose.position.z = -4., y, -1.9
+                node.poses[i] = pose
+            node.plan = FormationPlan(formation='line', scale=1., enabled=True, epoch=1, start_time=0.,
+                                      duration=1., start_offsets=points, end_offsets=points)
+            node.plan.stamp = stamp
+            node.tick()
+            node.destroy_node()
         return {c.uav_id: c for c in commands}
     finally:
         rclpy.shutdown()

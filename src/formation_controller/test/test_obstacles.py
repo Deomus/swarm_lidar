@@ -27,19 +27,19 @@ def test_transition_cannot_expand_beyond_map_or_use_missing_map():
         check_transition_map(None, [0., 0.], points, points)
 
 
-def test_controller_keeps_plan_when_mission_or_map_rejects_transition():
+def test_coordinator_keeps_plan_when_mission_or_map_rejects_transition():
     import rclpy
     from swarm_interfaces.msg import SwarmState, FormationCommand
-    from formation_controller.node import FormationController
+    from formation_controller.coordinator import FormationCoordinator
     rclpy.init()
-    node = FormationController()
+    node = FormationCoordinator()
     node.now = lambda: 10.
     node.p['require_transition_map'] = True
     node.leader_intent = dict(mode='MISSION', stamp=10.)
     state = SwarmState(uav_id=0, valid=True, frame_id='map')
     state.timestamp.sec = 10
     state.pose.position.x = state.pose.position.y = 20.5
-    node.states[0] = state
+    node.leader = state
     command = FormationCommand(formation='column', scale=1., transition_time=25.)
     try:
         node.on_formation(command)

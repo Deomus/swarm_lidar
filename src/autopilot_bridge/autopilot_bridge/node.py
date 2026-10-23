@@ -17,7 +17,7 @@ class AutopilotBridge(Node):
     def __init__(self):
         super().__init__('autopilot_bridge')
         defaults = dict(uav_id=0, origin_enu=[0., 0., 0.], lidar_offset=[0., 0., 1.9],
-                        map_frame='map', commands_topic='/mesh/commands',
+                        map_frame='map', commands_topic='/swarm/commands',
                         states_topic='/swarm/states', odometry_topic='fmu/out/vehicle_odometry',
                         local_position_topic='fmu/out/vehicle_local_position_v1',
                         status_topic='fmu/out/vehicle_status_v4',
