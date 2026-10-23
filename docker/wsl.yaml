@@ -1,10 +1,14 @@
-# Дополнение для WSL2 и Docker Desktop на Windows: видеокарта через D3D12
-# (/dev/dxg, /usr/lib/wsl; sitl.py сам включает GALLIUM_DRIVER=d3d12 на NVIDIA)
-# и окна через WSLg. WSLG_DIR: /mnt/wslg из дистрибутива WSL,
-# /run/desktop/mnt/host/wslg из PowerShell (задают docker/run.sh и run.ps1).
+# Дополнение для WSL2 (Ubuntu 24.04): видеокарта через D3D12 (/dev/dxg,
+# /usr/lib/wsl) и окна через WSLg. Переменные OpenGL заданы на весь контейнер,
+# поэтому видеокарту используют все программы в нём, а не только запуск sitl.
 
 x-gpu: &gpu
   devices: [/dev/dxg]
+
+x-gpu-env: &gpu-env
+  LD_LIBRARY_PATH: /usr/lib/wsl/lib
+  GALLIUM_DRIVER: d3d12                        # иначе Mesa рендерит на CPU (llvmpipe)
+  MESA_D3D12_DEFAULT_ADAPTER_NAME: NVIDIA      # иначе d3d12 берёт встроенную графику
 
 services:
   sim:
@@ -12,16 +16,16 @@ services:
     volumes:
       - /usr/lib/wsl:/usr/lib/wsl:ro
     environment:
-      LD_LIBRARY_PATH: /usr/lib/wsl/lib
+      <<: *gpu-env
 
   sim-gui:
     <<: *gpu
     volumes:
       - /usr/lib/wsl:/usr/lib/wsl:ro
-      - ${WSLG_DIR:-/mnt/wslg}:/mnt/wslg
-      - ${WSLG_DIR:-/mnt/wslg}/.X11-unix:/tmp/.X11-unix
+      - /mnt/wslg:/mnt/wslg
+      - /mnt/wslg/.X11-unix:/tmp/.X11-unix
     environment:
-      LD_LIBRARY_PATH: /usr/lib/wsl/lib
+      <<: *gpu-env
       WAYLAND_DISPLAY: ${WAYLAND_DISPLAY:-wayland-0}
       XDG_RUNTIME_DIR: /mnt/wslg/runtime-dir
       PULSE_SERVER: /mnt/wslg/PulseServer

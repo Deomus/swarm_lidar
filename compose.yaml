@@ -1,10 +1,9 @@
-# Docker: переносимая часть, без привязки к устройству (работает где угодно,
-# без видеокарты — рендер на CPU). Видеокарту подключают дополнения:
-#   docker/wsl.yaml     — WSL2 и Docker Desktop на Windows (D3D12, WSLg)
-#   docker/nvidia.yaml  — Linux с NVIDIA и nvidia-container-toolkit
-# Запуск с автоопределением устройства (рекомендуется):
-#   docker/run.sh up sim-gui        (WSL, Linux, macOS)
-#   docker\run.ps1 up sim-gui       (PowerShell на Windows)
+# Docker для Ubuntu 24.04 и WSL2 с Ubuntu 24.04. Сам по себе рендерит на CPU;
+# видеокарту подключают дополнения:
+#   docker/wsl.yaml     — WSL2: D3D12 и WSLg, переменные OpenGL для всего контейнера
+#   docker/nvidia.yaml  — Ubuntu с NVIDIA и nvidia-container-toolkit
+# Запускайте через docker/run.sh: он проверяет систему и подключает нужное
+# дополнение, например docker/run.sh up sim-gui
 # Сервисы: sim — без окна, sim-gui — с окном Gazebo; панель http://localhost:8080.
 # Готовый образ ghcr.io/deomus/swarm-lidar скачивается сам, если его нет.
 # Записи полётов попадают в ./log на хосте.
@@ -21,7 +20,7 @@ x-sim: &sim
       BUILDKIT_INLINE_CACHE: "1"   # метаданные кэша внутри образа для cache_from
       # Ревизия кода в отчётах полётов: SWARM_LIDAR_REVISION=$(git rev-parse HEAD) docker compose build
       SWARM_LIDAR_REVISION: ${SWARM_LIDAR_REVISION:-unknown}
-  platform: linux/amd64      # PX4 SITL собран под x86-64; на Apple Silicon — эмуляция
+  platform: linux/amd64      # PX4 SITL собран под x86-64
   init: true                 # сигналы и зомби-процессы; sitl.py сам сажает и останавливает
   shm_size: 2gb              # Fast DDS передаёт облако LiDAR через разделяемую память
   # ros2 launch штатно завершает узлы только по SIGINT (как Ctrl+C); от SIGTERM

@@ -3,5 +3,3 @@
 *.sh text eol=lf
 docker/* text eol=lf
 compose.yaml text eol=lf
-# PowerShell 5.1 читает скрипт без BOM как ANSI; BOM сохраняется, CRLF — привычно Windows.
-*.ps1 text eol=crlf

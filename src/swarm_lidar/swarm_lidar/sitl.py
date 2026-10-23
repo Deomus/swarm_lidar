@@ -73,6 +73,8 @@ def main():
         # не переопределяются.
         env.setdefault('GALLIUM_DRIVER', 'd3d12')
         env.setdefault('MESA_D3D12_DEFAULT_ADAPTER_NAME', args.gpu)
+        if '/usr/lib/wsl/lib' not in env.get('LD_LIBRARY_PATH', '').split(':'):
+            env['LD_LIBRARY_PATH'] = ':'.join(filter(None, ['/usr/lib/wsl/lib', env.get('LD_LIBRARY_PATH')]))
     models = px4 / 'Tools/simulation/gz/models'
     share = Path(get_package_share_directory('swarm_lidar'))
     env['GZ_SIM_RESOURCE_PATH'] = str(share / 'models') + ':' + str(models) + ':' + env.get('GZ_SIM_RESOURCE_PATH', '')

@@ -7,46 +7,47 @@
 
 ## Требования
 
-- Docker с Compose v2 (Docker Desktop или Docker Engine), около 15 ГБ места.
-- Процессор x86-64. На ARM (Apple Silicon и др.) образ работает через
-  эмуляцию, и симуляция очень медленная.
+Поддерживаются две системы:
+- Ubuntu 24.04;
+- WSL2 с Ubuntu 24.04.
 
-Видеокарта зависит от устройства, её подключает отдельное дополнение
-к `compose.yaml`:
+На других системах `docker/run.sh` останавливается с ошибкой.
 
-| Устройство | Дополнение | Видеокарта и окно Gazebo |
+Кроме системы нужны Docker с Compose v2, процессор x86-64 и около 15 ГБ места.
+
+| Система | Дополнение | Видеокарта и окно Gazebo |
 |---|---|---|
-| WSL2 (Ubuntu в Windows) | `docker/wsl.yaml` | D3D12 через `/dev/dxg`, окно через WSLg |
-| Windows, PowerShell, Docker Desktop на WSL2 | `docker/wsl.yaml` | то же |
-| Linux с NVIDIA и `nvidia-container-toolkit` | `docker/nvidia.yaml` | драйвер NVIDIA, окно через X11 |
-| Остальное (Linux без NVIDIA, macOS) | — | рендер на CPU, примерно в 5 раз медленнее реального времени |
+| WSL2, Ubuntu 24.04 | `docker/wsl.yaml` | D3D12 через `/dev/dxg`, окно через WSLg |
+| Ubuntu 24.04 с NVIDIA и `nvidia-container-toolkit` | `docker/nvidia.yaml` | драйвер NVIDIA, окно через X11 |
+| Ubuntu 24.04 без NVIDIA | — | рендер на CPU, примерно в 5 раз медленнее реального времени |
 
-Для WSL нужен драйвер NVIDIA в Windows; в Docker Desktop должна быть
-включена WSL Integration для дистрибутива (Settings → Resources → WSL
-Integration), а пользователь WSL должен состоять в группе `docker`.
-`sitl.py` сам включает рендер D3D12 на NVIDIA, если видит `/dev/dxg`.
+**WSL.** В Windows нужен драйвер NVIDIA. В Docker Desktop включите WSL
+Integration для дистрибутива (Settings → Resources → WSL Integration).
+Пользователь WSL должен состоять в группе `docker`. `docker/wsl.yaml`
+задаёт переменные OpenGL на весь контейнер:
+- `GALLIUM_DRIVER=d3d12`;
+- `MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA`;
+- `LD_LIBRARY_PATH=/usr/lib/wsl/lib`.
+
+Поэтому на видеокарте работает всё в контейнере, в том числе команды через
+`docker compose exec`.
 
 ## Запуск
 
-Скрипты сами определяют устройство и подключают нужное дополнение.
-Аргументы передаются `docker compose` без изменений.
-
-WSL, Linux, macOS:
+Запускайте только через `docker/run.sh`. Он проверяет систему, находит
+видеокарту и подключает нужное дополнение. Аргументы передаются
+`docker compose` без изменений.
 
 ```bash
 docker/run.sh up sim-gui    # окно Gazebo и панель
 docker/run.sh up sim        # без окна
 ```
 
-PowerShell на Windows:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File docker\run.ps1 up sim-gui
-```
-
-Без скриптов файлы перечисляются вручную, например
-`docker compose -f compose.yaml -f docker/wsl.yaml up sim-gui`. Простой
-`docker compose up sim` работает где угодно, но рендерит на CPU.
+`run.sh` записывает выбранный набор файлов в `.env` (`COMPOSE_FILE`),
+например `COMPOSE_FILE=compose.yaml:docker/wsl.yaml` в WSL. Поэтому после
+первого запуска через `run.sh` обычный `docker compose up sim-gui` тоже
+подключает видеокарту. `.env` у каждой машины свой и в git не попадает.
+До первого запуска `run.sh` обычный `docker compose` рендерит на CPU.
 
 Панель открывается по адресу `http://localhost:8080` (порт доступен только
 с этой машины). Записи полётов, rosbag и отчёты пишутся в `./log`.
@@ -57,9 +58,8 @@ powershell -ExecutionPolicy Bypass -File docker\run.ps1 up sim-gui
 Если образа нет локально, `up` скачивает готовый
 `ghcr.io/deomus/swarm-lidar:latest`.
 
-Окно Gazebo на обычном Linux: `run.sh` разрешает X-серверу подключения
-пользователя с UID 1000 (`xhost`), потому что контейнер работает от него.
-На macOS нужен XQuartz с разрешёнными сетевыми клиентами.
+На обычной Ubuntu контейнер работает от пользователя с UID 1000, поэтому
+`run.sh` разрешает ему подключаться к X-серверу (`xhost`) для окна Gazebo.
 
 ## Проверки и сценарии в контейнере
 
@@ -79,9 +79,7 @@ docker/run.sh run --rm sim python3 scripts/repeat_scenarios.py \
   настройками видеокарты S1 (RMS ошибки строя 0,097 м) и S2 (0,177 м)
   пройдены с посадкой.
 - Без дополнений: рендер `llvmpipe`, smoke test пройден.
-- PowerShell через `run.ps1`: D3D12 в контейнере, X11 через WSLg, `./log`
-  подключается.
-- Linux с NVIDIA (`docker/nvidia.yaml`) и macOS не проверялись.
+- Ubuntu 24.04 с NVIDIA (`docker/nvidia.yaml`) не проверялась.
 
 ## Сборка
 
@@ -95,8 +93,7 @@ docker/run.sh build sim
 слои берутся из него (`cache_from`). Версии PX4, `px4_msgs` и агента —
 аргументы в начале `docker/Dockerfile`; PX4 и `px4_msgs` меняются только
 вместе. `SWARM_LIDAR_REVISION` попадает в отчёты полётов вместо номера
-коммита: в образе нет `.git`. `run.sh` и `run.ps1` подставляют его из git
-сами.
+коммита: в образе нет `.git`. `run.sh` подставляет его из git сам.
 
 ## Публикация образа
 
