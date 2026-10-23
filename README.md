@@ -44,8 +44,11 @@ docker/run.sh up sim-gui    # окно Gazebo и панель
 docker/run.sh up sim        # без окна
 ```
 
-Готовый образ `ghcr.io/deomus/swarm-lidar` скачается сам. `run.sh` проверяет,
-что система — Ubuntu 24.04, и подключает видеокарту:
+Готовый образ `ghcr.io/deomus/swarm-lidar` скачается сам. `run.sh` проверяет
+систему. На другой системе, кроме Ubuntu 24.04, он предупреждает, что там
+проект не тестировался, и спрашивает подтверждение. Без терминала подтверждение
+задаётся переменной `SWARM_LIDAR_ACCEPT_RISK=1`. Затем `run.sh` подключает
+видеокарту:
 - в WSL — через D3D12 (`docker/wsl.yaml`), окно через WSLg;
 - на Ubuntu с NVIDIA и `nvidia-container-toolkit` — через `docker/nvidia.yaml`;
 - иначе Gazebo рендерит на процессоре, примерно в 5 раз медленнее.

@@ -9,10 +9,20 @@ files=(-f "$root/compose.yaml")
 note() { echo "run.sh: $*" >&2; }
 
 # shellcheck disable=SC1091
-. /etc/os-release
+[[ -r /etc/os-release ]] && . /etc/os-release
 if [[ ${ID:-} != ubuntu || ${VERSION_ID:-} != 24.04 ]]; then
-  note "поддерживаются только Ubuntu 24.04 и WSL2 с Ubuntu 24.04, а здесь ${PRETTY_NAME:-неизвестная система}"
-  exit 1
+  note "проект проверен только на Ubuntu 24.04 и WSL2 с Ubuntu 24.04, а здесь ${PRETTY_NAME:-$(uname -s)}."
+  note 'На этой системе запуск не тестировался: возможны ошибки. Вы запускаете на свой страх и риск,'
+  note 'автор не несёт ответственности за возможные сбои.'
+  # Без терминала спросить нельзя: согласие задаётся переменной SWARM_LIDAR_ACCEPT_RISK=1.
+  if [[ ${SWARM_LIDAR_ACCEPT_RISK:-} != 1 ]]; then
+    if [[ ! -t 0 ]]; then
+      note 'нет терминала для подтверждения; чтобы всё равно запустить, задайте SWARM_LIDAR_ACCEPT_RISK=1'
+      exit 1
+    fi
+    read -r -p 'run.sh: вы точно хотите продолжить? [y/N] ' answer
+    [[ $answer == [yYдД]* ]] || { note 'запуск отменён'; exit 1; }
+  fi
 fi
 docker info >/dev/null 2>&1 || { note 'Docker недоступен: запустите его или добавьте пользователя в группу docker'; exit 1; }
 
