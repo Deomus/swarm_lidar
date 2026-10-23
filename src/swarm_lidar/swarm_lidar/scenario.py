@@ -130,7 +130,8 @@ class Scenario:
                    for i in range(4))
 
     def prepare_ground(self):
-        self.wait(self.fresh, 60., 'Нет четырёх свежих состояний')
+        # Четыре PX4 иногда выходят на связь дольше минуты после старта мира.
+        self.wait(self.fresh, 120., 'Нет четырёх свежих состояний')
         self.event('Четыре PX4 готовы')
         self.wait_ground_settled()
 
