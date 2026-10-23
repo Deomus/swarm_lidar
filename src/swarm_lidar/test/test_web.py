@@ -438,3 +438,77 @@ def test_single_landing_needs_operator_session(backend):
     backend.flight.phase, backend.flight.kind = 'ready', 'operator'
     backend.submit('land_uav', dict(uav=2))
     assert backend.commands.get_nowait() == ('land_uav', 2)
+
+
+def test_map_goal_from_ground_takes_off_forms_then_plans(backend):
+    feed(backend)
+    started = []
+    backend.flight.start = lambda kind, record: started.append((kind, record))
+    goals = []
+    backend.goal_publisher = SimpleNamespace(publish=goals.append)
+    backend.submit('goal', dict(x=0., y=-35., record=False))
+    assert started == [('operator', False)] and backend.queued_takeoffs == [0, 1, 2, 3]
+    assert backend.action['state'] == 'pending' and backend.queued_goal is not None
+    backend.flight.phase, backend.flight.kind = 'ready', 'operator'
+    backend.call = lambda path: SimpleNamespace(done=lambda: False)
+    backend.tick()
+    assert not backend.queued_takeoffs and not goals
+    flying_leader(backend)
+    backend.tick()
+    assert not goals  # строй ещё не установился
+    backend.settled_since, backend.settled_target = 8., ('line', 1.)
+    backend.on_formation(String(data=json.dumps(dict(time=10., mode='FOLLOWING', formation='line',
+                                                     scale=1., errors=[.1, .1, .1]))))
+    while not backend.commands.empty():
+        backend.commands.get_nowait()
+    backend.tick()
+    p = goals[0].pose.position
+    assert (p.x, p.y, p.z) == (0., -35., 2.5) and backend.goal_waiting and backend.queued_goal is None
+
+
+def test_map_goal_from_ground_expires_and_landing_cancels_it(backend):
+    feed(backend)
+    backend.flight.start = lambda kind, record: None
+    backend.submit('goal', dict(x=5., y=5.))
+    backend.flight.phase, backend.flight.kind = 'ready', 'operator'
+    backend.queued_goal['deadline'] = 9.
+    backend.tick()
+    assert backend.queued_goal is None and backend.action['state'] == 'error'
+    backend.action['state'] = 'ok'
+    backend.submit('goal', dict(x=5., y=5.))
+    assert backend.queued_goal is not None
+    backend.submit('land', {})
+    assert backend.queued_goal is None and not backend.queued_takeoffs
+
+
+def test_map_goal_from_ground_rejects_bad_point_before_takeoff(backend):
+    feed(backend)
+    started = []
+    backend.flight.start = lambda kind, record: started.append(kind)
+    with pytest.raises(ValueError):
+        backend.submit('goal', dict(x=500., y=0.))
+    assert not started and backend.queued_goal is None
+
+
+def test_rejected_map_point_is_reported_until_next_goal(backend):
+    flying_leader(backend)
+    goals = []
+    backend.goal_publisher = SimpleNamespace(publish=goals.append)
+    backend.submit('goal', dict(x=12., y=-18.))
+    stamp = backend.goal_id
+    backend.on_plan_result(String(data=json.dumps(dict(status='REJECTED', goal_id=stamp,
+                                                       reason='Цель внутри препятствия'))))
+    backend.tick()
+    assert backend.snapshot()['goal_error'] == dict(x=12., y=-18., reason='Цель внутри препятствия')
+    backend.action['state'] = 'ok'
+    backend.submit('goal', dict(x=0., y=-35.))
+    assert backend.snapshot()['goal_error'] is None
+
+
+def test_rejected_altitude_is_not_a_map_point_error(backend):
+    flying_leader(backend)
+    backend.goal_publisher = SimpleNamespace(publish=lambda goal: None)
+    backend.submit('altitude', dict(z=6.))
+    backend.on_plan_result(String(data=json.dumps(dict(status='REJECTED', goal_id=backend.goal_id, reason='нет'))))
+    backend.tick()
+    assert backend.snapshot()['goal_error'] is None and backend.action['state'] == 'error'

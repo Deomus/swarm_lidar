@@ -88,7 +88,7 @@ $('manual-stop').onclick=()=>{stopManual(false);command('hold');};
 $('resume').onclick=()=>command('resume');
 $('hold').onclick=()=>{stopManual(false);command('hold');};
 $('land').onclick=()=>{stopManual(false);command('land');};
-$('go-to-target').onclick=()=>target&&command('goal',{x:target.x,y:target.y});
+$('go-to-target').onclick=()=>target&&command('goal',{x:target.x,y:target.y,record:$('record').checked});
 $('clear-target').onclick=()=>{target=null;$('target-label').textContent='Щёлкните по карте, чтобы выбрать точку';$('clear-target').disabled=true;$('go-to-target').disabled=true;draw();};
 document.querySelectorAll('input[name=formation]').forEach(input=>input.addEventListener('change',()=>{shapeChosen=true;}));
 $('formation-form').onsubmit=event=>{event.preventDefault();if(!$('apply').disabled) command('formation',{formation:document.querySelector('input[name=formation]:checked').value,scale:Number($('scale').value),duration:Number($('duration').value)});};
@@ -118,8 +118,15 @@ function render(state) {
   $('land').disabled=!(active||state.drones.some(d=>d.armed))||flight.phase==='landing'||sending;
   $('apply').disabled=!ready||!state.formation_settled;
   $('set-altitude').disabled=!ready||!flying;
-  $('go-to-target').disabled=!target||!ready||sending;
+  // С земли кнопка сама поднимает рой и собирает строй, затем отправляет цель.
+  const grounded=!active&&state.connected&&state.drones.every(d=>!d.armed)&&state.action.state!=='pending';
+  $('go-to-target').disabled=!target||sending||!(ready||grounded);
+  $('go-to-target').textContent=state.drones.every(d=>d.armed)?'Полететь всем роем':'Взлететь и полететь';
   $('clear-target').disabled=!target;
+  // Отказ планировщика показывается, пока выбрана именно отклонённая точка.
+  const rejected=targetRejected(state);
+  $('target-error').hidden=!rejected;
+  if(rejected) $('target-error').textContent=`Ошибка точки: планировщик отклонил X=${state.goal_error.x.toFixed(1)}, Y=${state.goal_error.y.toFixed(1)} — ${state.goal_error.reason}. Выберите другую точку.`;
   document.querySelectorAll('[data-move]').forEach(button=>button.disabled=!flying);
   if(!flying) stopManual(false);
   $('manual-stop').disabled=!operator||sending;
@@ -158,8 +165,8 @@ function render(state) {
   const status=execution?.status;
   setTag('leader-mode',execution?(state.manual?'Движение':leaderStatus[status]||status):'—',
     state.manual||status==='MANUAL'?'ok':status==='DEADMAN'?'busy':['STATE_STALE','FORMATION_UNAVAILABLE','GROUP_MOTION_UNAVAILABLE'].includes(status)?'warn':'');
-  setTag('mission-status',status==='MISSION'?`Миссия · точка ${execution.waypoint+1}/${execution.total}`:status==='COMPLETE'?'Цель достигнута':target?'Точка выбрана':'Точка не выбрана',
-    status==='MISSION'?'busy':status==='COMPLETE'?'ok':'');
+  setTag('mission-status',status==='MISSION'?`Миссия · точка ${execution.waypoint+1}/${execution.total}`:status==='COMPLETE'?'Цель достигнута':targetRejected(state)?'Точка отклонена':target?'Точка выбрана':'Точка не выбрана',
+    status==='MISSION'?'busy':status==='COMPLETE'?'ok':targetRejected(state)?'warn':'');
   // Курс по компасу: 0° — север (+Y), 90° — восток (+X).
   $('leader-heading').textContent=leader.fresh?`${Math.round(((90-leader.yaw*180/Math.PI)%360+360)%360)}°`:'—';
   $('leader-speed').textContent=leader.fresh?`${Math.hypot(...leader.velocity).toFixed(1)} м/с`:'—';
@@ -169,6 +176,10 @@ function render(state) {
   if($('events').textContent!==text){$('events').textContent=text;$('events').scrollTop=$('events').scrollHeight;}
   $('output').textContent=flight.output?`Запись: ${flight.output.split('/').slice(-3).join('/')}`:'';
   draw();
+}
+function targetRejected(state) {
+  const error=state.goal_error;
+  return Boolean(error&&target&&Math.hypot(target.x-error.x,target.y-error.y)<.05);
 }
 function draw() {
   const canvas=$('map'),rect=canvas.getBoundingClientRect(),ratio=window.devicePixelRatio||1;
@@ -217,7 +228,7 @@ function draw() {
       ctx.strokeStyle='#0b131b';ctx.lineWidth=3;ctx.strokeText(label,chosen.lx,chosen.ly);ctx.fillText(label,chosen.lx,chosen.ly);
     }
   });
-  if(target){const x=px(target.x),y=py(target.y);ctx.strokeStyle='#f6c56b';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(x-12,y);ctx.lineTo(x+12,y);ctx.moveTo(x,y-12);ctx.lineTo(x,y+12);ctx.stroke();}
+  if(target){const x=px(target.x),y=py(target.y);ctx.strokeStyle=current&&targetRejected(current)?'#ff8f80':'#f6c56b';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(x-12,y);ctx.lineTo(x+12,y);ctx.moveTo(x,y-12);ctx.lineTo(x,y+12);ctx.stroke();}
 }
 const map=$('map');
 map.addEventListener('wheel',event=>{event.preventDefault();const rect=map.getBoundingClientRect(),mx=event.clientX-rect.left,my=event.clientY-rect.top;const before=[(mx-rect.width/2)/view.scale+view.cx,(rect.height/2-my)/view.scale+view.cy];view.scale=Math.max(3,Math.min(80,view.scale*Math.exp(-event.deltaY*.001)));view.cx=before[0]-(mx-rect.width/2)/view.scale;view.cy=before[1]+(my-rect.height/2)/view.scale;view.ready=true;draw();},{passive:false});

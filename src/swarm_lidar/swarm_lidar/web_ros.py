@@ -54,6 +54,8 @@ MANUAL_YAW_RATE = .3
 MANUAL_REPEAT_TIMEOUT = .3
 MANUAL_BRAKE_TIME = 3.
 MANUAL_MIN_ALTITUDE = 1.
+# Предел сбора строя (время симуляции) для цели, выбранной до взлёта.
+GOAL_FORMING_TIMEOUT = 300.
 
 
 def manual_request(body):
@@ -93,6 +95,8 @@ class PanelBackend(Node):
         self.goal_id = None
         self.goal_result = None
         self.goal_deadline = 0.
+        # Последняя точка карты, отклонённая планировщиком: панель показывает её под картой.
+        self.goal_point = self.goal_error = None
         self.create_subscription(String, '/mission/plan_result', self.on_plan_result, 10)
         self.clock_previous = None
         self.clock_progress = 0.
@@ -119,6 +123,8 @@ class PanelBackend(Node):
         self.manual_requested_until = 0.
         # Взлёты, нажатые до готовности сессии: отправляются исполнителю позже.
         self.queued_takeoffs = []
+        # Цель с карты, выбранная до взлёта: отправляется планировщику после сбора строя.
+        self.queued_goal = None
         self.create_timer(.05, self.tick)
 
     def now(self):
@@ -183,6 +189,7 @@ class PanelBackend(Node):
                 self.goal_result = result
 
     def cancel_goal(self):
+        self.queued_goal = None
         self.goal_waiting = False
         self.goal_id = self.goal_result = None
         while not self.commands.empty():
@@ -212,7 +219,7 @@ class PanelBackend(Node):
             manual = self.manual
             moving = bool(manual and wall-manual['wall'] <= MANUAL_REPEAT_TIMEOUT and any(manual['command'][:4]))
             return dict(connected=connected, time=now, drones=rows, formation_settled=settled,
-                        manual=moving, obstacles=self.obstacles,
+                        manual=moving, obstacles=self.obstacles, goal_error=self.goal_error,
                         swarm_mode=self.swarm_mode if (self.swarm_mode is not None
                             and 0 <= now-self.swarm_mode['time'] <= 1.) else None,
                         formation=formation if formation_fresh else None,
@@ -282,6 +289,11 @@ class PanelBackend(Node):
                 self.commands.put_nowait(('land', None))
                 self.action = dict(state='pending', message='Запрошена посадка всех аппаратов; ожидайте подтверждения.')
                 return
+            grounded = [row['id'] for row in snapshot['drones'] if not row.get('armed')]
+            if action == 'goal' and grounded and (not self.flight.active() or (
+                    session['kind'] == 'operator' and session['phase'] in ('starting', 'running', 'ready'))):
+                self.queue_goal_takeoff(body, snapshot, grounded)
+                return
             if action in ('goal', 'altitude', 'manual', 'formation', 'hold') and (
                     session['phase'] != 'ready' or session['kind'] != 'operator' or not snapshot['connected']):
                 raise ValueError('Сначала поднимите аппараты кнопками «Взлететь» и дождитесь готовности')
@@ -309,21 +321,7 @@ class PanelBackend(Node):
                                                 z=body.get('z')))
                 else:
                     x, y, z = goal_request(body, leader.get('position', [None]*3)[2])
-                self.manual = None
-                goal = PoseStamped()
-                goal.header.frame_id = 'map'
-                goal.header.stamp = self.get_clock().now().to_msg()
-                goal.pose.position.x, goal.pose.position.y, goal.pose.position.z = x, y, z
-                goal.pose.orientation.w = 1.
-                self.mission_status = None
-                self.goal_publisher.publish(goal)
-                self.goal_waiting = True
-                self.goal_id = [goal.header.stamp.sec, goal.header.stamp.nanosec]
-                self.goal_deadline = time.monotonic() + 10.
-                self.goal_result = None
-                self.action = dict(state='pending', message=(
-                    f'Высота роя меняется на {z:.1f} м' if action == 'altitude'
-                    else f'Маршрут строится: X={x:.1f}, Y={y:.1f}, высота={z:.1f} м'))
+                self.publish_goal(x, y, z, action)
                 return
             if action == 'resume':
                 # После эскалации моста (Loiter PX4) возврат только по решению оператора.
@@ -350,6 +348,64 @@ class PanelBackend(Node):
                 raise ValueError('Дождитесь установления текущего строя')
             self.commands.put_nowait((action, values))
             self.action = dict(state='pending', message='Команда отправляется; ожидайте подтверждения.')
+
+    def queue_goal_takeoff(self, body, snapshot, grounded):
+        """Сценарий C с земли: взлёт, сбор строя, затем маршрут к цели с карты."""
+        goal_request(body, MANUAL_MIN_ALTITUDE)  # проверка X/Y до взлёта; высоту задаст ведущий
+        if self.action['state'] == 'pending':
+            raise ValueError('Дождитесь завершения текущей операции')
+        if not self.flight.active():
+            if not snapshot['connected'] or len(grounded) != 4:
+                raise ValueError('Нужны свежие состояния четырёх аппаратов на земле')
+            self.flight.start('operator', body.get('record', True))
+        self.queued_takeoffs += [uav for uav in grounded if uav not in self.queued_takeoffs]
+        self.manual = None
+        message = (f'Взлёт и сбор строя, затем полёт к цели X={body["x"]:.1f}, Y={body["y"]:.1f}')
+        self.goal_error = None
+        self.queued_goal = dict(body=dict(body), deadline=self.now() + GOAL_FORMING_TIMEOUT, message=message)
+        self.action = dict(state='pending', message=message)
+
+    def publish_goal(self, x, y, z, action='goal'):
+        self.manual = None
+        goal = PoseStamped()
+        goal.header.frame_id = 'map'
+        goal.header.stamp = self.get_clock().now().to_msg()
+        goal.pose.position.x, goal.pose.position.y, goal.pose.position.z = x, y, z
+        goal.pose.orientation.w = 1.
+        self.mission_status = None
+        self.goal_publisher.publish(goal)
+        self.goal_point = (x, y) if action == 'goal' else None
+        if action == 'goal':
+            self.goal_error = None
+        self.goal_waiting = True
+        self.goal_id = [goal.header.stamp.sec, goal.header.stamp.nanosec]
+        self.goal_deadline = time.monotonic() + 10.
+        self.goal_result = None
+        self.action = dict(state='pending', message=(
+            f'Высота роя меняется на {z:.1f} м' if action == 'altitude'
+            else f'Маршрут строится: X={x:.1f}, Y={y:.1f}, высота={z:.1f} м'))
+
+    def send_queued_goal(self, now):
+        """Цель, выбранная до взлёта, уходит планировщику, когда строй собран."""
+        queued = self.queued_goal
+        snapshot = self.snapshot()
+        session = snapshot['flight']
+        if not self.flight.active() or session['kind'] != 'operator' or self.closing:
+            self.queued_goal = None
+            return
+        if now >= queued['deadline']:
+            self.queued_goal = None
+            self.action = dict(state='error', message='Строй не собрался вовремя: полёт к цели отменён, рой ждёт команды')
+            return
+        rows = snapshot['drones']
+        if (session['phase'] != 'ready' or not snapshot['formation_settled'] or self.queued_takeoffs
+                or not all(row.get('armed') and row.get('mode') == '14' for row in rows)):
+            return
+        self.queued_goal = None
+        try:
+            self.publish_goal(*goal_request(queued['body'], rows[0]['position'][2]))
+        except ValueError as error:
+            self.action = dict(state='error', message=str(error))
 
     def call(self, path):
         client = self.service_clients.get(path)
@@ -456,7 +512,8 @@ class PanelBackend(Node):
                             and (self.formation or {}).get('leader_mode') == 'HOLD'
                             and sent_at <= (self.formation or {}).get('leader_intent_stamp', -1) <= now)
                         if name in ('takeoff', 'land_uav'):
-                            self.action = dict(state='ok', message=response.message)
+                            self.action = (dict(state='ok', message=response.message) if self.queued_goal is None
+                                           else dict(state='pending', message=self.queued_goal['message']))
                             self.pending = None
                         elif name != 'hold' or hold_confirmed:
                             self.action = dict(state='ok', message={
@@ -472,6 +529,8 @@ class PanelBackend(Node):
                         self.flight.stop()
                     self.action = dict(state='error', message=str(error))
                     self.pending = None
+            if self.queued_goal is not None:
+                self.send_queued_goal(now)
             if self.goal_waiting:
                 result = self.goal_result or {}
                 session = self.flight.snapshot()
@@ -485,7 +544,10 @@ class PanelBackend(Node):
                     self.action = dict(state='pending', message='Маршрут построен; ведущий начинает полёт.')
                 elif result.get('status') == 'REJECTED':
                     self.goal_waiting = False
-                    self.action = dict(state='error', message='Маршрут отклонён: '+str(result.get('reason', 'нет причины')))
+                    reason = str(result.get('reason', 'нет причины'))
+                    self.action = dict(state='error', message='Маршрут отклонён: '+reason)
+                    if self.goal_point is not None:
+                        self.goal_error = dict(x=self.goal_point[0], y=self.goal_point[1], reason=reason)
             # Посадка не ждёт завершения запроса перестроения или HOLD.
             if not self.commands.empty():
                 name, values = self.commands.get_nowait()
