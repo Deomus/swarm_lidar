@@ -94,22 +94,3 @@ docker/run.sh build sim
 аргументы в начале `docker/Dockerfile`; PX4 и `px4_msgs` меняются только
 вместе. `SWARM_LIDAR_REVISION` попадает в отчёты полётов вместо номера
 коммита: в образе нет `.git`. `run.sh` подставляет его из git сам.
-
-## Публикация образа
-
-Один раз — токен GitHub с правом `write:packages`:
-
-```bash
-echo <ТОКЕН> | docker login ghcr.io -u deomus --password-stdin
-```
-
-После сборки и проверки:
-
-```bash
-docker tag ghcr.io/deomus/swarm-lidar:latest ghcr.io/deomus/swarm-lidar:<версия>
-docker push ghcr.io/deomus/swarm-lidar:<версия>
-docker push ghcr.io/deomus/swarm-lidar:latest
-```
-
-Затем в настройках пакета на GitHub сделать его публичным. Метка
-`org.opencontainers.image.source` в образе привязывает пакет к репозиторию.

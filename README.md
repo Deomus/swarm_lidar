@@ -27,8 +27,41 @@ LiDAR стоит только на ведущем. По его облаку то
 | Micro XRCE-DDS Agent | `v3.0.2` |
 | Python | NumPy 1.26, SciPy, Matplotlib, pymavlink 2.4.50 |
 
-Проще всего запустить проект в Docker: образ содержит всё перечисленное, см.
-[docs/docker.md](docs/docker.md).
+Проще всего запустить проект в Docker: образ содержит всё перечисленное.
+
+## Запуск в Docker
+
+Нужны Docker с Compose v2 и около 15 ГБ места. В WSL нужен ещё драйвер NVIDIA
+в Windows, а в Docker Desktop — включённая WSL Integration для дистрибутива
+(Settings → Resources → WSL Integration).
+
+```bash
+git clone https://github.com/Deomus/swarm_lidar && cd swarm_lidar
+docker/run.sh up sim-gui    # окно Gazebo и панель
+docker/run.sh up sim        # без окна
+```
+
+Готовый образ `ghcr.io/deomus/swarm-lidar` скачается сам. `run.sh` проверяет,
+что система — Ubuntu 24.04, и подключает видеокарту:
+- в WSL — через D3D12 (`docker/wsl.yaml`), окно через WSLg;
+- на Ubuntu с NVIDIA и `nvidia-container-toolkit` — через `docker/nvidia.yaml`;
+- иначе Gazebo рендерит на процессоре, примерно в 5 раз медленнее.
+
+Выбор записывается в `.env`, поэтому дальше работает и обычный
+`docker compose up sim-gui`.
+
+Панель — `http://localhost:8080`. Записи полётов пишутся в `./log`. Остановка —
+Ctrl+C: если группа в полёте, она сначала садится.
+
+Проверка установки и сценарии в контейнере:
+
+```bash
+docker/run.sh run --rm sim python3 scripts/smoke_test.py
+docker/run.sh run --rm sim python3 scripts/repeat_scenarios.py \
+  --output log/series --runs 1 --scenarios s1 s2 s3 s3_pillars
+```
+
+Свой образ из исходников собирается командой `docker/run.sh build sim`.
 
 ## Сборка без Docker
 
