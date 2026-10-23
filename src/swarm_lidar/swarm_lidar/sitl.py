@@ -43,6 +43,8 @@ def main():
     parser.add_argument('--web-port', type=int, default=8080)
     parser.add_argument('--open-browser', choices=['true', 'false'], default='true')
     parser.add_argument('--rviz', choices=['true', 'false'], default='false')
+    parser.add_argument('--gpu', default='NVIDIA',
+                        help='WSL: видеоадаптер для OpenGL через D3D12; none — не трогать')
     args = parser.parse_args()
     if args.video == 'true' and args.lidar != 'true':
         parser.error('Обзорная камера требует lidar:=true для системы датчиков мира')
@@ -63,6 +65,12 @@ def main():
                PX4_SYS_AUTOSTART='4001', PX4_SIM_MODEL='gz_x500',
                GZ_PARTITION='swarm_lidar', GZ_IP='127.0.0.1',
                ROS_LOG_DIR=str(runtime / 'ros'))
+    if args.gpu != 'none' and Path('/dev/dxg').exists():
+        # В WSL OpenGL по умолчанию программный (llvmpipe), а d3d12 без имени
+        # адаптера берёт встроенную графику процессора. Значения пользователя
+        # не переопределяются.
+        env.setdefault('GALLIUM_DRIVER', 'd3d12')
+        env.setdefault('MESA_D3D12_DEFAULT_ADAPTER_NAME', args.gpu)
     models = px4 / 'Tools/simulation/gz/models'
     share = Path(get_package_share_directory('swarm_lidar'))
     env['GZ_SIM_RESOURCE_PATH'] = str(share / 'models') + ':' + str(models) + ':' + env.get('GZ_SIM_RESOURCE_PATH', '')

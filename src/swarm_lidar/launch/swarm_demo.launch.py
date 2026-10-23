@@ -24,6 +24,8 @@ def generate_launch_description():
                               description='Открыть панель в браузере, когда она ответит'),
         DeclareLaunchArgument('rviz', default_value='false',
                               description='RViz2: TF, облако LiDAR, карта, маршрут, места строя'),
+        DeclareLaunchArgument('gpu', default_value='NVIDIA',
+                              description='WSL: видеоадаптер OpenGL через D3D12; none — не трогать'),
         DeclareLaunchArgument('uav_count', default_value='4',
                               description='Число аппаратов; поддерживается только 4'),
         ExecuteProcess(cmd=[str(Path(get_package_prefix('swarm_lidar')) / 'lib/swarm_lidar/sitl'),
@@ -37,7 +39,8 @@ def generate_launch_description():
                             '--web', LaunchConfiguration('web'),
                             '--web-port', LaunchConfiguration('web_port'),
                             '--open-browser', LaunchConfiguration('open_browser'),
-                            '--rviz', LaunchConfiguration('rviz')],
+                            '--rviz', LaunchConfiguration('rviz'),
+                            '--gpu', LaunchConfiguration('gpu')],
                        # Панель при Ctrl+C сначала сажает группу: до 150 с.
                        output='screen', sigterm_timeout='180', sigkill_timeout='10'),
     ])
