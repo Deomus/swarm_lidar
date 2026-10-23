@@ -102,7 +102,8 @@ def run_one(root, kind, index, px4):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--px4-dir', type=Path, default=Path.home()/'PX4-Autopilot')
+    parser.add_argument('--px4-dir', type=Path,
+                        default=Path(os.environ.get('PX4_DIR', Path.home()/'PX4-Autopilot')))
     parser.add_argument('--runs', type=int, default=3)
     parser.add_argument('--start-index', type=int, default=1)
     parser.add_argument('--scenarios', nargs='+', choices=('s1', 's2', 's3', 's3_pillars'), default=['s2'])

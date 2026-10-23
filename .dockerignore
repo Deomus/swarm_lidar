@@ -1,0 +1,9 @@
+log/
+build/
+install/
+**/__pycache__/
+**/.pytest_cache/
+.ruff_cache/
+.vscode/
+.git/
+examples/results/*.png

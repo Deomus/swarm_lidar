@@ -10,7 +10,7 @@ from launch.substitutions import LaunchConfiguration
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument('px4_dir', default_value=os.path.expanduser('~/PX4-Autopilot')),
+        DeclareLaunchArgument('px4_dir', default_value=os.environ.get('PX4_DIR', os.path.expanduser('~/PX4-Autopilot'))),
         DeclareLaunchArgument('gui', default_value='true'),
         DeclareLaunchArgument('duration', default_value='0'),
         # Полный контур LiDAR → строй → PX4 по умолчанию: одна команда по ТЗ §12.
@@ -20,6 +20,8 @@ def generate_launch_description():
         DeclareLaunchArgument('web', default_value='true',
                               description='Браузерная панель управления на localhost'),
         DeclareLaunchArgument('web_port', default_value='8080'),
+        DeclareLaunchArgument('web_host', default_value='127.0.0.1',
+                              description='Адрес панели; в контейнере 0.0.0.0'),
         DeclareLaunchArgument('open_browser', default_value='true',
                               description='Открыть панель в браузере, когда она ответит'),
         DeclareLaunchArgument('rviz', default_value='false',
@@ -38,6 +40,7 @@ def generate_launch_description():
                             '--uav-count', LaunchConfiguration('uav_count'),
                             '--web', LaunchConfiguration('web'),
                             '--web-port', LaunchConfiguration('web_port'),
+                            '--web-host', LaunchConfiguration('web_host'),
                             '--open-browser', LaunchConfiguration('open_browser'),
                             '--rviz', LaunchConfiguration('rviz'),
                             '--gpu', LaunchConfiguration('gpu')],

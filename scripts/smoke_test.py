@@ -67,7 +67,7 @@ def alive(pids):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--px4-dir', default=str(Path.home()/'PX4-Autopilot'))
+    parser.add_argument('--px4-dir', default=os.environ.get('PX4_DIR', str(Path.home()/'PX4-Autopilot')))
     parser.add_argument('--timeout', type=float, default=150., help='Ожидание готовности, с')
     parser.add_argument('--output', type=Path, default=Path('log')/time.strftime('smoke_%Y%m%d_%H%M%S'))
     args = parser.parse_args()

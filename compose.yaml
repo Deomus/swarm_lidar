@@ -1,0 +1,46 @@
+# Запуск в Docker на Windows + WSL2 (Docker Desktop с WSL Integration):
+#   docker compose up sim            — без окна; панель http://localhost:8080
+#   docker compose up sim-gui        — то же с окном Gazebo через WSLg
+#   docker compose run --rm sim python3 scripts/smoke_test.py
+# Видеокарта: /dev/dxg и /usr/lib/wsl пробрасываются из WSL; sitl.py сам
+# включает D3D12 на NVIDIA (без этого Gazebo рендерит на CPU, RTF около 0,2).
+# Записи полётов попадают в ./log на хосте.
+
+x-sim: &sim
+  image: swarm-lidar:latest
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+  init: true                 # сигналы и зомби-процессы; sitl.py сам сажает и останавливает
+  shm_size: 2gb              # Fast DDS передаёт облако LiDAR через разделяемую память
+  stop_grace_period: 200s    # панель при остановке сначала сажает группу
+  devices: [/dev/dxg]
+  ports: ["127.0.0.1:8080:8080"]
+
+services:
+  sim:
+    <<: *sim
+    volumes:
+      - ./log:/ws/log
+      - /usr/lib/wsl:/usr/lib/wsl:ro
+    environment:
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib
+      EGL_PLATFORM: surfaceless     # без дисплея EGL иначе не создаёт контекст
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-72}
+
+  sim-gui:
+    <<: *sim
+    command: [ros2, launch, swarm_lidar, swarm_demo.launch.py, gui:=true,
+              web_host:=0.0.0.0, open_browser:=false]
+    volumes:
+      - ./log:/ws/log
+      - /usr/lib/wsl:/usr/lib/wsl:ro
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /mnt/wslg:/mnt/wslg
+    environment:
+      LD_LIBRARY_PATH: /usr/lib/wsl/lib
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-72}
+      DISPLAY: ${DISPLAY:-:0}
+      WAYLAND_DISPLAY: ${WAYLAND_DISPLAY:-wayland-0}
+      XDG_RUNTIME_DIR: /mnt/wslg/runtime-dir
+      PULSE_SERVER: /mnt/wslg/PulseServer

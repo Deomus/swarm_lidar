@@ -30,7 +30,8 @@ def open_panel(url):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--px4-dir', default=str(Path.home() / 'PX4-Autopilot'))
+    # PX4_DIR задан в образе Docker (/opt/PX4-Autopilot).
+    parser.add_argument('--px4-dir', default=os.environ.get('PX4_DIR', str(Path.home() / 'PX4-Autopilot')))
     parser.add_argument('--gui', choices=['true', 'false'], default='true')
     parser.add_argument('--duration', type=float, default=0.)
     parser.add_argument('--agent-port', type=int, default=8889)
@@ -41,6 +42,7 @@ def main():
     parser.add_argument('--video', choices=['true', 'false'], default='false')
     parser.add_argument('--web', choices=['true', 'false'], default='true')
     parser.add_argument('--web-port', type=int, default=8080)
+    parser.add_argument('--web-host', default='127.0.0.1')
     parser.add_argument('--open-browser', choices=['true', 'false'], default='true')
     parser.add_argument('--rviz', choices=['true', 'false'], default='false')
     parser.add_argument('--gpu', default='NVIDIA',
@@ -156,7 +158,7 @@ def main():
         if args.web == 'true':
             # Панель — из корня запуска: её журналы полётов в log/web.
             start('web_panel', [str(Path(sys.executable)), '-m', 'swarm_lidar.web_panel',
-                                '--port', str(args.web_port)], cwd=Path.cwd())
+                                '--port', str(args.web_port), '--host', args.web_host], cwd=Path.cwd())
             print(f'Панель управления: http://localhost:{args.web_port} '
                   '(дождитесь подключения четырёх аппаратов)', flush=True)
         deadline = time.monotonic() + args.duration if args.duration else float('inf')

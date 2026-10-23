@@ -13,7 +13,7 @@ import threading
 from urllib.parse import urlsplit
 
 
-def make_server(backend, assets, port):
+def make_server(backend, assets, port, host='127.0.0.1'):
     token = secrets.token_urlsafe(32)
     assets = Path(assets)
 
@@ -90,7 +90,7 @@ def make_server(backend, assets, port):
                 print(f'Ошибка команды панели: {error}', file=sys.stderr, flush=True)
                 self.send(500, dict(error='Команда не выполнена; проверьте терминал панели'))
 
-    server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
+    server = ThreadingHTTPServer((host, port), Handler)
     server.daemon_threads = True
     return server
 
@@ -98,6 +98,9 @@ def make_server(backend, assets, port):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', type=int, default=8080)
+    # В контейнере 0.0.0.0: снаружи порт публикуется только на 127.0.0.1 хоста.
+    # Проверка заголовков Host/Origin по-прежнему пускает только localhost.
+    parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--log-dir', type=Path, default=Path('log/web'))
     args = parser.parse_args()
     if not 1024 <= args.port <= 65535:
@@ -118,7 +121,7 @@ def main():
     backend = PanelBackend(args.log_dir)
     assets = Path(get_package_share_directory('swarm_lidar'))/'web'
     try:
-        server = make_server(backend, assets, args.port)
+        server = make_server(backend, assets, args.port, args.host)
     except OSError as error:
         backend.destroy_node()
         rclpy.shutdown()
