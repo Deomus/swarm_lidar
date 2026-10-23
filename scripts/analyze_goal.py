@@ -78,7 +78,7 @@ def main():
         parser.error('Выходной файл уже существует')
     result = json.loads((args.scenario/'result.json').read_text())
     events = [e for e in result['events'] if e['event'].startswith('Цель достигнута:')]
-    if result['scenario'] != 's3' or not result['passed'] or len(events) != 1:
+    if result['scenario'] not in ('s3', 's3_pillars') or not result['passed'] or len(events) != 1:
         parser.error('Нужен успешный S3 с единственным подтверждением цели')
     samples, goals = read_bag(args.scenario/'bag', args.model_base_z)
     report = final_goal(samples, goals, events[0]['time'], args.tolerance)

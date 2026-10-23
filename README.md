@@ -146,9 +146,14 @@ rosbag (MCAP), `metrics/samples.csv`, `metrics/summary.json` и графики.
 | `analyze_transitions.py` | время перестроения и overshoot |
 | `analyze_goal.py` | конечная ошибка миссии |
 | `analyze_braking.py` | торможение при потере данных |
+| `plot_mission.py` | траектории лидера и ведомых в миссии, маршрут A*, столбы |
 
 Видео записывается так: запустить симуляцию с `video:=true`, затем
 `GZ_PARTITION=swarm_lidar python3 scripts/record_video.py log/demo.mp4 --follow`.
+
+## Отчёт
+
+Краткий отчёт с результатами финальной серии (12 полётов): [docs/report.md](docs/report.md).
 
 ## Архитектура
 
