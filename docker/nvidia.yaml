@@ -1,0 +1,23 @@
+# Дополнение для Linux с видеокартой NVIDIA: нужен nvidia-container-toolkit.
+# Драйвер NVIDIA в контейнере даёт OpenGL/EGL Gazebo и gpu_lidar.
+
+x-gpu: &gpu
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu, graphics, display]
+  environment: &gpu_env
+    NVIDIA_DRIVER_CAPABILITIES: all
+    EGL_PLATFORM: device            # EGL без дисплея через устройство NVIDIA
+
+services:
+  sim:
+    <<: *gpu
+  sim-gui:
+    <<: *gpu
+    environment:
+      <<: *gpu_env
+      EGL_PLATFORM: x11

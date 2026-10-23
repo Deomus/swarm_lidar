@@ -1,10 +1,12 @@
-# Запуск в Docker на Windows + WSL2 (Docker Desktop с WSL Integration).
-# Готовый образ: ghcr.io/deomus/swarm-lidar (скачивается сам при up).
-#   docker compose up sim            — без окна; панель http://localhost:8080
-#   docker compose up sim-gui        — то же с окном Gazebo через WSLg
-#   docker compose run --rm sim python3 scripts/smoke_test.py
-# Видеокарта: /dev/dxg и /usr/lib/wsl пробрасываются из WSL; sitl.py сам
-# включает D3D12 на NVIDIA (без этого Gazebo рендерит на CPU, RTF около 0,2).
+# Docker: переносимая часть, без привязки к устройству (работает где угодно,
+# без видеокарты — рендер на CPU). Видеокарту подключают дополнения:
+#   docker/wsl.yaml     — WSL2 и Docker Desktop на Windows (D3D12, WSLg)
+#   docker/nvidia.yaml  — Linux с NVIDIA и nvidia-container-toolkit
+# Запуск с автоопределением устройства (рекомендуется):
+#   docker/run.sh up sim-gui        (WSL, Linux, macOS)
+#   docker\run.ps1 up sim-gui       (PowerShell на Windows)
+# Сервисы: sim — без окна, sim-gui — с окном Gazebo; панель http://localhost:8080.
+# Готовый образ ghcr.io/deomus/swarm-lidar скачивается сам, если его нет.
 # Записи полётов попадают в ./log на хосте.
 
 x-sim: &sim
@@ -19,13 +21,13 @@ x-sim: &sim
       BUILDKIT_INLINE_CACHE: "1"   # метаданные кэша внутри образа для cache_from
       # Ревизия кода в отчётах полётов: SWARM_LIDAR_REVISION=$(git rev-parse HEAD) docker compose build
       SWARM_LIDAR_REVISION: ${SWARM_LIDAR_REVISION:-unknown}
+  platform: linux/amd64      # PX4 SITL собран под x86-64; на Apple Silicon — эмуляция
   init: true                 # сигналы и зомби-процессы; sitl.py сам сажает и останавливает
   shm_size: 2gb              # Fast DDS передаёт облако LiDAR через разделяемую память
   # ros2 launch штатно завершает узлы только по SIGINT (как Ctrl+C); от SIGTERM
   # он падал сразу, и sitl.py не успевал посадить группу и остановить PX4/Gazebo.
   stop_signal: SIGINT
   stop_grace_period: 200s    # панель при остановке сначала сажает группу
-  devices: [/dev/dxg]
   ports: ["127.0.0.1:8080:8080"]
 
 services:
@@ -33,9 +35,7 @@ services:
     <<: *sim
     volumes:
       - ./log:/ws/log
-      - /usr/lib/wsl:/usr/lib/wsl:ro
     environment:
-      LD_LIBRARY_PATH: /usr/lib/wsl/lib
       EGL_PLATFORM: surfaceless     # без дисплея EGL иначе не создаёт контекст
       ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-72}
 
@@ -45,13 +45,7 @@ services:
               web_host:=0.0.0.0, open_browser:=false]
     volumes:
       - ./log:/ws/log
-      - /usr/lib/wsl:/usr/lib/wsl:ro
-      - /tmp/.X11-unix:/tmp/.X11-unix
-      - /mnt/wslg:/mnt/wslg
+      - ${X11_SOCKET_DIR:-/tmp/.X11-unix}:/tmp/.X11-unix
     environment:
-      LD_LIBRARY_PATH: /usr/lib/wsl/lib
-      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-72}
       DISPLAY: ${DISPLAY:-:0}
-      WAYLAND_DISPLAY: ${WAYLAND_DISPLAY:-wayland-0}
-      XDG_RUNTIME_DIR: /mnt/wslg/runtime-dir
-      PULSE_SERVER: /mnt/wslg/PulseServer
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-72}
