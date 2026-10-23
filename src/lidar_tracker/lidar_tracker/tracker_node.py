@@ -46,7 +46,8 @@ class LidarTracker(Node):
                                      p['reacquire_timeout'])
         self.last_stamp = None
         self.previous_clock = None
-        self.rejection_reason = None
+        self.rejection_reason = self.logged_reason = None
+        self.rejection_detail = ''
         self.orientation_history = OrientationHistory()
         self.create_subscription(SwarmState, p['orientation_topic'], self.on_orientation, 10)
         self.publisher = self.create_publisher(RelativePose, p['output_topic'], p['qos_depth'])
@@ -92,6 +93,18 @@ class LidarTracker(Node):
             self.publish(self.last_stamp)
 
     def pointcloud_callback(self, cloud):
+        self.handle_cloud(cloud)
+        # Причина отказа кадра — в журнал при смене: без неё потерю всех
+        # целей сразу нельзя отличить от отказа ассоциации.
+        if self.rejection_reason != self.logged_reason:
+            stamp = cloud.header.stamp.sec + cloud.header.stamp.nanosec * 1e-9
+            if self.rejection_reason is None:
+                self.get_logger().info(f'Кадры LiDAR снова принимаются, t={stamp:.3f}')
+            else:
+                self.get_logger().warning(f'Кадр LiDAR отклонён: {self.rejection_detail}, t={stamp:.3f}')
+            self.logged_reason = self.rejection_reason
+
+    def handle_cloud(self, cloud):
         self.rejection_reason = None
         self.observe_clock()
         p = self.params
@@ -100,9 +113,11 @@ class LidarTracker(Node):
         previous = None if self.last_stamp is None else (
             self.last_stamp.sec + self.last_stamp.nanosec * 1e-9)
         if cloud.header.frame_id != p['expected_frame'] or age < -0.1 or age > p['stale_timeout']:
+            self.reject('stale_or_frame', f'frame {cloud.header.frame_id}, возраст {age:.3f} с')
             self.publish(cloud.header.stamp)
             return
         if previous is not None and stamp <= previous:
+            self.reject('out_of_order', 'отметка не новее предыдущей')
             self.publish(cloud.header.stamp)
             return
         self.last_stamp = cloud.header.stamp
@@ -110,7 +125,7 @@ class LidarTracker(Node):
             points = point_cloud2.read_points_numpy(
                 cloud, field_names=('x', 'y', 'z'), skip_nans=True).reshape(-1, 3)
         except (ValueError, AssertionError, KeyError):
-            self.rejection_reason = 'pointcloud_decode_rejected'
+            self.reject('pointcloud_decode_rejected', 'нет корректных полей XYZ')
             self.publish(cloud.header.stamp)
             return
         points = points[np.isfinite(points).all(axis=1)]
@@ -123,12 +138,13 @@ class LidarTracker(Node):
             heights = (level_heights(points, self.orientation_history.at(stamp), p['sensor_offset'])
                        if p['level_filter'] else points[:, 2])
         except ValueError:
-            self.rejection_reason = 'orientation_unavailable'
+            self.reject('orientation_unavailable', 'нет ориентации ведущего на время кадра')
             self.publish(cloud.header.stamp)
             return
         points = points[(heights >= p['min_z']) & (heights <= p['max_z'])]
         if len(points) > p['max_processing_points']:
-            self.rejection_reason = 'processing_budget_exceeded'
+            self.reject('processing_budget_exceeded',
+                        f'{len(points)} точек в полосе поиска больше бюджета {p["max_processing_points"]}')
             self.publish(cloud.header.stamp)
             return
         centers, confidences = [], []
@@ -142,10 +158,17 @@ class LidarTracker(Node):
             if confidence >= p['confidence_threshold']:
                 centers.append(center)
                 confidences.append(confidence)
-        self.publish(cloud.header.stamp, self.tracker.update(centers, stamp), confidences)
+        results = self.tracker.update(centers, stamp)
+        if all(result is None for result in results):
+            self.reject('no_targets', f'ни одна цель не сопоставлена: кластеров {len(centers)}, '
+                        f'точек в полосе {len(points)}')
+        self.publish(cloud.header.stamp, results, confidences)
         for index in self.tracker.reacquired:
             self.get_logger().info(
                 f'uav_{self.ids[index]}: цель повторно захвачена у последнего положения, t={stamp:.3f}')
+
+    def reject(self, reason, detail):
+        self.rejection_reason, self.rejection_detail = reason, f'{reason} ({detail})'
 
     def observe_clock(self):
         now = self.get_clock().now().nanoseconds * 1e-9
