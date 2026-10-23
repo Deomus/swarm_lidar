@@ -60,6 +60,9 @@ RUN test -n "$XRCE_AGENT_VERSION" \
  && ldconfig && rm -rf /tmp/agent
 
 FROM deps AS app
+# GitHub привязывает пакет ghcr.io к репозиторию по этой метке.
+LABEL org.opencontainers.image.source=https://github.com/Deomus/swarm_lidar \
+      org.opencontainers.image.description="Swarm LiDAR: ROS 2 Jazzy, Gazebo Harmonic, PX4 SITL"
 RUN apt-get update && apt-get install -y --no-install-recommends python3-pytest \
  && rm -rf /var/lib/apt/lists/*
 # Пользователь ubuntu (UID 1000) образа совпадает с типичным пользователем
@@ -71,7 +74,8 @@ USER ubuntu
 WORKDIR /ws
 RUN source /opt/ros/jazzy/setup.bash && source /opt/px4_ws/install/setup.bash \
  && colcon build && rm -rf build/*/test_results
-ENV PX4_DIR=/opt/PX4-Autopilot
+ARG SWARM_LIDAR_REVISION=unknown
+ENV PX4_DIR=/opt/PX4-Autopilot SWARM_LIDAR_REVISION=$SWARM_LIDAR_REVISION
 ENTRYPOINT ["/ws/docker/entrypoint.sh"]
 CMD ["ros2", "launch", "swarm_lidar", "swarm_demo.launch.py", "gui:=false", \
      "web_host:=0.0.0.0", "open_browser:=false"]

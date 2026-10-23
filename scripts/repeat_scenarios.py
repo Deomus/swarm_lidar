@@ -21,7 +21,12 @@ def snapshot():
     import swarm_lidar
 
     repository = Path(swarm_lidar.__file__).resolve().parents[3]
-    revision = subprocess.check_output(['git', '-C', str(repository), 'rev-parse', 'HEAD'], text=True).strip()
+    try:
+        revision = subprocess.check_output(['git', '-C', str(repository), 'rev-parse', 'HEAD'],
+                                           text=True, stderr=subprocess.DEVNULL).strip()
+    except (OSError, subprocess.CalledProcessError):
+        # В образе Docker нет .git: ревизия задаётся при сборке, код — хэшами ниже.
+        revision = os.environ.get('SWARM_LIDAR_REVISION', 'unknown')
     files = {}
     for package, name in [('formation_controller', 'controller.yaml'),
                           ('leader_interface', 'leader.yaml'), ('lidar_tracker', 'tracker.yaml'),

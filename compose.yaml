@@ -1,4 +1,5 @@
-# Запуск в Docker на Windows + WSL2 (Docker Desktop с WSL Integration):
+# Запуск в Docker на Windows + WSL2 (Docker Desktop с WSL Integration).
+# Готовый образ: ghcr.io/deomus/swarm-lidar (скачивается сам при up).
 #   docker compose up sim            — без окна; панель http://localhost:8080
 #   docker compose up sim-gui        — то же с окном Gazebo через WSLg
 #   docker compose run --rm sim python3 scripts/smoke_test.py
@@ -7,12 +8,22 @@
 # Записи полётов попадают в ./log на хосте.
 
 x-sim: &sim
-  image: swarm-lidar:latest
+  # Готовый образ из реестра: up скачивает его, если локально нет; build
+  # собирает свой, беря неизменённые слои (PX4 и др.) из образа реестра.
+  image: ghcr.io/deomus/swarm-lidar:latest
   build:
     context: .
     dockerfile: docker/Dockerfile
+    cache_from: [ghcr.io/deomus/swarm-lidar:latest]
+    args:
+      BUILDKIT_INLINE_CACHE: "1"   # метаданные кэша внутри образа для cache_from
+      # Ревизия кода в отчётах полётов: SWARM_LIDAR_REVISION=$(git rev-parse HEAD) docker compose build
+      SWARM_LIDAR_REVISION: ${SWARM_LIDAR_REVISION:-unknown}
   init: true                 # сигналы и зомби-процессы; sitl.py сам сажает и останавливает
   shm_size: 2gb              # Fast DDS передаёт облако LiDAR через разделяемую память
+  # ros2 launch штатно завершает узлы только по SIGINT (как Ctrl+C); от SIGTERM
+  # он падал сразу, и sitl.py не успевал посадить группу и остановить PX4/Gazebo.
+  stop_signal: SIGINT
   stop_grace_period: 200s    # панель при остановке сначала сажает группу
   devices: [/dev/dxg]
   ports: ["127.0.0.1:8080:8080"]
