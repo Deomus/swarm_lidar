@@ -61,11 +61,13 @@ ROS_DOMAIN_ID=72 ros2 run swarm_lidar web_panel
 python3 -m pytest src -q
 ```
 
-Для проверки основной цепочки без Gazebo и PX4 используется синтетическое облако:
+Проверка установки сама запускает симуляцию, проверяет четыре аппарата, TF, облако LiDAR, позы ведомых, команды и журналы, затем останавливает всё:
 
 ```bash
-ROS_DOMAIN_ID=71 python3 scripts/smoke_pipeline.py
+python3 scripts/smoke_test.py
 ```
+
+Результат сохраняется в `log/smoke_<время>/smoke.json`.
 
 Доступные параметры launch-файла:
 
@@ -75,21 +77,3 @@ ros2 launch swarm_lidar swarm_demo.launch.py --show-args
 
 Поддерживаются параметры `px4_dir`, `gui`, `duration`, `lidar` и `stack`. При `lidar:=true` включаются обработка LiDAR, оценка положения, управление формацией, интерфейс ведущего и планировщик маршрута.
 
-В отдельном терминале можно проверить телеметрию всех четырёх PX4:
-
-```bash
-source /opt/ros/jazzy/setup.bash
-source ~/px4_ros_ws/install/setup.bash
-source install/setup.bash
-ROS_DOMAIN_ID=72 python3 scripts/smoke_sitl.py
-```
-
-Результат проверки сохраняется в `log/sitl_smoke.json`. Скрипт проверяет уже запущенные аппараты и сам PX4 не запускает.
-
-Дополнительные проверки:
-
-```bash
-ROS_DOMAIN_ID=72 python3 scripts/smoke_bridge.py
-ROS_DOMAIN_ID=72 python3 scripts/smoke_bridge.py --flight
-ROS_DOMAIN_ID=72 python3 scripts/smoke_lidar.py
-```

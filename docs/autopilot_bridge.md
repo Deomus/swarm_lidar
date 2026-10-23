@@ -96,12 +96,6 @@ MAVLink heartbeat на localhost:18570..18573. Она не отключает pr
 ROS_DOMAIN_ID=72 ros2 launch swarm_lidar swarm_demo.launch.py gui:=false
 ```
 
-```bash
-ROS_DOMAIN_ID=72 python3 scripts/smoke_bridge.py
-ROS_DOMAIN_ID=72 python3 scripts/smoke_bridge.py --flight
-```
-
-Вариант с `--flight` реально вооружает, последовательно поднимает четыре
-SITL, включает Offboard, проверяет движение по ENU-команде и торможение при
-пропаже команд, затем последовательно сажает аппараты. Применять только к
-этому симуляционному запуску, не к реальным аппаратам.
+Проверка установки — `python3 scripts/smoke_test.py`: она сама запускает
+симуляцию и проверяет состояния, TF и setpoint-топики всех четырёх мостов.
+Вооружение, Offboard и посадку проверяют сценарии S1–S3.
