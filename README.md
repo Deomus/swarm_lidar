@@ -170,7 +170,7 @@ flowchart TB
         px40["PX4"]
     end
     mesh["mesh_interface<br/>задержка · разброс · потери"]
-    subgraph followerBox["Ведомый uav_i, i = 1..3"]
+    subgraph followerBox["Ведомые uav_1..3"]
         controller["formation_controller<br/>своя скорость и курс"]
         bridgei["autopilot_bridge"]
         px4i["PX4"]
@@ -219,9 +219,9 @@ flowchart TB
     class mesh meshC
     class bridge0,bridgei brC
     class manager,evaluation supC
-    style ground fill:#fafafa,stroke:#9e9e9e
-    style leaderBox fill:#fafafa,stroke:#9e9e9e
-    style followerBox fill:#fafafa,stroke:#9e9e9e
+    style ground fill:#f5f5f5,stroke:#616161,stroke-width:2px,color:#212121
+    style leaderBox fill:#fff8e1,stroke:#e65100,stroke-width:3px,color:#bf360c
+    style followerBox fill:#e8f4fd,stroke:#1565c0,stroke-width:3px,color:#0d47a1
 ```
 
 Ведущий измеряет LiDAR-ом положения ведомых и рассылает их по mesh вместе
