@@ -26,6 +26,14 @@ if [[ ${ID:-} != ubuntu || ${VERSION_ID:-} != 24.04 ]]; then
 fi
 docker info >/dev/null 2>&1 || { note 'Docker недоступен: запустите его или добавьте пользователя в группу docker'; exit 1; }
 
+# Создаём bind mount на хосте: иначе Docker создаёт отсутствующий log/ от root,
+# а ubuntu (UID 1000) внутри контейнера не может записать журналы SITL.
+mkdir -p "$root/log"
+if [[ ! -w "$root/log" || ! -x "$root/log" ]]; then
+  note "нет доступа для записи в $root/log. Исправьте владельца каталога log/ перед запуском (см. README.md)."
+  exit 1
+fi
+
 if [[ -e /dev/dxg ]]; then
   # WSL: видеокарта через D3D12; переменные OpenGL задаёт docker/wsl.yaml.
   files+=(-f "$root/docker/wsl.yaml")
